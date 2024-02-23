@@ -1,23 +1,31 @@
 mod systems;
 
+use bevy_prng::WyRand;
+use bevy_rand::prelude::EntropyPlugin;
 use crate::initialization::register_types::register_types;
-use crate::systems::set_follower_velocity::set_follower_velocity;
+pub use crate::systems::movement::{log_paddle_collide, set_follower_velocity};
+use crate::systems::movement::destroy_brick_on_collide;
 use bevy::{
     math::bounding::{Aabb2d, BoundingCircle, BoundingVolume, IntersectsVolume},
     prelude::*
     ,
 };
+use bevy_xpbd_2d::PhysicsSchedule;
 use crate::initialization::inspector;
 use inspector::add_inspector;
+
+use bevy_xpbd_2d::prelude::*;
+use crate::physics::layers::GameLayer;
 
 mod stepping;
 mod setup;
 mod extensions;
 mod initialization;
+mod physics;
 
 // These constants are defined in `Transform` units.
 // Using the default 2D camera they correspond 1:1 with screen pixels.
-const PADDLE_SIZE: Vec3 = Vec3::new(120.0, 20.0, 0.0);
+const PADDLE_SIZE: Vec3 = Vec3::new(120.0, 20.0, 1.0);
 const GAP_BETWEEN_PADDLE_AND_FLOOR: f32 = 60.0;
 const PADDLE_SPEED: f32 = 500.0;
 // How close can the paddle get to the wall
@@ -60,12 +68,18 @@ fn main() {
     let mut binding = App::new();
     let app: &mut App = binding
         .add_plugins(DefaultPlugins)
+
+        .add_plugins(PhysicsPlugins::default())
         .add_plugins(
             stepping::SteppingPlugin::default()
                 .add_schedule(Update)
                 .add_schedule(FixedUpdate)
                 .at(Val::Percent(35.0), Val::Percent(50.0)),
         )
+        .add_plugins(EntropyPlugin::<WyRand>::default())
+        .add_plugins(PhysicsDebugPlugin::default())
+        .insert_resource(Gravity(Vec2::default()))
+        .insert_resource(SubstepCount(6))
         .insert_resource(Scoreboard { score: 0 })
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .add_event::<CollisionEvent>()
@@ -76,14 +90,16 @@ fn main() {
             FixedUpdate,
             (
                 set_follower_velocity,
-                apply_velocity,
+                // apply_velocity,
                 move_player,
-                check_for_collisions,
+                // check_for_collisions,
                 play_collision_sound,
+                log_paddle_collide,
             )
                 // `chain`ing systems together runs them in order
                 .chain(),
         )
+        .add_systems(PostProcessCollisions, (destroy_brick_on_collide))
         .add_systems(Update, (update_scoreboard, bevy::window::close_on_esc));
 
     let app: &mut App = add_inspector(app);
@@ -95,7 +111,7 @@ fn main() {
 #[derive(Component)]
 struct Paddle;
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 struct Ball;
 
 #[derive(Component)]
@@ -116,15 +132,8 @@ impl MoveSpeed {
 #[derive(Component)]
 struct Enemy;
 
-#[derive(Component, Deref, DerefMut, Reflect)]
-#[reflect(Component)]
-struct Velocity(Vec2);
-
-#[derive(Component)]
-struct Collider;
-
 #[derive(Event, Default)]
-struct CollisionEvent;
+struct  CollisionEvent;
 
 #[derive(Component)]
 struct Brick;
@@ -139,6 +148,10 @@ struct WallBundle {
     // Allowing you to compose their functionality
     sprite_bundle: SpriteBundle,
     collider: Collider,
+    rigid_body: RigidBody,
+    friction: Friction,
+    restitution: Restitution,
+    mask: CollisionLayers,
 }
 
 /// Which side of the arena is this wall located on?
@@ -199,7 +212,11 @@ impl WallBundle {
                 },
                 ..default()
             },
-            collider: Collider,
+            collider: Collider::rectangle(1.0 , 1.0),
+            rigid_body: RigidBody::Static,
+            friction: Friction::ZERO,
+            restitution: Restitution::new(1.0),
+            mask: CollisionLayers::new(GameLayer::Ground, [GameLayer::Ball, GameLayer::Player]),
         }
     }
 }
@@ -252,76 +269,17 @@ fn move_player(
     let lower_bound = BOTTOM_WALL - WALL_THICKNESS / 2.0 - PADDLE_SIZE.y / 2.0 - PADDLE_PADDING;
     paddle_transform.translation.x = new_player_position.x.clamp(left_bound, right_bound);
     paddle_transform.translation.y = new_player_position.y.clamp(lower_bound, upper_bound);
+
+
 }
 
 
-fn apply_velocity(mut query: Query<(&mut Transform, &Velocity)>, time: Res<Time>) {
-
-    for (mut transform, velocity) in &mut query {
-        transform.translation.x += velocity.x * time.delta_seconds();
-        transform.translation.y += velocity.y * time.delta_seconds();
-    }
-}
 
 fn update_scoreboard(scoreboard: Res<Scoreboard>, mut query: Query<&mut Text, With<ScoreboardUi>>) {
     let mut text = query.single_mut();
     text.sections[1].value = scoreboard.score.to_string();
 }
 
-fn check_for_collisions(
-    mut commands: Commands,
-    mut scoreboard: ResMut<Scoreboard>,
-    mut ball_query: Query<(&mut Velocity, &Transform), With<Ball>>,
-    collider_query: Query<(Entity, &Transform, Option<&Brick>), With<Collider>>,
-    mut collision_events: EventWriter<CollisionEvent>,
-) {
-    let (mut ball_velocity, ball_transform) = ball_query.single_mut();
-
-    // check collision with walls
-    for (collider_entity, transform, maybe_brick) in &collider_query {
-        let collision = collide_with_side(
-            BoundingCircle::new(ball_transform.translation.truncate(), BALL_DIAMETER / 2.),
-            Aabb2d::new(
-                transform.translation.truncate(),
-                transform.scale.truncate() / 2.,
-            ),
-        );
-
-        if let Some(collision) = collision {
-            // Sends a collision event so that other systems can react to the collision
-            collision_events.send_default();
-
-            // Bricks should be despawned and increment the scoreboard on collision
-            if maybe_brick.is_some() {
-                scoreboard.score += 1;
-                commands.entity(collider_entity).despawn();
-            }
-
-            // reflect the ball when it collides
-            let mut reflect_x = false;
-            let mut reflect_y = false;
-
-            // only reflect if the ball's velocity is going in the opposite direction of the
-            // collision
-            match collision {
-                Collision::Left => reflect_x = ball_velocity.x > 0.0,
-                Collision::Right => reflect_x = ball_velocity.x < 0.0,
-                Collision::Top => reflect_y = ball_velocity.y < 0.0,
-                Collision::Bottom => reflect_y = ball_velocity.y > 0.0,
-            }
-
-            // reflect velocity on the x-axis if we hit something on the x-axis
-            if reflect_x {
-                ball_velocity.x = -ball_velocity.x;
-            }
-
-            // reflect velocity on the y-axis if we hit something on the y-axis
-            if reflect_y {
-                ball_velocity.y = -ball_velocity.y;
-            }
-        }
-    }
-}
 
 fn play_collision_sound(
     mut commands: Commands,
