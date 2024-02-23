@@ -1,9 +1,16 @@
-use bevy::prelude::{Camera2dBundle, Circle, Color, ColorMaterial, Commands, default, Mesh, PositionType, Res, ResMut, Sprite, SpriteBundle, Style, TextBundle, TextSection, TextStyle, Transform};
+use bevy_rand::resource::GlobalEntropy;
+use bevy::prelude::{Bundle, Camera2dBundle, Circle, Color, ColorMaterial, Commands, default, Mesh, PositionType, Res, ResMut, Sprite, SpriteBundle, Style, TextBundle, TextSection, TextStyle, Transform};
 use bevy::asset::{Assets, AssetServer};
 use bevy::core::Name;
 use bevy::math::{Vec2, Vec3};
 use bevy::sprite::MaterialMesh2dBundle;
-use crate::{Ball, BALL_COLOR, BALL_DIAMETER, BALL_SPEED, BALL_STARTING_POSITION, BOTTOM_WALL, Brick, BRICK_COLOR, BRICK_SIZE, Collider, CollisionSound, Enemy, FollowPlayer, GAP_BETWEEN_BRICKS, GAP_BETWEEN_BRICKS_AND_CEILING, GAP_BETWEEN_BRICKS_AND_SIDES, GAP_BETWEEN_PADDLE_AND_BRICKS, GAP_BETWEEN_PADDLE_AND_FLOOR, INITIAL_BALL_DIRECTION, LEFT_WALL, MoveSpeed, Paddle, PADDLE_COLOR, PADDLE_SIZE, RIGHT_WALL, SCORE_COLOR, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, ScoreboardUi, TEXT_COLOR, TOP_WALL, Velocity, WallBundle, WallLocation};
+use bevy_xpbd_2d::math::Vector2;
+use crate::{Ball, BALL_COLOR, BALL_DIAMETER, BALL_SPEED, BALL_STARTING_POSITION, BOTTOM_WALL, Brick, BRICK_COLOR, BRICK_SIZE, Collider, CollisionSound, Enemy, FollowPlayer, GAP_BETWEEN_BRICKS, GAP_BETWEEN_BRICKS_AND_CEILING, GAP_BETWEEN_BRICKS_AND_SIDES, GAP_BETWEEN_PADDLE_AND_BRICKS, GAP_BETWEEN_PADDLE_AND_FLOOR, INITIAL_BALL_DIRECTION, LEFT_WALL, MoveSpeed, Paddle, PADDLE_COLOR, PADDLE_SIZE, RIGHT_WALL, SCORE_COLOR, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, ScoreboardUi, TEXT_COLOR, TOP_WALL, WallBundle, WallLocation};
+use bevy_prng::WyRand;
+use bevy_rand::prelude::EntropyPlugin;
+use rand_core::RngCore;
+use bevy_xpbd_2d::prelude::*;
+use crate::physics::layers::GameLayer;
 
 const ENEMY_COLOR: Color = Color::rgb(1.0, 0.1, 0.1);
 
@@ -13,6 +20,7 @@ pub fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     asset_server: Res<AssetServer>,
+    mut rng: ResMut<GlobalEntropy<WyRand>>
 ) {
     // Camera
     commands.spawn(Camera2dBundle::default());
@@ -24,7 +32,9 @@ pub fn setup(
     // Paddle
     let paddle_y = BOTTOM_WALL + GAP_BETWEEN_PADDLE_AND_FLOOR;
 
+
     commands.spawn((
+        RigidBody::Kinematic,
         SpriteBundle {
             transform: Transform {
                 translation: Vec3::new(0.0, paddle_y, 0.0),
@@ -38,21 +48,43 @@ pub fn setup(
             ..default()
         },
         Paddle,
-        Collider,
+        Mass(10.0),
+        Collider::rectangle(1.0, 1.0),
+        Friction::ZERO,
+        Restitution::new(1.0),
+        LinearVelocity(Vector2::ZERO),
+        Name::new("Player"),
+        CollisionLayers::new(GameLayer::Player, [GameLayer::Ball, GameLayer::Ground]),
+
     ));
 
-    // Ball
-    commands.spawn((
-        MaterialMesh2dBundle {
-            mesh: meshes.add(Circle::default()).into(),
-            material: materials.add(BALL_COLOR),
-            transform: Transform::from_translation(BALL_STARTING_POSITION)
-                .with_scale(Vec2::splat(BALL_DIAMETER).extend(1.)),
-            ..default()
-        },
-        Ball,
-        Velocity(INITIAL_BALL_DIRECTION.normalize() * BALL_SPEED),
-    ));
+    let mut bundles: Vec<(RigidBody, MaterialMesh2dBundle<ColorMaterial>, Collider, Friction, Restitution, Ball, CollisionLayers, LinearVelocity)> = vec![];
+    let count = 1;
+    for index in 0..count {
+        let offset : f32 = (index as f32) - (count as f32 / 2.0);
+        let ball: (RigidBody, MaterialMesh2dBundle<ColorMaterial>, Collider, Friction, Restitution, Ball, CollisionLayers, LinearVelocity) = (
+            RigidBody::Dynamic,
+            MaterialMesh2dBundle {
+                mesh: meshes.add(Circle::default()).into(),
+                material: materials.add(BALL_COLOR),
+                transform: Transform::from_translation(BALL_STARTING_POSITION)
+                    .with_scale(Vec2::splat(BALL_DIAMETER).extend(1.)),
+                ..default()
+            },
+            Collider::circle(0.5),
+            Friction::ZERO,
+            Restitution::new(1.0),
+            Ball,
+            CollisionLayers::new(GameLayer::Ball, [GameLayer::Ground, GameLayer::Player]),
+            LinearVelocity(Vector2::new(rng.next_u32() as f32, rng.next_u32() as f32).normalize() * BALL_SPEED),
+        );
+
+        bundles.push(ball);
+    }
+
+
+    let ball_command = commands.spawn_batch(bundles);
+
 
     // Scoreboard
     commands.spawn((
@@ -135,7 +167,10 @@ pub fn setup(
                     ..default()
                 },
                 Brick,
-                Collider,
+                Collider::rectangle(1.0, 1.0),
+                Friction::ZERO,
+                Restitution::new(1.0),
+                RigidBody::Static
             ));
         }
     }
@@ -161,6 +196,9 @@ pub fn spawn_enemies(
     ));
 
     spawned.insert(MoveSpeed::new(100.0));
-    spawned.insert(Velocity(Vec2::new(0.0,0.0)));
+    spawned.insert(LinearVelocity(Vec2::new(0.0, 0.0)));
+    spawned.insert(Collider::circle(0.5));
+    spawned.insert(RigidBody::Dynamic);
+
     spawned.insert(Name::new("enemy"));
 }
