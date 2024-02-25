@@ -3,6 +3,8 @@ use bevy_xpbd_2d::prelude::PhysicsLayer;
 #[derive(PhysicsLayer)]
 pub enum GameLayer {
     Player, // Layer 0
-    Ball,  // Layer 1
-    Ground, // Layer 2
+    PlayerBullet,
+    Enemy, // Layer 1
+    Ball,  // Layer 2
+    Ground, // Layer 3
 }

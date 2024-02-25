@@ -3,39 +3,42 @@ mod systems;
 use bevy_prng::WyRand;
 use bevy_rand::prelude::EntropyPlugin;
 use crate::initialization::register_types::register_types;
-pub use crate::systems::movement::{log_paddle_collide, set_follower_velocity};
-use crate::systems::movement::destroy_brick_on_collide;
+use crate::systems::movement::{log_paddle_collide, set_follower_velocity};
+use crate::systems::{guns, stats};
+use crate::systems::movement::{destroy_brick_on_collide, player_takes_damage_from_enemy};
 use bevy::{
-    math::bounding::{Aabb2d, BoundingCircle, BoundingVolume, IntersectsVolume},
     prelude::*
     ,
 };
-use bevy_xpbd_2d::PhysicsSchedule;
+use bevy::sprite::MaterialMesh2dBundle;
+
 use crate::initialization::inspector;
 use inspector::add_inspector;
 
 use bevy_xpbd_2d::prelude::*;
 use crate::physics::layers::GameLayer;
+use crate::systems::guns::enemy_takes_damage_from_bullets;
+use crate::systems::spawning::enemy_spawn_cycle;
 
 mod stepping;
 mod setup;
 mod extensions;
 mod initialization;
 mod physics;
+mod bundles;
 
 // These constants are defined in `Transform` units.
 // Using the default 2D camera they correspond 1:1 with screen pixels.
-const PADDLE_SIZE: Vec3 = Vec3::new(120.0, 20.0, 1.0);
+const PADDLE_SIZE: Vec3 = Vec3::new(50.0, 50.0, 1.0);
 const GAP_BETWEEN_PADDLE_AND_FLOOR: f32 = 60.0;
-const PADDLE_SPEED: f32 = 500.0;
+const PADDLE_SPEED: f32 = 100_000.0;
 // How close can the paddle get to the wall
 const PADDLE_PADDING: f32 = 10.0;
 
 // We set the z-value of the ball to 1 so it renders on top in the case of overlapping sprites.
-const BALL_STARTING_POSITION: Vec3 = Vec3::new(0.0, -50.0, 1.0);
+const BALL_STARTING_POSITION: Vec3 = Vec3::new(0.0, -50.0, 0.0);
 const BALL_DIAMETER: f32 = 30.;
 const BALL_SPEED: f32 = 400.0;
-const INITIAL_BALL_DIRECTION: Vec2 = Vec2::new(0.5, -0.5);
 
 const WALL_THICKNESS: f32 = 10.0;
 // x coordinates
@@ -54,7 +57,7 @@ const GAP_BETWEEN_BRICKS_AND_CEILING: f32 = 20.0;
 const GAP_BETWEEN_BRICKS_AND_SIDES: f32 = 20.0;
 
 const SCOREBOARD_FONT_SIZE: f32 = 40.0;
-const SCOREBOARD_TEXT_PADDING: Val = Val::Px(5.0);
+const SCOREBOARD_TEXT_PADDING: Val = Val::Px(20.0);
 
 const BACKGROUND_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 const PADDLE_COLOR: Color = Color::rgb(0.3, 0.3, 0.7);
@@ -65,6 +68,12 @@ const TEXT_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
 const SCORE_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 
 fn main() {
+    //TODO:
+    // display enemy health (maybe)
+    // projectiles can be added to player over time
+    // camera moves with player
+    // add background
+    // get rid of walls
     let mut binding = App::new();
     let app: &mut App = binding
         .add_plugins(DefaultPlugins)
@@ -74,13 +83,14 @@ fn main() {
             stepping::SteppingPlugin::default()
                 .add_schedule(Update)
                 .add_schedule(FixedUpdate)
+
                 .at(Val::Percent(35.0), Val::Percent(50.0)),
         )
         .add_plugins(EntropyPlugin::<WyRand>::default())
+
         .add_plugins(PhysicsDebugPlugin::default())
         .insert_resource(Gravity(Vec2::default()))
         .insert_resource(SubstepCount(6))
-        .insert_resource(Scoreboard { score: 0 })
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .add_event::<CollisionEvent>()
         .add_systems(Startup, setup::setup)
@@ -89,18 +99,22 @@ fn main() {
         .add_systems(
             FixedUpdate,
             (
-                set_follower_velocity,
+                enemy_spawn_cycle,
                 // apply_velocity,
-                move_player,
+                guns::player_shoot,
                 // check_for_collisions,
                 play_collision_sound,
                 log_paddle_collide,
+                player_takes_damage_from_enemy,
+                enemy_takes_damage_from_bullets,
+                stats::die_at_zero_health,
+                guns::destroy_bullets,
             )
                 // `chain`ing systems together runs them in order
                 .chain(),
         )
-        .add_systems(PostProcessCollisions, (destroy_brick_on_collide))
-        .add_systems(Update, (update_scoreboard, bevy::window::close_on_esc));
+        .add_systems(PostProcessCollisions, destroy_brick_on_collide)
+        .add_systems(Update, (move_player, set_follower_velocity, update_player_health_ui, bevy::window::close_on_esc));
 
     let app: &mut App = add_inspector(app);
     let app: &mut App = register_types(app);
@@ -109,7 +123,38 @@ fn main() {
 }
 
 #[derive(Component)]
-struct Paddle;
+struct Player;
+
+#[derive(Component)]
+struct Gun {
+    last_shot_time: u128,
+}
+
+#[derive(Component)]
+struct Bullet {
+    damage: f32,
+    hits: u8,
+    pierce: u8,
+    lifetime: u128,
+    timestamp: u128,
+}
+
+impl Default for Bullet {
+    fn default() -> Self {
+        Bullet {
+            damage: 1.0,
+            hits: 0,
+            pierce: 0,
+            lifetime: 5_000,
+            timestamp: 0,
+        }
+    }
+}
+
+#[derive(Component)]
+struct Health {
+    value: f32,
+}
 
 #[derive(Component, Clone)]
 struct Ball;
@@ -132,14 +177,34 @@ impl MoveSpeed {
 #[derive(Component)]
 struct Enemy;
 
+#[derive(Component)]
+struct DamageOnTouch {
+    value: f32,
+}
+
 #[derive(Event, Default)]
-struct  CollisionEvent;
+struct CollisionEvent;
 
 #[derive(Component)]
 struct Brick;
 
 #[derive(Resource)]
 struct CollisionSound(Handle<AudioSource>);
+
+// This bundle is a collection of the components that define a "wall" in our game
+#[derive(Bundle)]
+struct BulletBundle {
+    material: MaterialMesh2dBundle<ColorMaterial>,
+    collider: Collider,
+    rigid_body: RigidBody,
+    friction: Friction,
+    restitution: Restitution,
+    mask: CollisionLayers,
+    bullet: Bullet,
+    mass: Mass,
+    linear_velocity: LinearVelocity,
+}
+
 
 // This bundle is a collection of the components that define a "wall" in our game
 #[derive(Bundle)]
@@ -212,31 +277,26 @@ impl WallBundle {
                 },
                 ..default()
             },
-            collider: Collider::rectangle(1.0 , 1.0),
+            collider: Collider::rectangle(1.0, 1.0),
             rigid_body: RigidBody::Static,
             friction: Friction::ZERO,
             restitution: Restitution::new(1.0),
-            mask: CollisionLayers::new(GameLayer::Ground, [GameLayer::Ball, GameLayer::Player]),
+            mask: CollisionLayers::new(GameLayer::Ground, [GameLayer::Ball, GameLayer::Player, GameLayer::Enemy]),
         }
     }
 }
 
-// This resource tracks the game's score
-#[derive(Resource)]
-struct Scoreboard {
-    score: usize,
-}
 
 #[derive(Component)]
-struct ScoreboardUi;
+struct HealthUi;
 
 fn move_player(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<&mut Transform, With<Paddle>>,
+    mut query: Query<&mut LinearVelocity, With<Player>>,
     time: Res<Time>,
 ) {
-    let mut paddle_transform = query.single_mut();
-    let mut direction: Vec3 = Default::default();
+    let mut paddle_velocity = query.single_mut();
+    let mut direction: Vec2 = Default::default();
 
     if keyboard_input.pressed(KeyCode::KeyA) {
         direction.x -= 1.0;
@@ -257,8 +317,8 @@ fn move_player(
 
 
     // Calculate the new horizontal paddle position based on player input
-    let new_player_position =
-        paddle_transform.translation + direction * PADDLE_SPEED * time.delta_seconds();
+    let new_player_velocity: Vec2 =
+        direction * PADDLE_SPEED * time.delta_seconds();
 
     // Update the paddle position,
     // making sure it doesn't cause the paddle to leave the arena
@@ -267,17 +327,15 @@ fn move_player(
 
     let upper_bound = TOP_WALL + WALL_THICKNESS / 2.0 + PADDLE_SIZE.y / 2.0 + PADDLE_PADDING;
     let lower_bound = BOTTOM_WALL - WALL_THICKNESS / 2.0 - PADDLE_SIZE.y / 2.0 - PADDLE_PADDING;
-    paddle_transform.translation.x = new_player_position.x.clamp(left_bound, right_bound);
-    paddle_transform.translation.y = new_player_position.y.clamp(lower_bound, upper_bound);
-
-
+    paddle_velocity.x = new_player_velocity.x.clamp(left_bound, right_bound);
+    paddle_velocity.y = new_player_velocity.y.clamp(lower_bound, upper_bound);
 }
 
 
-
-fn update_scoreboard(scoreboard: Res<Scoreboard>, mut query: Query<&mut Text, With<ScoreboardUi>>) {
+fn update_player_health_ui(player_query: Query<&Health, With<Player>>, mut query: Query<&mut Text, With<HealthUi>>) {
     let mut text = query.single_mut();
-    text.sections[1].value = scoreboard.score.to_string();
+    let player_health = player_query.single();
+    text.sections[1].value = player_health.value.to_string();
 }
 
 
@@ -296,36 +354,4 @@ fn play_collision_sound(
             settings: PlaybackSettings::DESPAWN,
         });
     }
-}
-
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-enum Collision {
-    Left,
-    Right,
-    Top,
-    Bottom,
-}
-
-// Returns `Some` if `ball` collides with `wall`. The returned `Collision` is the
-// side of `wall` that `ball` hit.
-fn collide_with_side(ball: BoundingCircle, wall: Aabb2d) -> Option<Collision> {
-    if !ball.intersects(&wall) {
-        return None;
-    }
-
-    let closest = wall.closest_point(ball.center());
-    let offset = ball.center() - closest;
-    let side = if offset.x.abs() > offset.y.abs() {
-        if offset.x < 0. {
-            Collision::Left
-        } else {
-            Collision::Right
-        }
-    } else if offset.y > 0. {
-        Collision::Top
-    } else {
-        Collision::Bottom
-    };
-
-    Some(side)
 }
