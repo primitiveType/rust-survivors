@@ -38,6 +38,7 @@ const PADDLE_PADDING: f32 = 10.0;
 // We set the z-value of the ball to 1 so it renders on top in the case of overlapping sprites.
 const BALL_STARTING_POSITION: Vec3 = Vec3::new(0.0, -50.0, 0.0);
 const BALL_DIAMETER: f32 = 30.;
+const XP_DIAMETER: f32 = 5.;
 const BALL_SPEED: f32 = 400.0;
 
 const WALL_THICKNESS: f32 = 10.0;
@@ -69,11 +70,14 @@ const SCORE_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 
 fn main() {
     //TODO:
+    // gain xp, level up
+    // choose weapons/bonuses when levelling? requires ui?
     // display enemy health (maybe)
     // projectiles can be added to player over time
     // camera moves with player
     // add background
     // get rid of walls
+
     let mut binding = App::new();
     let app: &mut App = binding
         .add_plugins(DefaultPlugins)
@@ -105,8 +109,6 @@ fn main() {
                 // check_for_collisions,
                 play_collision_sound,
                 log_paddle_collide,
-                player_takes_damage_from_enemy,
-                enemy_takes_damage_from_bullets,
                 stats::die_at_zero_health,
                 guns::destroy_bullets,
             )
@@ -114,7 +116,16 @@ fn main() {
                 .chain(),
         )
         .add_systems(PostProcessCollisions, destroy_brick_on_collide)
-        .add_systems(Update, (move_player, set_follower_velocity, update_player_health_ui, bevy::window::close_on_esc));
+        .add_systems(
+            Update,
+            (move_player,
+             set_follower_velocity,
+             update_player_health_ui,
+             player_takes_damage_from_enemy,
+             enemy_takes_damage_from_bullets,
+             stats::pickup_xp,
+             bevy::window::close_on_esc),
+        );
 
     let app: &mut App = add_inspector(app);
     let app: &mut App = register_types(app);
@@ -122,8 +133,10 @@ fn main() {
     app.run();
 }
 
-#[derive(Component)]
-struct Player;
+#[derive(Component, Default)]
+struct Player {
+    xp: u16,
+}
 
 #[derive(Component)]
 struct Gun {
@@ -175,11 +188,18 @@ impl MoveSpeed {
 }
 
 #[derive(Component)]
-struct Enemy;
+struct Enemy {
+    xp: u16,
+}
 
 #[derive(Component)]
 struct DamageOnTouch {
     value: f32,
+}
+
+#[derive(Component)]
+struct GainXPOnTouch {
+    value: u16,
 }
 
 #[derive(Event, Default)]
@@ -332,10 +352,11 @@ fn move_player(
 }
 
 
-fn update_player_health_ui(player_query: Query<&Health, With<Player>>, mut query: Query<&mut Text, With<HealthUi>>) {
+fn update_player_health_ui(player_query: Query<(&Health, &Player)>, mut query: Query<&mut Text, With<HealthUi>>) {
     let mut text = query.single_mut();
-    let player_health = player_query.single();
+    let (player_health, player) = player_query.single();
     text.sections[1].value = player_health.value.to_string();
+    text.sections[3].value = player.xp.to_string();
 }
 
 

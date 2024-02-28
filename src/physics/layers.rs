@@ -7,4 +7,5 @@ pub enum GameLayer {
     Enemy, // Layer 1
     Ball,  // Layer 2
     Ground, // Layer 3
+    XP,
 }

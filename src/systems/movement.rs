@@ -59,3 +59,17 @@ pub fn log_paddle_collide(_query: Query<(Entity, &CollidingEntities)>) {
     //     }
     // }
 }
+
+pub fn player_picks_up_xp(mut query: Query<(&mut Health, &CollidingEntities), With<Player>>,
+                                      damagers: Query<&DamageOnTouch>,
+                                      mut _commands: Commands,
+) {
+    for (mut entity, colliding_entities) in query.iter_mut() {
+        for colliding_entity in colliding_entities.iter() {
+            let damager = damagers.get(*colliding_entity);
+            if let Ok(damage) = damager {
+                entity.value -= damage.value;
+            }
+        }
+    }
+}
