@@ -8,9 +8,11 @@ use bevy::core::Name;
 use bevy_prng::WyRand;
 use bevy_rand::prelude::GlobalEntropy;
 use rand::Rng;
-use crate::{BALL_DIAMETER, BALL_STARTING_POSITION, DamageOnTouch, Enemy, FollowPlayer, Health, MoveSpeed};
+use crate::{BALL_DIAMETER, BALL_STARTING_POSITION, DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health, MoveSpeed, XP_DIAMETER};
 use crate::physics::layers::GameLayer;
+
 const ENEMY_COLOR: Color = Color::rgb(1.0, 0.1, 0.1);
+const XP_COLOR: Color = Color::rgb(0.0, 1.0, 0.1);
 
 pub fn spawn_enemy(
     mut commands: Commands,
@@ -25,7 +27,7 @@ pub fn spawn_enemy(
                 .with_scale(Vec2::splat(BALL_DIAMETER).extend(1.0)),
             ..default()
         },
-        Enemy, FollowPlayer
+        Enemy{xp : 1}, FollowPlayer
     ));
 
 
@@ -41,4 +43,34 @@ pub fn spawn_enemy(
 
     // spawned.insert(Sensor);
     spawned.insert(Name::new("enemy"));
+}
+
+pub fn spawn_xp(
+    mut commands: &mut Commands,
+    mut meshes: &mut ResMut<Assets<Mesh>>,
+    mut materials: &mut ResMut<Assets<ColorMaterial>>,
+    amount : u16,
+    position : Vec2,
+) {
+    let mut spawned = commands.spawn((
+        MaterialMesh2dBundle {
+            mesh: meshes.add(Circle::default()).into(),
+            material: materials.add(XP_COLOR),
+            transform: Transform::from_translation(position.extend(0.0))
+                .with_scale(Vec2::splat(XP_DIAMETER).extend(1.0)),
+            ..default()
+        },
+    ));
+
+
+    let mut rng = rand::thread_rng(); // Get a random number generator
+    let speed = rng.gen_range(100.0..300.0);
+    spawned.insert(LinearVelocity(Vec2::new(0.0, 0.0)));
+    spawned.insert(Collider::circle(0.5));
+    spawned.insert(RigidBody::Dynamic);
+    spawned.insert(CollisionLayers::new(GameLayer::XP, [GameLayer::Player]));
+    spawned.insert(GainXPOnTouch { value: 1u16 });
+
+    spawned.insert(Sensor);
+    spawned.insert(Name::new("xp"));
 }

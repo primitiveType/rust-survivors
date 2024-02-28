@@ -52,6 +52,19 @@ pub fn setup(
                 color: SCORE_COLOR,
                 ..default()
             }),
+            TextSection::new(
+                " XP: ",
+                TextStyle {
+                    font_size: SCOREBOARD_FONT_SIZE,
+                    color: TEXT_COLOR,
+                    ..default()
+                },
+            ),
+            TextSection::from_style(TextStyle {
+                font_size: SCOREBOARD_FONT_SIZE,
+                color: SCORE_COLOR,
+                ..default()
+            }),
         ])
             .with_style(Style {
                 position_type: PositionType::Absolute,
@@ -176,7 +189,7 @@ fn spawn_player(commands: &mut Commands) {
             },
             ..default()
         },
-        Player,
+        Player {..default()},
         Gun { last_shot_time: 0 },
         Health { value: 100.0 },
         Mass(10.0),
@@ -185,7 +198,7 @@ fn spawn_player(commands: &mut Commands) {
         Restitution::new(1.0),
         LinearVelocity(Vector2::ZERO),
         Name::new("Player"),
-        CollisionLayers::new(GameLayer::Player, [GameLayer::Ball, GameLayer::Ground, GameLayer::Enemy]),
+        CollisionLayers::new(GameLayer::Player, [GameLayer::Ball, GameLayer::Ground, GameLayer::Enemy, GameLayer::XP]),
         LockedAxes::ROTATION_LOCKED,
     ));
 }
