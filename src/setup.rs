@@ -9,7 +9,7 @@ use bevy_xpbd_2d::math::Vector2;
 use bevy_xpbd_2d::prelude::*;
 use rand_core::RngCore;
 
-use crate::{Ball, BALL_COLOR, BALL_DIAMETER, BALL_SPEED, BALL_STARTING_POSITION, BOTTOM_WALL, Brick, BRICK_COLOR, BRICK_SIZE, bundles, Collider, CollisionSound, GAP_BETWEEN_BRICKS, GAP_BETWEEN_BRICKS_AND_CEILING, GAP_BETWEEN_BRICKS_AND_SIDES, GAP_BETWEEN_PADDLE_AND_BRICKS, GAP_BETWEEN_PADDLE_AND_FLOOR, Gun, Health, HealthUi, LEFT_WALL, PADDLE_COLOR, PADDLE_SIZE, Player, RIGHT_WALL, SCORE_COLOR, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, TEXT_COLOR, TOP_WALL, WallBundle, WallLocation};
+use crate::*;
 use crate::physics::layers::GameLayer;
 
 
@@ -189,7 +189,7 @@ fn spawn_player(commands: &mut Commands) {
             },
             ..default()
         },
-        Player {..default()},
+        Player { ..default() },
         Gun { last_shot_time: 0 },
         Health { value: 100.0 },
         Mass(10.0),

@@ -1,24 +1,24 @@
-mod systems;
+use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
 
+use bevy::prelude::*;
+use bevy::sprite::MaterialMesh2dBundle;
 use bevy_prng::WyRand;
 use bevy_rand::prelude::EntropyPlugin;
-use crate::initialization::register_types::register_types;
-use crate::systems::movement::{log_paddle_collide, set_follower_velocity};
-use crate::systems::{guns, stats};
-use crate::systems::movement::{destroy_brick_on_collide, player_takes_damage_from_enemy};
-use bevy::{
-    prelude::*
-    ,
-};
-use bevy::sprite::MaterialMesh2dBundle;
+use bevy_xpbd_2d::prelude::*;
 
-use crate::initialization::inspector;
 use inspector::add_inspector;
 
-use bevy_xpbd_2d::prelude::*;
+use crate::initialization::inspector;
+use crate::initialization::register_types::register_types;
 use crate::physics::layers::GameLayer;
+use crate::systems::{guns, stats, ui};
 use crate::systems::guns::enemy_takes_damage_from_bullets;
+use crate::systems::movement::{log_paddle_collide, set_follower_velocity};
+use crate::systems::movement::{destroy_brick_on_collide, player_takes_damage_from_enemy};
 use crate::systems::spawning::enemy_spawn_cycle;
+
+mod systems;
 
 mod stepping;
 mod setup;
@@ -68,6 +68,15 @@ const WALL_COLOR: Color = Color::rgb(0.8, 0.8, 0.8);
 const TEXT_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
 const SCORE_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
 
+
+#[derive(States, Debug, Hash, PartialEq, Eq, Clone, Default)]
+enum AppState {
+    #[default]
+    InGame,
+    LevelUp,
+}
+
+
 fn main() {
     //TODO:
     // gain xp, level up
@@ -78,10 +87,10 @@ fn main() {
     // add background
     // get rid of walls
 
-    let mut binding = App::new();
-    let app: &mut App = binding
+    let mut app_binding = App::new();
+    let app: &mut App = app_binding
+        .init_state::<AppState>()
         .add_plugins(DefaultPlugins)
-
         .add_plugins(PhysicsPlugins::default())
         .add_plugins(
             stepping::SteppingPlugin::default()
@@ -97,26 +106,25 @@ fn main() {
         .insert_resource(SubstepCount(6))
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .add_event::<CollisionEvent>()
-        .add_systems(Startup, setup::setup)
+        .add_systems(Startup, (setup::setup, ui::setup))
         // Add our gameplay simulation systems to the fixed timestep schedule
         // which runs at 64 Hz by default
         .add_systems(
             FixedUpdate,
             (
                 enemy_spawn_cycle,
-                // apply_velocity,
                 guns::player_shoot,
-                // check_for_collisions,
                 play_collision_sound,
                 log_paddle_collide,
                 stats::die_at_zero_health,
                 guns::destroy_bullets,
-            )
+            ).run_if(in_state(AppState::InGame))
                 // `chain`ing systems together runs them in order
                 .chain(),
         )
         .add_systems(PostProcessCollisions, destroy_brick_on_collide)
         .add_systems(
+            //InGame update loop
             Update,
             (move_player,
              set_follower_velocity,
@@ -124,8 +132,43 @@ fn main() {
              player_takes_damage_from_enemy,
              enemy_takes_damage_from_bullets,
              stats::pickup_xp,
-             bevy::window::close_on_esc),
-        );
+            ).run_if(in_state(AppState::InGame)))
+        .add_systems(Update,
+                     (//Always update loop
+                      bevy::window::close_on_esc,
+                         log_transitions
+                     ),
+        )
+        .add_systems(Update,
+                     (
+                         //level up update loop
+                         ui::button_system,
+                     ).run_if(in_state(AppState::LevelUp)))
+        .add_systems(
+            OnEnter(AppState::LevelUp),
+            (
+                ui::toggle_level_ui_system
+            ),
+        )
+        .add_systems(
+            OnExit(AppState::LevelUp),
+            (
+                ui::toggle_level_ui_system
+            ),
+        )
+        .add_systems(
+            OnEnter(AppState::InGame),
+            (
+                physics::time::unpause
+            ),
+        )
+        .add_systems(
+            OnExit(AppState::InGame),
+            (
+                physics::time::pause
+            ),
+        )
+        ;
 
     let app: &mut App = add_inspector(app);
     let app: &mut App = register_types(app);
@@ -133,9 +176,20 @@ fn main() {
     app.run();
 }
 
+/// print when an `AppState` transition happens
+/// also serves as an example of how to use `StateTransitionEvent`
+fn log_transitions(mut transitions: EventReader<StateTransitionEvent<AppState>>) {
+    for transition in transitions.read() {
+        info!(
+            "transition: {:?} => {:?}",
+            transition.before, transition.after
+        );
+    }
+}
 #[derive(Component, Default)]
 struct Player {
     xp: u16,
+    level: u16,
 }
 
 #[derive(Component)]
