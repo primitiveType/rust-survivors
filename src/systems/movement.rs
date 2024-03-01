@@ -1,7 +1,7 @@
-use bevy::prelude::{Commands, Entity, Query, Transform, With, Without};
+use bevy::prelude::{Commands, Entity, NextState, Query, ResMut, Transform, With, Without};
 use bevy_xpbd_2d::prelude::{CollidingEntities, LinearVelocity};
 
-use crate::{Ball, Brick, DamageOnTouch, FollowPlayer, Health, MoveSpeed, Player};
+use crate::{AppState, Ball, Brick, DamageOnTouch, FollowPlayer, Health, MoveSpeed, Player};
 use crate::extensions::vectors::to_vec2;
 
 
@@ -60,16 +60,3 @@ pub fn log_paddle_collide(_query: Query<(Entity, &CollidingEntities)>) {
     // }
 }
 
-pub fn player_picks_up_xp(mut query: Query<(&mut Health, &CollidingEntities), With<Player>>,
-                                      damagers: Query<&DamageOnTouch>,
-                                      mut _commands: Commands,
-) {
-    for (mut entity, colliding_entities) in query.iter_mut() {
-        for colliding_entity in colliding_entities.iter() {
-            let damager = damagers.get(*colliding_entity);
-            if let Ok(damage) = damager {
-                entity.value -= damage.value;
-            }
-        }
-    }
-}
