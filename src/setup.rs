@@ -5,6 +5,8 @@ use bevy::prelude::{Camera2dBundle, ColorMaterial, Commands, default, Mesh, Posi
 use bevy_xpbd_2d::math::Vector2;
 use bevy_xpbd_2d::prelude::*;
 use crate::*;
+use crate::components::{Gun, WallBundle, WallLocation};
+use crate::constants::{GAP_BETWEEN_PADDLE_AND_FLOOR, PADDLE_COLOR, SCORE_COLOR, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, TEXT_COLOR};
 use crate::physics::layers::GameLayer;
 
 

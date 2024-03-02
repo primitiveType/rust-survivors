@@ -2,16 +2,17 @@ use std::fmt::Debug;
 use std::hash::Hash;
 
 use bevy::prelude::*;
-use bevy::sprite::MaterialMesh2dBundle;
 use bevy_prng::WyRand;
 use bevy_rand::prelude::EntropyPlugin;
 use bevy_xpbd_2d::prelude::*;
+use components::{CollisionEvent, CollisionSound, Health, HealthUi, Player};
+use constants::{BACKGROUND_COLOR, BOTTOM_WALL, LEFT_WALL, PADDLE_PADDING, PADDLE_SIZE, PADDLE_SPEED, RIGHT_WALL, TOP_WALL, WALL_THICKNESS};
 
 use inspector::add_inspector;
+use systems::dev;
 
 use crate::initialization::inspector;
 use crate::initialization::register_types::register_types;
-use crate::physics::layers::GameLayer;
 use crate::systems::{guns, stats, ui};
 use crate::systems::guns::enemy_takes_damage_from_bullets;
 use crate::systems::movement::{log_paddle_collide, set_follower_velocity};
@@ -26,38 +27,8 @@ mod extensions;
 mod initialization;
 mod physics;
 mod bundles;
-
-// These constants are defined in `Transform` units.
-// Using the default 2D camera they correspond 1:1 with screen pixels.
-const PADDLE_SIZE: Vec3 = Vec3::new(50.0, 50.0, 1.0);
-const GAP_BETWEEN_PADDLE_AND_FLOOR: f32 = 60.0;
-const PADDLE_SPEED: f32 = 100_000.0;
-// How close can the paddle get to the wall
-const PADDLE_PADDING: f32 = 10.0;
-
-// We set the z-value of the ball to 1 so it renders on top in the case of overlapping sprites.
-const BALL_STARTING_POSITION: Vec3 = Vec3::new(0.0, -50.0, 0.0);
-const BALL_DIAMETER: f32 = 30.;
-const XP_DIAMETER: f32 = 5.;
-
-const WALL_THICKNESS: f32 = 10.0;
-// x coordinates
-const LEFT_WALL: f32 = -450.;
-const RIGHT_WALL: f32 = 450.;
-// y coordinates
-const BOTTOM_WALL: f32 = -300.;
-const TOP_WALL: f32 = 300.;
-
-
-const SCOREBOARD_FONT_SIZE: f32 = 40.0;
-const SCOREBOARD_TEXT_PADDING: Val = Val::Px(20.0);
-
-const BACKGROUND_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
-const PADDLE_COLOR: Color = Color::rgb(0.3, 0.3, 0.7);
-const BALL_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
-const WALL_COLOR: Color = Color::rgb(0.8, 0.8, 0.8);
-const TEXT_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
-const SCORE_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
+mod constants;
+mod components;
 
 
 #[derive(States, Debug, Hash, PartialEq, Eq, Clone, Default)]
@@ -126,7 +97,7 @@ fn main() {
         .add_systems(Update,
                      (//Always update loop
                       bevy::window::close_on_esc,
-                         log_transitions
+                      dev::log_transitions
                      ),
         )
         .add_systems(Update,
@@ -157,194 +128,6 @@ fn main() {
 
     app.run();
 }
-
-/// print when an `AppState` transition happens
-/// also serves as an example of how to use `StateTransitionEvent`
-fn log_transitions(mut transitions: EventReader<StateTransitionEvent<AppState>>) {
-    for transition in transitions.read() {
-        info!(
-            "transition: {:?} => {:?}",
-            transition.before, transition.after
-        );
-    }
-}
-#[derive(Component, Default)]
-struct Player {
-    xp: u16,
-    level: u16,
-}
-
-#[derive(Component)]
-struct Gun {
-    last_shot_time: u128,
-}
-
-#[derive(Component)]
-struct Bullet {
-    damage: f32,
-    hits: u8,
-    pierce: u8,
-    lifetime: u128,
-    timestamp: u128,
-}
-
-impl Default for Bullet {
-    fn default() -> Self {
-        Bullet {
-            damage: 1.0,
-            hits: 0,
-            pierce: 0,
-            lifetime: 5_000,
-            timestamp: 0,
-        }
-    }
-}
-
-#[derive(Component)]
-struct Health {
-    value: f32,
-}
-
-#[derive(Component, Clone)]
-struct Ball;
-
-#[derive(Component)]
-struct FollowPlayer;
-
-
-#[derive(Component, Reflect)]
-struct MoveSpeed {
-    value: f32,
-}
-
-impl MoveSpeed {
-    pub(crate) fn new(value: f32) -> Self {
-        MoveSpeed { value }
-    }
-}
-
-#[derive(Component)]
-struct Enemy {
-    xp: u16,
-}
-
-#[derive(Component)]
-struct DamageOnTouch {
-    value: f32,
-}
-
-#[derive(Component)]
-struct GainXPOnTouch {
-    value: u16,
-}
-
-#[derive(Event, Default)]
-struct CollisionEvent;
-
-#[derive(Component)]
-struct Brick;
-
-#[derive(Resource)]
-struct CollisionSound(Handle<AudioSource>);
-
-// This bundle is a collection of the components that define a "wall" in our game
-#[derive(Bundle)]
-struct BulletBundle {
-    material: MaterialMesh2dBundle<ColorMaterial>,
-    collider: Collider,
-    rigid_body: RigidBody,
-    friction: Friction,
-    restitution: Restitution,
-    mask: CollisionLayers,
-    bullet: Bullet,
-    mass: Mass,
-    linear_velocity: LinearVelocity,
-}
-
-
-// This bundle is a collection of the components that define a "wall" in our game
-#[derive(Bundle)]
-struct WallBundle {
-    // You can nest bundles inside of other bundles like this
-    // Allowing you to compose their functionality
-    sprite_bundle: SpriteBundle,
-    collider: Collider,
-    rigid_body: RigidBody,
-    friction: Friction,
-    restitution: Restitution,
-    mask: CollisionLayers,
-}
-
-/// Which side of the arena is this wall located on?
-enum WallLocation {
-    Left,
-    Right,
-    Bottom,
-    Top,
-}
-
-impl WallLocation {
-    fn position(&self) -> Vec2 {
-        match self {
-            WallLocation::Left => Vec2::new(LEFT_WALL, 0.),
-            WallLocation::Right => Vec2::new(RIGHT_WALL, 0.),
-            WallLocation::Bottom => Vec2::new(0., BOTTOM_WALL),
-            WallLocation::Top => Vec2::new(0., TOP_WALL),
-        }
-    }
-
-    fn size(&self) -> Vec2 {
-        let arena_height = TOP_WALL - BOTTOM_WALL;
-        let arena_width = RIGHT_WALL - LEFT_WALL;
-        // Make sure we haven't messed up our constants
-        assert!(arena_height > 0.0);
-        assert!(arena_width > 0.0);
-
-        match self {
-            WallLocation::Left | WallLocation::Right => {
-                Vec2::new(WALL_THICKNESS, arena_height + WALL_THICKNESS)
-            }
-            WallLocation::Bottom | WallLocation::Top => {
-                Vec2::new(arena_width + WALL_THICKNESS, WALL_THICKNESS)
-            }
-        }
-    }
-}
-
-impl WallBundle {
-    // This "builder method" allows us to reuse logic across our wall entities,
-    // making our code easier to read and less prone to bugs when we change the logic
-    fn new(location: WallLocation) -> WallBundle {
-        WallBundle {
-            sprite_bundle: SpriteBundle {
-                transform: Transform {
-                    // We need to convert our Vec2 into a Vec3, by giving it a z-coordinate
-                    // This is used to determine the order of our sprites
-                    translation: location.position().extend(0.0),
-                    // The z-scale of 2D objects must always be 1.0,
-                    // or their ordering will be affected in surprising ways.
-                    // See https://github.com/bevyengine/bevy/issues/4149
-                    scale: location.size().extend(1.0),
-                    ..default()
-                },
-                sprite: Sprite {
-                    color: WALL_COLOR,
-                    ..default()
-                },
-                ..default()
-            },
-            collider: Collider::rectangle(1.0, 1.0),
-            rigid_body: RigidBody::Static,
-            friction: Friction::ZERO,
-            restitution: Restitution::new(1.0),
-            mask: CollisionLayers::new(GameLayer::Ground, [GameLayer::Ball, GameLayer::Player, GameLayer::Enemy]),
-        }
-    }
-}
-
-
-#[derive(Component)]
-struct HealthUi;
 
 fn move_player(
     keyboard_input: Res<ButtonInput<KeyCode>>,

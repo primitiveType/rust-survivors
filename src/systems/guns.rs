@@ -4,10 +4,11 @@ use bevy::math::Vec3;
 use bevy::prelude::{Circle, ColorMaterial, Commands, default, Entity, Mesh, Query, Res, ResMut, Time, Transform, Vec2, With};
 use bevy::sprite::MaterialMesh2dBundle;
 use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, Mass, Restitution};
-pub use bevy_xpbd_2d::parry::na::{DimAdd};
+pub use bevy_xpbd_2d::parry::na::DimAdd;
 use bevy_xpbd_2d::prelude::{Collider, CollidingEntities, RigidBody, SpatialQuery, SpatialQueryFilter};
 
-use crate::{BALL_COLOR, Bullet, BulletBundle, Enemy, Gun, Health, Player};
+use crate::components::{Bullet, BulletBundle, Enemy, Gun, Health, Player};
+use crate::constants::BALL_COLOR;
 use crate::extensions::vectors::to_vec2;
 use crate::physics::layers::GameLayer;
 
