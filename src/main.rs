@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 use bevy::prelude::*;
 use bevy::sprite::MaterialMesh2dBundle;
@@ -39,7 +39,6 @@ const PADDLE_PADDING: f32 = 10.0;
 const BALL_STARTING_POSITION: Vec3 = Vec3::new(0.0, -50.0, 0.0);
 const BALL_DIAMETER: f32 = 30.;
 const XP_DIAMETER: f32 = 5.;
-const BALL_SPEED: f32 = 400.0;
 
 const WALL_THICKNESS: f32 = 10.0;
 // x coordinates
@@ -49,13 +48,6 @@ const RIGHT_WALL: f32 = 450.;
 const BOTTOM_WALL: f32 = -300.;
 const TOP_WALL: f32 = 300.;
 
-const BRICK_SIZE: Vec2 = Vec2::new(100., 30.);
-// These values are exact
-const GAP_BETWEEN_PADDLE_AND_BRICKS: f32 = 270.0;
-const GAP_BETWEEN_BRICKS: f32 = 5.0;
-// These values are lower bounds, as the number of bricks is computed
-const GAP_BETWEEN_BRICKS_AND_CEILING: f32 = 20.0;
-const GAP_BETWEEN_BRICKS_AND_SIDES: f32 = 20.0;
 
 const SCOREBOARD_FONT_SIZE: f32 = 40.0;
 const SCOREBOARD_TEXT_PADDING: Val = Val::Px(20.0);
@@ -63,7 +55,6 @@ const SCOREBOARD_TEXT_PADDING: Val = Val::Px(20.0);
 const BACKGROUND_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 const PADDLE_COLOR: Color = Color::rgb(0.3, 0.3, 0.7);
 const BALL_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
-const BRICK_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
 const WALL_COLOR: Color = Color::rgb(0.8, 0.8, 0.8);
 const TEXT_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
 const SCORE_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
@@ -79,7 +70,6 @@ enum AppState {
 
 fn main() {
     //TODO:
-    // gain xp, level up
     // choose weapons/bonuses when levelling? requires ui?
     // display enemy health (maybe)
     // projectiles can be added to player over time
@@ -146,27 +136,19 @@ fn main() {
                      ).run_if(in_state(AppState::LevelUp)))
         .add_systems(
             OnEnter(AppState::LevelUp),
-            (
-                ui::toggle_level_ui_system
-            ),
+            ui::toggle_level_ui_system,
         )
         .add_systems(
             OnExit(AppState::LevelUp),
-            (
-                ui::toggle_level_ui_system
-            ),
+            ui::toggle_level_ui_system,
         )
         .add_systems(
             OnEnter(AppState::InGame),
-            (
-                physics::time::unpause
-            ),
+            physics::time::unpause,
         )
         .add_systems(
             OnExit(AppState::InGame),
-            (
-                physics::time::pause
-            ),
+            physics::time::pause,
         )
         ;
 

@@ -1,7 +1,7 @@
-use bevy::prelude::{Commands, Entity, NextState, Query, ResMut, Transform, With, Without};
+use bevy::prelude::{Commands, Entity, Query, Transform, With, Without};
 use bevy_xpbd_2d::prelude::{CollidingEntities, LinearVelocity};
 
-use crate::{AppState, Ball, Brick, DamageOnTouch, FollowPlayer, Health, MoveSpeed, Player};
+use crate::{Ball, Brick, DamageOnTouch, FollowPlayer, Health, MoveSpeed, Player};
 use crate::extensions::vectors::to_vec2;
 
 

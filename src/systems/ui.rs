@@ -1,4 +1,3 @@
-use bevy::asset::AssetContainer;
 use bevy::prelude::*;
 use crate::AppState;
 
@@ -30,15 +29,15 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .with_children(|parent| {
             // Button one
             let mut binding = parent.spawn(button());
-            let mut button1 = binding.insert(ButtonAction::OptionOne);
+            let button1 = binding.insert(ButtonAction::OptionOne);
             button1.with_children(|button| { button.spawn(button_text(&asset_server, "Option 1")); });
             // Button two
             let mut binding = parent.spawn(button());
-            let mut button1 = binding.insert(ButtonAction::OptionTwo);
+            let button1 = binding.insert(ButtonAction::OptionTwo);
             button1.with_children(|parent| { parent.spawn(button_text(&asset_server, "Option 2")); });
             // Button three
             let mut binding = parent.spawn(button());
-            let mut button1 = binding.insert(ButtonAction::OptionThree);
+            let button1 = binding.insert(ButtonAction::OptionThree);
             button1.with_children(|parent| { parent.spawn(button_text(&asset_server, "Option 3")); });
         });
 }
@@ -100,7 +99,6 @@ fn button_clicked(action : &ButtonAction, next_state: &mut ResMut<NextState<AppS
 }
 
 pub fn toggle_level_ui_system(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut query: Query<&mut Visibility, With<LevelUpUiRoot>>,
 ) {
     for mut visibility in query.iter_mut() {
