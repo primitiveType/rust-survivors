@@ -4,8 +4,9 @@ use bevy::prelude::{ColorMaterial, Commands, Entity, Mesh, NextState, Query, Res
 use bevy_xpbd_2d::prelude::CollidingEntities;
 
 
-use crate::{AppState, Enemy, GainXPOnTouch, Health, Player};
+use crate::AppState;
 use crate::bundles::spawn_xp;
+use crate::components::{Enemy, GainXPOnTouch, Health, Player};
 
 pub fn die_at_zero_health(query: Query<(Entity, &Enemy, &Health, &Transform)>,
                           mut commands: Commands,

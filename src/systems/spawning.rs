@@ -3,7 +3,7 @@ use bevy::prelude::{ColorMaterial, Commands, Mesh, Query, ResMut};
 
 pub use bevy::utils::petgraph::visit::{Walker};
 
-use crate::Enemy;
+use crate::components::Enemy;
 use crate::bundles::spawn_enemy;
 
 pub fn enemy_spawn_cycle(

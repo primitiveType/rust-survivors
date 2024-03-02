@@ -6,7 +6,8 @@ use bevy_xpbd_2d::components::{CollisionLayers, LinearVelocity, RigidBody};
 use bevy_xpbd_2d::prelude::{Collider, Sensor};
 use bevy::core::Name;
 use rand::Rng;
-use crate::{BALL_DIAMETER, BALL_STARTING_POSITION, DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health, MoveSpeed, XP_DIAMETER};
+use crate::components::{DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health, MoveSpeed};
+use crate::constants::{BALL_DIAMETER, BALL_STARTING_POSITION, XP_DIAMETER};
 use crate::physics::layers::GameLayer;
 
 const ENEMY_COLOR: Color = Color::rgb(1.0, 0.1, 0.1);
