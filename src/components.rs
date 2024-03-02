@@ -1,10 +1,11 @@
-use bevy::prelude::{Bundle, ColorMaterial, Component, default, Event, Reflect, Resource, Sprite, SpriteBundle, Transform};
-use bevy::sprite::MaterialMesh2dBundle;
-use bevy_xpbd_2d::prelude::Collider;
-use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, Mass, Restitution, RigidBody};
 use bevy::asset::Handle;
 use bevy::audio::AudioSource;
 use bevy::math::Vec2;
+use bevy::prelude::{Bundle, ColorMaterial, Component, default, Event, Reflect, Resource, Sprite, SpriteBundle, Transform};
+use bevy::sprite::MaterialMesh2dBundle;
+use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, Mass, Restitution, RigidBody};
+use bevy_xpbd_2d::prelude::Collider;
+
 use crate::constants::{BOTTOM_WALL, LEFT_WALL, RIGHT_WALL, TOP_WALL, WALL_COLOR, WALL_THICKNESS};
 use crate::physics::layers::GameLayer;
 
@@ -17,6 +18,7 @@ pub struct Player {
 #[derive(Component)]
 pub struct Gun {
     pub last_shot_time: u128,
+    pub cooldown: u128
 }
 
 #[derive(Component)]

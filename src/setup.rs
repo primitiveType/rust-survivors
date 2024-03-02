@@ -1,15 +1,15 @@
-use crate::constants::{BOTTOM_WALL, PADDLE_SIZE};
 use bevy::asset::{Assets, AssetServer};
 use bevy::core::Name;
 use bevy::math::Vec3;
 use bevy::prelude::{Camera2dBundle, ColorMaterial, Commands, default, Mesh, PositionType, Res, ResMut, Sprite, SpriteBundle, Style, TextBundle, TextSection, TextStyle, Transform};
 use bevy_xpbd_2d::math::Vector2;
 use bevy_xpbd_2d::prelude::*;
+
 use crate::*;
 use crate::components::{Gun, WallBundle, WallLocation};
+use crate::constants::{BOTTOM_WALL, PADDLE_SIZE};
 use crate::constants::{GAP_BETWEEN_PADDLE_AND_FLOOR, PADDLE_COLOR, SCORE_COLOR, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, TEXT_COLOR};
 use crate::physics::layers::GameLayer;
-
 
 // Add the game's entities to our world
 pub fn setup(
@@ -82,7 +82,6 @@ pub fn setup(
 }
 
 
-
 fn spawn_player(commands: &mut Commands) {
     // Paddle
     let paddle_y = BOTTOM_WALL + GAP_BETWEEN_PADDLE_AND_FLOOR;
@@ -102,7 +101,6 @@ fn spawn_player(commands: &mut Commands) {
             ..default()
         },
         Player { ..default() },
-        Gun { last_shot_time: 0 },
         Health { value: 100.0 },
         Mass(10.0),
         Collider::rectangle(1.0, 1.0),
@@ -112,7 +110,12 @@ fn spawn_player(commands: &mut Commands) {
         Name::new("Player"),
         CollisionLayers::new(GameLayer::Player, [GameLayer::Ball, GameLayer::Ground, GameLayer::Enemy, GameLayer::XP]),
         LockedAxes::ROTATION_LOCKED,
-    ));
+    )).with_children(|parent| {
+        parent.spawn((Gun { last_shot_time: 0, cooldown: 1_000 }, SpatialBundle { ..default() }));
+        parent.spawn((Gun { last_shot_time: 0, cooldown: 2_000 }, SpatialBundle { ..default() }));
+        parent.spawn((Gun { last_shot_time: 0, cooldown: 500 }, SpatialBundle { ..default() }));
+        parent.spawn((Gun { last_shot_time: 0, cooldown: 125 }, SpatialBundle { ..default() }));
+    });
 }
 
 fn spawn_background(_commands: &mut Commands) {
