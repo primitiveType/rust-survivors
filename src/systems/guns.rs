@@ -1,42 +1,42 @@
 use bevy::asset::Assets;
-
 use bevy::math::Vec3;
-use bevy::prelude::{Circle, ColorMaterial, Commands, default, Entity, Mesh, Query, Res, ResMut, Time, Transform, Vec2, With};
+use bevy::prelude::{Circle, ColorMaterial, Commands, default, Entity, GlobalTransform, Mesh, Query, Res, ResMut, Time, Transform, Vec2};
 use bevy::sprite::MaterialMesh2dBundle;
 use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, Mass, Restitution};
 pub use bevy_xpbd_2d::parry::na::DimAdd;
 use bevy_xpbd_2d::prelude::{Collider, CollidingEntities, RigidBody, SpatialQuery, SpatialQueryFilter};
 
-use crate::components::{Bullet, BulletBundle, Enemy, Gun, Health, Player};
+use crate::components::{Bullet, BulletBundle, Enemy, Gun, Health};
 use crate::constants::BALL_COLOR;
 use crate::extensions::vectors::to_vec2;
 use crate::physics::layers::GameLayer;
 
 const BULLET_SIZE: Vec3 = Vec3::new(5.0, 5.0, 1.0);
 
+
 pub fn player_shoot(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut query: Query<(&mut Gun, &Transform), With<Player>>,
+    mut query: Query<(&mut Gun, &GlobalTransform)>,
     time: Res<Time>,
     spatial_query: SpatialQuery,
 ) {
-    let cooldown = 1_000;
 
     for (mut gun, transform) in query.iter_mut() {
-        if time.elapsed().as_millis() - gun.last_shot_time > cooldown {
+        if time.elapsed().as_millis() - gun.last_shot_time > gun.cooldown {
+            let translation = transform.translation();
             gun.last_shot_time = time.elapsed().as_millis();
             let maybe_projection =
                 spatial_query.project_point(
-                    to_vec2(transform.translation),
+                    to_vec2(translation),
                     true,
                     SpatialQueryFilter::from_mask(GameLayer::Enemy),
                 );
             if let Some(projection) = maybe_projection {
-                let mut delta = projection.point - to_vec2(transform.translation);
+                let mut delta = projection.point - to_vec2(translation);
                 delta = delta.normalize();
-                spawn_projectile(&mut commands, &mut materials, &mut meshes, transform.translation, delta, time.elapsed().as_millis());
+                spawn_projectile(&mut commands, &mut materials, &mut meshes, translation, delta, time.elapsed().as_millis());
             }
         }
     }
