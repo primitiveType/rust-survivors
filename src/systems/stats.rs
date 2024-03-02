@@ -3,7 +3,6 @@ use bevy::math::Vec3Swizzles;
 use bevy::prelude::{ColorMaterial, Commands, Entity, Mesh, NextState, Query, ResMut, Transform};
 use bevy_xpbd_2d::prelude::CollidingEntities;
 
-
 use crate::AppState;
 use crate::bundles::spawn_xp;
 use crate::components::{Enemy, GainXPOnTouch, Health, Player};

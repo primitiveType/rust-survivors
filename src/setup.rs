@@ -1,3 +1,4 @@
+use crate::constants::{BOTTOM_WALL, PADDLE_SIZE};
 use bevy::asset::{Assets, AssetServer};
 use bevy::core::Name;
 use bevy::math::Vec3;

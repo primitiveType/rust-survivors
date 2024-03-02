@@ -6,9 +6,10 @@ use bevy_prng::WyRand;
 use bevy_rand::prelude::EntropyPlugin;
 use bevy_xpbd_2d::prelude::*;
 use components::{CollisionEvent, CollisionSound, Health, HealthUi, Player};
-use constants::{BACKGROUND_COLOR, BOTTOM_WALL, PADDLE_SIZE};
+use constants::{BACKGROUND_COLOR};
 
 use inspector::add_inspector;
+use systems::{dev, guns, movement, spawning};
 
 use crate::{
     initialization::register_types::register_types,
@@ -16,20 +17,25 @@ use crate::{
     systems::*,
 };
 
+
+mod components;
+
+mod physics;
+
+mod constants;
+
 mod systems;
 
 mod stepping;
 mod setup;
 mod extensions;
 mod initialization;
-mod physics;
 mod bundles;
-mod constants;
-mod components;
+
 
 
 #[derive(States, Debug, Hash, PartialEq, Eq, Clone, Default)]
-enum AppState {
+pub enum AppState {
     #[default]
     InGame,
     LevelUp,
