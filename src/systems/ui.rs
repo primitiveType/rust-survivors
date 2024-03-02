@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use crate::AppState;
+use crate::components::{Health, HealthUi, Player};
 
 #[derive(Component)]
 pub struct LevelUpUiRoot;
@@ -108,4 +109,12 @@ pub fn toggle_level_ui_system(
             *visibility = Visibility::Hidden;
         }
     }
+}
+
+
+pub fn update_player_health_ui(player_query: Query<(&Health, &Player)>, mut query: Query<&mut Text, With<HealthUi>>) {
+    let mut text = query.single_mut();
+    let (player_health, player) = player_query.single();
+    text.sections[1].value = player_health.value.to_string();
+    text.sections[3].value = player.xp.to_string();
 }

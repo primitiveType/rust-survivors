@@ -4,3 +4,4 @@ pub mod stats;
 pub mod spawning;
 pub mod ui;
 pub mod dev;
+pub mod audio;
