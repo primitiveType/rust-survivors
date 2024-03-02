@@ -1,13 +1,13 @@
 use bevy::asset::Assets;
 use bevy::math::Vec3Swizzles;
-use bevy::prelude::{ColorMaterial, Commands, Entity, Mesh, NextState, Query, ResMut, Transform, With, Without};
+use bevy::prelude::{ColorMaterial, Commands, Entity, Mesh, NextState, Query, ResMut, Transform};
 use bevy_xpbd_2d::prelude::CollidingEntities;
 
 
 use crate::{AppState, Enemy, GainXPOnTouch, Health, Player};
 use crate::bundles::spawn_xp;
 
-pub fn die_at_zero_health(mut query: Query<(Entity, &Enemy, &Health, &Transform)>,
+pub fn die_at_zero_health(query: Query<(Entity, &Enemy, &Health, &Transform)>,
                           mut commands: Commands,
                           mut meshes: ResMut<Assets<Mesh>>,
                           mut materials: ResMut<Assets<ColorMaterial>>,
@@ -23,7 +23,7 @@ pub fn die_at_zero_health(mut query: Query<(Entity, &Enemy, &Health, &Transform)
 }
 
 pub fn pickup_xp(mut query: Query<(Entity, &mut Player, &CollidingEntities)>,
-                 mut xps: Query<(Entity, &GainXPOnTouch)>,
+                 xps: Query<(Entity, &GainXPOnTouch)>,
                  mut commands: Commands,
                  mut next_state: ResMut<NextState<AppState>>,
 ) {
@@ -32,7 +32,7 @@ pub fn pickup_xp(mut query: Query<(Entity, &mut Player, &CollidingEntities)>,
             if let Ok(xp) = xps.get(*collision) {
                 player.xp = player.xp + xp.1.value;
                 commands.entity(*collision).despawn();
-                if(player.xp / 2 > player.level){
+                if player.xp / 2 > player.level {
                     next_state.set(AppState::LevelUp);
                 }
             }
