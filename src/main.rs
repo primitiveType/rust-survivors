@@ -6,18 +6,15 @@ use bevy_prng::WyRand;
 use bevy_rand::prelude::EntropyPlugin;
 use bevy_xpbd_2d::prelude::*;
 use components::{CollisionEvent, CollisionSound, Health, HealthUi, Player};
-use constants::{BACKGROUND_COLOR, BOTTOM_WALL, LEFT_WALL, PADDLE_PADDING, PADDLE_SIZE, PADDLE_SPEED, RIGHT_WALL, TOP_WALL, WALL_THICKNESS};
+use constants::{BACKGROUND_COLOR, BOTTOM_WALL, PADDLE_SIZE};
 
 use inspector::add_inspector;
-use systems::dev;
 
-use crate::initialization::inspector;
-use crate::initialization::register_types::register_types;
-use crate::systems::{guns, stats, ui};
-use crate::systems::guns::enemy_takes_damage_from_bullets;
-use crate::systems::movement::{log_paddle_collide, set_follower_velocity};
-use crate::systems::movement::{destroy_brick_on_collide, player_takes_damage_from_enemy};
-use crate::systems::spawning::enemy_spawn_cycle;
+use crate::{
+    initialization::register_types::register_types,
+    initialization::inspector,
+    systems::*,
+};
 
 mod systems;
 
@@ -73,25 +70,23 @@ fn main() {
         .add_systems(
             FixedUpdate,
             (
-                enemy_spawn_cycle,
+                spawning::enemy_spawn_cycle,
                 guns::player_shoot,
-                play_collision_sound,
-                log_paddle_collide,
+                audio::play_collision_sound,
                 stats::die_at_zero_health,
                 guns::destroy_bullets,
             ).run_if(in_state(AppState::InGame))
                 // `chain`ing systems together runs them in order
                 .chain(),
         )
-        .add_systems(PostProcessCollisions, destroy_brick_on_collide)
         .add_systems(
             //InGame update loop
             Update,
-            (move_player,
-             set_follower_velocity,
-             update_player_health_ui,
-             player_takes_damage_from_enemy,
-             enemy_takes_damage_from_bullets,
+            (movement::move_player,
+             movement::set_follower_velocity,
+             ui::update_player_health_ui,
+             movement::player_takes_damage_from_enemy,
+             guns::enemy_takes_damage_from_bullets,
              stats::pickup_xp,
             ).run_if(in_state(AppState::InGame)))
         .add_systems(Update,
@@ -127,71 +122,4 @@ fn main() {
     let app: &mut App = register_types(app);
 
     app.run();
-}
-
-fn move_player(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<&mut LinearVelocity, With<Player>>,
-    time: Res<Time>,
-) {
-    let mut paddle_velocity = query.single_mut();
-    let mut direction: Vec2 = Default::default();
-
-    if keyboard_input.pressed(KeyCode::KeyA) {
-        direction.x -= 1.0;
-    }
-
-    if keyboard_input.pressed(KeyCode::KeyD) {
-        direction.x += 1.0;
-    }
-    if keyboard_input.pressed(KeyCode::KeyS) {
-        direction.y -= 1.0;
-        direction = direction.normalize();
-    }
-
-    if keyboard_input.pressed(KeyCode::KeyW) {
-        direction.y += 1.0;
-        direction = direction.normalize();
-    }
-
-
-    // Calculate the new horizontal paddle position based on player input
-    let new_player_velocity: Vec2 =
-        direction * PADDLE_SPEED * time.delta_seconds();
-
-    // Update the paddle position,
-    // making sure it doesn't cause the paddle to leave the arena
-    let left_bound = LEFT_WALL + WALL_THICKNESS / 2.0 + PADDLE_SIZE.x / 2.0 + PADDLE_PADDING;
-    let right_bound = RIGHT_WALL - WALL_THICKNESS / 2.0 - PADDLE_SIZE.x / 2.0 - PADDLE_PADDING;
-
-    let upper_bound = TOP_WALL + WALL_THICKNESS / 2.0 + PADDLE_SIZE.y / 2.0 + PADDLE_PADDING;
-    let lower_bound = BOTTOM_WALL - WALL_THICKNESS / 2.0 - PADDLE_SIZE.y / 2.0 - PADDLE_PADDING;
-    paddle_velocity.x = new_player_velocity.x.clamp(left_bound, right_bound);
-    paddle_velocity.y = new_player_velocity.y.clamp(lower_bound, upper_bound);
-}
-
-
-fn update_player_health_ui(player_query: Query<(&Health, &Player)>, mut query: Query<&mut Text, With<HealthUi>>) {
-    let mut text = query.single_mut();
-    let (player_health, player) = player_query.single();
-    text.sections[1].value = player_health.value.to_string();
-    text.sections[3].value = player.xp.to_string();
-}
-
-
-fn play_collision_sound(
-    mut commands: Commands,
-    mut collision_events: EventReader<CollisionEvent>,
-    sound: Res<CollisionSound>,
-) {
-    // Play a sound once per frame if a collision occurred.
-    if !collision_events.is_empty() {
-        // This prevents events staying active on the next frame.
-        collision_events.clear();
-        commands.spawn(AudioBundle {
-            source: sound.0.clone(),
-            // auto-despawn the entity when playback finishes
-            settings: PlaybackSettings::DESPAWN,
-        });
-    }
 }

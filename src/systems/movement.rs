@@ -1,7 +1,10 @@
-use bevy::prelude::{Commands, Entity, Query, Transform, With, Without};
+use bevy::prelude::{Commands, KeyCode, Query, Res, Time, Transform, With, Without};
 use bevy_xpbd_2d::prelude::{CollidingEntities, LinearVelocity};
+use bevy::input::ButtonInput;
+use bevy::math::Vec2;
 
-use crate::components::{Ball, Brick, DamageOnTouch, FollowPlayer, Health, MoveSpeed, Player};
+use crate::components::{DamageOnTouch, FollowPlayer, Health, MoveSpeed, Player};
+use crate::constants::{BOTTOM_WALL, LEFT_WALL, PADDLE_PADDING, PADDLE_SIZE, PADDLE_SPEED, RIGHT_WALL, TOP_WALL, WALL_THICKNESS};
 use crate::extensions::vectors::to_vec2;
 
 
@@ -15,21 +18,6 @@ pub fn set_follower_velocity(
         let direction = (player.translation - transform.translation).normalize();
         let new_velocity = direction * move_speed.value;
         velocity.0 = to_vec2(new_velocity);
-    }
-}
-
-pub fn destroy_brick_on_collide(
-    query: Query<(Entity, &CollidingEntities), With<Ball>>,
-    bricks: Query<Entity, With<Brick>>,
-    mut commands: Commands,
-) {
-    for (_entity, colliding_entities) in &query {
-        for collision in colliding_entities.iter() {
-            let brick_result = bricks.get(*collision);
-            if let Ok(brick) = brick_result {
-                commands.entity(brick).despawn();
-            }
-        }
     }
 }
 
@@ -47,16 +35,45 @@ pub fn player_takes_damage_from_enemy(mut query: Query<(&mut Health, &CollidingE
     }
 }
 
-pub fn log_paddle_collide(_query: Query<(Entity, &CollidingEntities)>) {
-    return;
-    // for (entity, colliding_entities) in &query {
-    //     if colliding_entities.iter().count() > 0 {
-    //         println!(
-    //             "{:?} is colliding with the following entities: {:?}",
-    //             entity,
-    //             colliding_entities
-    //         );
-    //     }
-    // }
+
+pub fn move_player(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut query: Query<&mut LinearVelocity, With<Player>>,
+    time: Res<Time>,
+) {
+    let mut paddle_velocity = query.single_mut();
+    let mut direction: Vec2 = Default::default();
+
+    if keyboard_input.pressed(KeyCode::KeyA) {
+        direction.x -= 1.0;
+    }
+
+    if keyboard_input.pressed(KeyCode::KeyD) {
+        direction.x += 1.0;
+    }
+    if keyboard_input.pressed(KeyCode::KeyS) {
+        direction.y -= 1.0;
+        direction = direction.normalize();
+    }
+
+    if keyboard_input.pressed(KeyCode::KeyW) {
+        direction.y += 1.0;
+        direction = direction.normalize();
+    }
+
+
+    // Calculate the new horizontal paddle position based on player input
+    let new_player_velocity: Vec2 =
+        direction * PADDLE_SPEED * time.delta_seconds();
+
+    // Update the paddle position,
+    // making sure it doesn't cause the paddle to leave the arena
+    let left_bound = LEFT_WALL + WALL_THICKNESS / 2.0 + PADDLE_SIZE.x / 2.0 + PADDLE_PADDING;
+    let right_bound = RIGHT_WALL - WALL_THICKNESS / 2.0 - PADDLE_SIZE.x / 2.0 - PADDLE_PADDING;
+
+    let upper_bound = TOP_WALL + WALL_THICKNESS / 2.0 + PADDLE_SIZE.y / 2.0 + PADDLE_PADDING;
+    let lower_bound = BOTTOM_WALL - WALL_THICKNESS / 2.0 - PADDLE_SIZE.y / 2.0 - PADDLE_PADDING;
+    paddle_velocity.x = new_player_velocity.x.clamp(left_bound, right_bound);
+    paddle_velocity.y = new_player_velocity.y.clamp(lower_bound, upper_bound);
 }
 
