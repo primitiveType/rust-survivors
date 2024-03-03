@@ -1,12 +1,13 @@
 use bevy::prelude::*;
+
 use crate::AppState;
-use crate::components::{Health, HealthUi, Player};
+use crate::components::{Gun, Health, HealthUi, Player};
 
 #[derive(Component)]
 pub struct LevelUpUiRoot;
 
 #[derive(Component, Copy, Clone)]
-pub enum ButtonAction{
+pub enum ButtonAction {
     OptionOne = 0,
     OptionTwo = 1,
     OptionThree = 2,
@@ -75,13 +76,15 @@ fn button_text(_asset_server: &Res<AssetServer>, text: &str) -> TextBundle {
 
 pub fn button_system(
     mut interaction_query: Query<(&Interaction, &mut BackgroundColor, &ButtonAction), (Changed<Interaction>, With<Button>)>,
+    mut player_query: Query<(&Player, Entity)>,
     mut next_state: ResMut<NextState<AppState>>,
+    mut commands: Commands,
 ) {
     for (interaction, mut color, action) in interaction_query.iter_mut() {
         match *interaction {
             Interaction::Pressed => {
                 *color = Color::rgb(0.25, 0.25, 0.25).into();
-                button_clicked(action, &mut next_state);
+                button_clicked(action, &mut next_state, &mut commands, &mut player_query);
             }
             Interaction::Hovered => {
                 *color = Color::rgb(0.35, 0.35, 0.35).into();
@@ -93,10 +96,19 @@ pub fn button_system(
     }
 }
 
-fn button_clicked(action : &ButtonAction, next_state: &mut ResMut<NextState<AppState>>){
+fn button_clicked(action: &ButtonAction,
+                  next_state: &mut ResMut<NextState<AppState>>,
+                  commands: &mut Commands,
+                  player_query: &mut Query<(&Player, Entity)>) {
     println!("Option {:?} clicked", *action as u8);
 
-    next_state.set(AppState::InGame)
+    let (_player, player_entity) = player_query.single_mut();
+    next_state.set(AppState::InGame);
+
+
+    let mut gun_spawn = commands.spawn((Gun { last_shot_time: 0, cooldown: 100 }, SpatialBundle { ..default() }));
+    gun_spawn.set_parent_in_place(player_entity);
+    //TODO: set translation to local zero :(
 }
 
 pub fn toggle_level_ui_system(

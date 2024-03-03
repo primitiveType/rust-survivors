@@ -17,7 +17,6 @@ pub fn die_at_zero_health(query: Query<(Entity, &Enemy, &Health, &Transform)>,
         {
             commands.entity(entity).despawn();
             spawn_xp(&mut commands, &mut meshes, &mut materials, enemy.xp, transform.translation.xy());
-            println!("entity died.");
         }
     }
 }

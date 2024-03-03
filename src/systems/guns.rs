@@ -68,14 +68,12 @@ pub fn destroy_bullets(bullets: Query<(&Bullet, Entity)>,
         if bullet.timestamp + bullet.lifetime < time.elapsed().as_millis()
             || bullet.hits > bullet.pierce
         {
-            println!("zap");
             _commands.entity(entity).despawn();
         }
     }
 }
 
 fn spawn_projectile(commands: &mut Commands, materials: &mut ResMut<Assets<ColorMaterial>>, meshes: &mut ResMut<Assets<Mesh>>, position: Vec3, direction: Vec2, timestamp: u128) {
-    println!("bang!");
     let speed = 500.0;
     let bundle = BulletBundle {
         rigid_body: RigidBody::Dynamic,
