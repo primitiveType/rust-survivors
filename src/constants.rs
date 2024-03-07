@@ -1,5 +1,5 @@
-use bevy::prelude::{Color, Val};
 use bevy::math::Vec3;
+use bevy::prelude::{Color, Val};
 
 // These constants are defined in `Transform` units.
 // Using the default 2D camera they correspond 1:1 with screen pixels.
@@ -10,7 +10,7 @@ pub const PADDLE_SPEED: f32 = 100_000.0;
 pub const PADDLE_PADDING: f32 = 10.0;
 
 // We set the z-value of the ball to 1 so it renders on top in the case of overlapping sprites.
-pub const BALL_STARTING_POSITION: Vec3 = Vec3::new(0.0, -50.0, 0.0);
+pub const ENEMY_STARTING_POSITION: Vec3 = Vec3::new(0.0, 0.0, 0.0);
 pub const BALL_DIAMETER: f32 = 30.;
 pub const XP_DIAMETER: f32 = 5.;
 

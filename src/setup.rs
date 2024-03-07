@@ -78,7 +78,6 @@ pub fn setup(
     commands.spawn(WallBundle::new(WallLocation::Top));
 
 
-    bundles::spawn_enemy(commands, meshes, materials);
 }
 
 
@@ -86,6 +85,7 @@ fn spawn_player(commands: &mut Commands) {
     // Paddle
     let paddle_y = BOTTOM_WALL + GAP_BETWEEN_PADDLE_AND_FLOOR;
 
+    commands.spawn(Player{})
     commands.spawn((
         RigidBody::Dynamic,
         SpriteBundle {
