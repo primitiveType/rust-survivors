@@ -1,15 +1,15 @@
 use bevy::asset::{Assets, AssetServer, ErasedAssetLoader, Handle};
 use bevy::core::Name;
-use bevy::math::Vec2;
+use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{Bundle, Circle, Color, ColorMaterial, Commands, Component, default, Deref, DerefMut, Mesh, Query, Res, ResMut, TextureAtlasLayout, Time, Timer, TimerMode, Transform};
 use bevy::sprite::{Anchor, MaterialMesh2dBundle, Sprite, SpriteSheetBundle, TextureAtlas};
-use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, LockedAxes, Restitution, RigidBody};
+use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, LockedAxes, Mass, Restitution, RigidBody};
 use bevy_xpbd_2d::math::Vector2;
 use bevy_xpbd_2d::prelude::{Collider, Sensor};
 use rand::Rng;
 
-use crate::components::{DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health, MoveSpeed};
-use crate::constants::{BALL_DIAMETER, ENEMY_STARTING_POSITION, XP_DIAMETER};
+use crate::components::{DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health, MoveSpeed, Player};
+use crate::constants::{BALL_DIAMETER, ENEMY_STARTING_POSITION, PADDLE_COLOR, PADDLE_SIZE, XP_DIAMETER};
 use crate::physics::layers::GameLayer;
 
 const XP_COLOR: Color = Color::rgb(0.0, 1.0, 0.1);
@@ -35,14 +35,96 @@ pub fn setup_assets(mut commands: Commands,
 }
 
 #[derive(Bundle)]
-struct PlayerBundle {}
+pub struct PlayerBundle {
+    //RigidBody::Dynamic,
+    //         SpriteBundle {
+    //             transform: Transform {
+    //                 translation: Vec3::new(0.0, paddle_y, 0.0),
+    //                 scale: PADDLE_SIZE,
+    //                 ..default()
+    //             },
+    //             sprite: Sprite {
+    //                 color: PADDLE_COLOR,
+    //                 ..default()
+    //             },
+    //             ..default()
+    //         },
+    //         Player { ..default() },
+    //         Health { value: 100.0 },
+    //         Mass(10.0),
+    //         Collider::rectangle(1.0, 1.0),
+    //         Friction::ZERO,
+    //         Restitution::new(1.0),
+    //         LinearVelocity(Vector2::ZERO),
+    //         Name::new("Player"),
+    //         CollisionLayers::new(GameLayer::Player, [GameLayer::Ball, GameLayer::Ground, GameLayer::Enemy, GameLayer::XP]),
+    //         LockedAxes::ROTATION_LOCKED,
+    pub sprite: SpriteSheetBundle,
+    pub name: Name,
+    pub player: Player,
+    pub health: Health,
+    pub physical: PhysicalBundle,
+}
+
+impl Default for PlayerBundle {
+    fn default() -> Self {
+        Self {
+            physical: PhysicalBundle {
+                collision_layers: CollisionLayers::new(GameLayer::Player, [GameLayer::Ball, GameLayer::Ground, GameLayer::Enemy, GameLayer::XP]),
+
+                ..default()
+            },
+
+            sprite: SpriteSheetBundle {
+                sprite: Sprite {
+                    color: PADDLE_COLOR,
+                    ..default()
+                },
+                transform: Transform {
+                    translation: Vec3::new(0.0, -250.0, 0.0),
+                    scale: PADDLE_SIZE,
+                    ..default()
+                },
+                ..default()
+            },
+
+            name: Name::new("Player"),
+            player: Default::default(),
+            health: Health { value: 100.0 },
+        }
+    }
+}
 
 #[derive(Bundle)]
-struct PhysicalBundle {}
+struct PhysicalBundle {
+    pub mass: Mass,
+    pub collider: Collider,
+    pub friction: Friction,
+    pub restitution: Restitution,
+    pub linear_velocity: LinearVelocity,
+    pub collision_layers: CollisionLayers,
+    pub lockedAxes: LockedAxes,
+    pub rigid_body: RigidBody,
+}
 
+impl Default for PhysicalBundle {
+    fn default() -> Self {
+        Self {
+            mass: Mass(10.0),
+            collider: Collider::circle(2.0),
+            friction: Friction::ZERO,
+            restitution: Restitution::new(1.0),
+            linear_velocity: LinearVelocity(Vector2::ZERO),
+            collision_layers: CollisionLayers::ALL,
+            lockedAxes: LockedAxes::ROTATION_LOCKED,
+            rigid_body: RigidBody::Dynamic,
+        }
+    }
+}
+
+#[derive(Bundle)]
 struct EnemyBundle {
     sprite_bundle: SpriteSheetBundle,
-
 }
 
 pub fn spawn_enemy(
@@ -146,12 +228,11 @@ pub fn animate_sprite(
 
 pub fn flip_sprite(
     time: Res<Time>,
-    mut query: Query<(&mut AnimationTimer, &mut TextureAtlas)>,
+    mut query: Query<(&mut AnimationTimer, &mut Sprite, &LinearVelocity )>,
 ) {
-    for (mut timer, mut atlas) in &mut query {
-        timer.tick(time.delta());
+    for (mut timer, mut atlas, velocity) in &mut query {
         if timer.just_finished() {
-            atlas.layout.fli
+            atlas.flip_x = velocity.x < 0.0;
         }
     }
 }

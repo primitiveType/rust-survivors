@@ -6,7 +6,7 @@ use bevy_prng::WyRand;
 use bevy_rand::prelude::EntropyPlugin;
 use bevy_xpbd_2d::prelude::*;
 
-use components::{CollisionEvent, CollisionSound, Health, HealthUi, Player};
+use components::{CollisionEvent, CollisionSound, HealthUi};
 use constants::BACKGROUND_COLOR;
 use inspector::add_inspector;
 use systems::{dev, guns, movement, spawning};
@@ -50,8 +50,8 @@ fn main() {
     // camera moves with player
     // add background
     // get rid of walls
-
-    let mut app_binding = App::new();
+//PATH=C:\Users\Arthu\.rustup\toolchains\nightly-x86_64-pc-windows-msvc\bin\;E:\Unity Projects\rust-survivors\target\debug\deps
+   let mut app_binding = App::new();
     let app: &mut App = app_binding
         .init_state::<AppState>()
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))// prevents blurry sprites
@@ -82,6 +82,7 @@ fn main() {
                 stats::die_at_zero_health,
                 guns::destroy_bullets,
                 bundles::animate_sprite,
+                bundles::flip_sprite,
             ).run_if(in_state(AppState::InGame))
                 // `chain`ing systems together runs them in order
                 .chain(),
