@@ -5,6 +5,8 @@ use bevy::prelude::{Bundle, ColorMaterial, Component, default, Event, Reflect, R
 use bevy::sprite::MaterialMesh2dBundle;
 use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, Mass, Restitution, RigidBody};
 use bevy_xpbd_2d::prelude::Collider;
+use serde::Deserialize;
+use serde::Serialize;
 
 use crate::constants::{BOTTOM_WALL, LEFT_WALL, RIGHT_WALL, TOP_WALL, WALL_COLOR, WALL_THICKNESS};
 use crate::physics::layers::GameLayer;
@@ -15,10 +17,20 @@ pub struct Player {
     pub level: u16,
 }
 
-#[derive(Component)]
+#[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct Gun {
+    #[serde(skip)]
     pub last_shot_time: u128,
     pub cooldown: u128
+}
+
+impl Default for Gun{
+    fn default() -> Self {
+        Self{
+            cooldown: 1_000,
+            ..default()
+        }
+    }
 }
 
 #[derive(Component)]

@@ -1,20 +1,19 @@
-use bevy::asset::Assets;
-use bevy::prelude::{ColorMaterial, Commands, Mesh, Query, ResMut};
+use bevy::asset::AssetServer;
+use bevy::prelude::{Commands, Query, Res};
+pub use bevy::utils::petgraph::visit::Walker;
 
-pub use bevy::utils::petgraph::visit::{Walker};
-
+use crate::bundles::{Handles, spawn_enemy};
 use crate::components::Enemy;
-use crate::bundles::spawn_enemy;
 
 pub fn enemy_spawn_cycle(
     query: Query<&Enemy>,
     _commands: Commands,
-    meshes: ResMut<Assets<Mesh>>,
-    materials: ResMut<Assets<ColorMaterial>>,
+    asset_server: Res<AssetServer>,
+    handles: Query<&Handles>,
 ) {
     let count = query.iter().len();
 
     if count < 3 {
-        spawn_enemy(_commands, meshes, materials);
+        spawn_enemy(_commands, asset_server, handles);
     }
 }

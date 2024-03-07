@@ -5,18 +5,17 @@ use bevy::prelude::*;
 use bevy_prng::WyRand;
 use bevy_rand::prelude::EntropyPlugin;
 use bevy_xpbd_2d::prelude::*;
-use components::{CollisionEvent, CollisionSound, Health, HealthUi, Player};
-use constants::{BACKGROUND_COLOR};
 
+use components::{CollisionEvent, CollisionSound, Health, HealthUi, Player};
+use constants::BACKGROUND_COLOR;
 use inspector::add_inspector;
 use systems::{dev, guns, movement, spawning};
 
 use crate::{
-    initialization::register_types::register_types,
     initialization::inspector,
+    initialization::register_types::register_types,
     systems::*,
 };
-
 
 mod components;
 
@@ -44,7 +43,8 @@ pub enum AppState {
 
 fn main() {
     //TODO:
-    // choose weapons/bonuses when levelling? requires ui?
+    // data drive guns
+    // show gun info on level up choice
     // display enemy health (maybe)
     // projectiles can be added to player over time
     // camera moves with player
@@ -54,7 +54,7 @@ fn main() {
     let mut app_binding = App::new();
     let app: &mut App = app_binding
         .init_state::<AppState>()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))// prevents blurry sprites
         .add_plugins(PhysicsPlugins::default())
         .add_plugins(
             stepping::SteppingPlugin::default()
@@ -65,12 +65,12 @@ fn main() {
         )
         .add_plugins(EntropyPlugin::<WyRand>::default())
 
-        .add_plugins(PhysicsDebugPlugin::default())
+        // .add_plugins(PhysicsDebugPlugin::default())
         .insert_resource(Gravity(Vec2::default()))
         .insert_resource(SubstepCount(6))
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .add_event::<CollisionEvent>()
-        .add_systems(Startup, (setup::setup, ui::setup))
+        .add_systems(Startup, (setup::setup, ui::setup, initialization::load_prefabs::load_gun_test, bundles::setup_assets))
         // Add our gameplay simulation systems to the fixed timestep schedule
         // which runs at 64 Hz by default
         .add_systems(
@@ -81,6 +81,7 @@ fn main() {
                 audio::play_collision_sound,
                 stats::die_at_zero_health,
                 guns::destroy_bullets,
+                bundles::animate_sprite,
             ).run_if(in_state(AppState::InGame))
                 // `chain`ing systems together runs them in order
                 .chain(),
