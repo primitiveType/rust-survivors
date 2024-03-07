@@ -1,15 +1,11 @@
 use bevy::asset::{Assets, AssetServer};
-use bevy::core::Name;
-use bevy::math::Vec3;
-use bevy::prelude::{Camera2dBundle, ColorMaterial, Commands, default, Mesh, PositionType, Res, ResMut, Sprite, SpriteBundle, Style, TextBundle, TextSection, TextStyle, Transform};
-use bevy_xpbd_2d::math::Vector2;
+use bevy::prelude::{Camera2dBundle, ColorMaterial, Commands, default, Mesh, PositionType, Res, ResMut, Style, TextBundle, TextSection, TextStyle};
 use bevy_xpbd_2d::prelude::*;
 
 use crate::*;
 use crate::components::{Gun, WallBundle, WallLocation};
-use crate::constants::{BOTTOM_WALL, PADDLE_SIZE};
-use crate::constants::{GAP_BETWEEN_PADDLE_AND_FLOOR, PADDLE_COLOR, SCORE_COLOR, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, TEXT_COLOR};
-use crate::physics::layers::GameLayer;
+use crate::constants::{GAP_BETWEEN_PADDLE_AND_FLOOR, SCORE_COLOR, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, TEXT_COLOR};
+use crate::constants::BOTTOM_WALL;
 
 // Add the game's entities to our world
 pub fn setup(
@@ -76,8 +72,6 @@ pub fn setup(
     commands.spawn(WallBundle::new(WallLocation::Right));
     commands.spawn(WallBundle::new(WallLocation::Bottom));
     commands.spawn(WallBundle::new(WallLocation::Top));
-
-
 }
 
 
@@ -85,37 +79,37 @@ fn spawn_player(commands: &mut Commands) {
     // Paddle
     let paddle_y = BOTTOM_WALL + GAP_BETWEEN_PADDLE_AND_FLOOR;
 
-    commands.spawn(Player{})
-    commands.spawn((
-        RigidBody::Dynamic,
-        SpriteBundle {
-            transform: Transform {
-                translation: Vec3::new(0.0, paddle_y, 0.0),
-                scale: PADDLE_SIZE,
-                ..default()
-            },
-            sprite: Sprite {
-                color: PADDLE_COLOR,
-                ..default()
-            },
-            ..default()
-        },
-        Player { ..default() },
-        Health { value: 100.0 },
-        Mass(10.0),
-        Collider::rectangle(1.0, 1.0),
-        Friction::ZERO,
-        Restitution::new(1.0),
-        LinearVelocity(Vector2::ZERO),
-        Name::new("Player"),
-        CollisionLayers::new(GameLayer::Player, [GameLayer::Ball, GameLayer::Ground, GameLayer::Enemy, GameLayer::XP]),
-        LockedAxes::ROTATION_LOCKED,
-    )).with_children(|parent| {
-        // parent.spawn((Gun { last_shot_time: 0, cooldown: 1_000 }, SpatialBundle { ..default() }));
-        parent.spawn((Gun { last_shot_time: 0, cooldown: 2_000 }, SpatialBundle { ..default() }));
-        // parent.spawn((Gun { last_shot_time: 0, cooldown: 500 }, SpatialBundle { ..default() }));
-        // parent.spawn((Gun { last_shot_time: 0, cooldown: 125 }, SpatialBundle { ..default() }));
-    });
+    commands.spawn(bundles::PlayerBundle::default())
+        // commands.spawn((
+        //     RigidBody::Dynamic,
+        //     SpriteBundle {
+        //         transform: Transform {
+        //             translation: Vec3::new(0.0, paddle_y, 0.0),
+        //             scale: PADDLE_SIZE,
+        //             ..default()
+        //         },
+        //         sprite: Sprite {
+        //             color: PADDLE_COLOR,
+        //             ..default()
+        //         },
+        //         ..default()
+        //     },
+        //     Player { ..default() },
+        //     Health { value: 100.0 },
+        //     Mass(10.0),
+        //     Collider::rectangle(1.0, 1.0),
+        //     Friction::ZERO,
+        //     Restitution::new(1.0),
+        //     LinearVelocity(Vector2::ZERO),
+        //     Name::new("Player"),
+        //     CollisionLayers::new(GameLayer::Player, [GameLayer::Ball, GameLayer::Ground, GameLayer::Enemy, GameLayer::XP]),
+        //     LockedAxes::ROTATION_LOCKED,))
+        .with_children(|parent| {
+            // parent.spawn((Gun { last_shot_time: 0, cooldown: 1_000 }, SpatialBundle { ..default() }));
+            parent.spawn((Gun { last_shot_time: 0, cooldown: 2_000 }, SpatialBundle { ..default() }));
+            // parent.spawn((Gun { last_shot_time: 0, cooldown: 500 }, SpatialBundle { ..default() }));
+            // parent.spawn((Gun { last_shot_time: 0, cooldown: 125 }, SpatialBundle { ..default() }));
+        });
 }
 
 fn spawn_background(_commands: &mut Commands) {
