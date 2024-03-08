@@ -21,12 +21,12 @@ pub struct Player {
 pub struct Gun {
     #[serde(skip)]
     pub last_shot_time: u128,
-    pub cooldown: u128
+    pub cooldown: u128,
 }
 
-impl Default for Gun{
+impl Default for Gun {
     fn default() -> Self {
-        Self{
+        Self {
             cooldown: 1_000,
             ..default()
         }
@@ -59,8 +59,6 @@ pub struct Health {
     pub value: f32,
 }
 
-#[derive(Component, Clone)]
-pub struct Ball;
 
 #[derive(Component)]
 pub struct FollowPlayer;
@@ -94,9 +92,6 @@ pub struct GainXPOnTouch {
 
 #[derive(Event, Default)]
 pub struct CollisionEvent;
-
-#[derive(Component)]
-pub struct Brick;
 
 #[derive(Resource)]
 pub struct CollisionSound(pub Handle<AudioSource>);

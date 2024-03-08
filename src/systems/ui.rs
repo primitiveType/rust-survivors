@@ -1,12 +1,12 @@
-use std::thread::spawn;
 use bevy::prelude::*;
 
 use crate::AppState;
-use crate::components::{Gun, Health, HealthUi, Player};
+use crate::components::{Health, HealthUi, Player};
 use crate::initialization::load_prefabs::load_gun;
 
 #[derive(Component)]
 pub struct LevelUpUiRoot;
+
 
 #[derive(Component, Copy, Clone)]
 pub enum ButtonAction {
@@ -15,15 +15,9 @@ pub enum ButtonAction {
     OptionThree = 2,
 }
 
-pub struct example {
-    pub value: i32,
-}
-
 
 pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // commands.spawn_bundle(UiCameraBundle::default());
-
-    let mut value = example { value: 3 };
 
     // UI root node
     commands.spawn(NodeBundle {
@@ -38,7 +32,6 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         ..default()
     }).insert(LevelUpUiRoot)
         .with_children(|parent| {
-            let thingy = &value;
 
             // Button one
             let mut binding = parent.spawn(button());
@@ -53,8 +46,6 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             let button1 = binding.insert(ButtonAction::OptionThree);
             button1.with_children(|parent| { parent.spawn(button_text(&asset_server, "Option 3")); });
         });
-
-    value.value = 5;
 }
 
 fn button() -> ButtonBundle {
@@ -117,7 +108,6 @@ fn button_clicked(action: &ButtonAction,
 
     let (_player, player_entity) = player_query.single_mut();
     next_state.set(AppState::InGame);
-
 
 
     let mut gun_spawn = commands.spawn((load_gun(*action as usize), SpatialBundle { ..default() }));
