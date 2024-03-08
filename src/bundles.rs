@@ -73,7 +73,7 @@ impl Default for PlayerBundle {
 }
 
 #[derive(Bundle)]
-struct PhysicalBundle {
+pub struct PhysicalBundle {
     pub mass: Mass,
     pub collider: Collider,
     pub friction: Friction,
@@ -107,6 +107,8 @@ struct EnemyBundle {
     enemy: Enemy,
     name: Name,
     follow_player: FollowPlayer,
+    animation_indices: AnimationIndices,
+
 }
 
 impl Default for EnemyBundle {
@@ -131,7 +133,47 @@ impl Default for EnemyBundle {
 
             enemy: Enemy { xp: 1 },
             follow_player: FollowPlayer,
+            animation_indices: AnimationIndices {first: 0,  last: 7},
         }
+    }
+}
+
+impl EnemyBundle {
+    fn with_sprite(path: String,
+                   asset_server: Res<AssetServer>,
+                   layout: Handle<TextureAtlasLayout>,
+    ) -> Self {
+        let texture = asset_server.load(path);
+        let animation_indices = AnimationIndices { first: 0, last: 7 };
+
+        let enemy = Self {
+            sprite_bundle: SpriteSheetBundle {
+                sprite: Sprite {
+                    custom_size: Some(Vec2::new(9.6_f32, 6.4_f32)),
+                    anchor: Anchor::Center,
+                    ..default()
+                },
+                transform: Transform::from_translation(ENEMY_STARTING_POSITION)
+                    .with_scale(Vec2::splat(BALL_DIAMETER).extend(1.0)),
+                atlas: TextureAtlas {
+                    layout,
+                    index: 0,
+                },
+                texture,
+                ..default()
+            },
+            physical: PhysicalBundle {
+                ..default()
+            },
+            name: Name::new("Enemy"),
+            animation_indices,
+            animation_timer: AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+
+            enemy: Enemy { xp: 1 },
+            follow_player: FollowPlayer,
+        };
+
+        enemy
     }
 }
 
@@ -141,35 +183,12 @@ pub fn spawn_enemy(
     query: Query<&Handles>,
 ) {
     let handles = query.single();
-    let image_path = "sprites/knight/noBKG_KnightRun_strip.png";
-    let texture = asset_server.load(image_path);
 
-    let animation_indices = AnimationIndices { first: 0, last: 7 };
-    let mut spawned = commands.spawn((
-        SpriteSheetBundle {
-            sprite: Sprite {
-                custom_size: Some(Vec2::new(9.6_f32, 6.4_f32)),
-                anchor: Anchor::Center,
-                ..default()
-            },
-            transform: Transform::from_translation(ENEMY_STARTING_POSITION)
-                .with_scale(Vec2::splat(BALL_DIAMETER).extend(1.0)),
-            atlas: TextureAtlas {
-                layout: handles.knight_layout_handle.clone(),
-                index: 0,
-            },
-            texture,
-            ..default()
-        },
-        Friction::ZERO,
-        Restitution::new(1.0),
-        LinearVelocity(Vector2::ZERO),
-        Name::new("Enemy"),
-        LockedAxes::ROTATION_LOCKED,
-        animation_indices,
-        AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
-        Enemy { xp: 1 }, FollowPlayer
-    ));
+
+    let knight_string: String = "sprites/knight/noBKG_KnightRun_strip.png".to_string();
+    let mut spawned = commands.spawn(
+        EnemyBundle::with_sprite(knight_string, asset_server, handles.knight_layout_handle.clone())
+    );
 
 
     let mut rng = rand::thread_rng(); // Get a random number generator
