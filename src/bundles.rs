@@ -36,29 +36,6 @@ pub fn setup_assets(mut commands: Commands,
 
 #[derive(Bundle)]
 pub struct PlayerBundle {
-    //RigidBody::Dynamic,
-    //         SpriteBundle {
-    //             transform: Transform {
-    //                 translation: Vec3::new(0.0, paddle_y, 0.0),
-    //                 scale: PADDLE_SIZE,
-    //                 ..default()
-    //             },
-    //             sprite: Sprite {
-    //                 color: PADDLE_COLOR,
-    //                 ..default()
-    //             },
-    //             ..default()
-    //         },
-    //         Player { ..default() },
-    //         Health { value: 100.0 },
-    //         Mass(10.0),
-    //         Collider::rectangle(1.0, 1.0),
-    //         Friction::ZERO,
-    //         Restitution::new(1.0),
-    //         LinearVelocity(Vector2::ZERO),
-    //         Name::new("Player"),
-    //         CollisionLayers::new(GameLayer::Player, [GameLayer::Ball, GameLayer::Ground, GameLayer::Enemy, GameLayer::XP]),
-    //         LockedAxes::ROTATION_LOCKED,
     pub sprite: SpriteSheetBundle,
     pub name: Name,
     pub player: Player,
@@ -103,7 +80,7 @@ struct PhysicalBundle {
     pub restitution: Restitution,
     pub linear_velocity: LinearVelocity,
     pub collision_layers: CollisionLayers,
-    pub lockedAxes: LockedAxes,
+    pub locked_axes: LockedAxes,
     pub rigid_body: RigidBody,
 }
 
@@ -111,12 +88,12 @@ impl Default for PhysicalBundle {
     fn default() -> Self {
         Self {
             mass: Mass(10.0),
-            collider: Collider::circle(2.0),
+            collider: Collider::circle(0.5),
             friction: Friction::ZERO,
             restitution: Restitution::new(1.0),
             linear_velocity: LinearVelocity(Vector2::ZERO),
             collision_layers: CollisionLayers::ALL,
-            lockedAxes: LockedAxes::ROTATION_LOCKED,
+            locked_axes: LockedAxes::ROTATION_LOCKED,
             rigid_body: RigidBody::Dynamic,
         }
     }
@@ -125,6 +102,37 @@ impl Default for PhysicalBundle {
 #[derive(Bundle)]
 struct EnemyBundle {
     sprite_bundle: SpriteSheetBundle,
+    physical: PhysicalBundle,
+    animation_timer: AnimationTimer,
+    enemy: Enemy,
+    name: Name,
+    follow_player: FollowPlayer,
+}
+
+impl Default for EnemyBundle {
+    fn default() -> Self {
+        Self {
+            sprite_bundle: SpriteSheetBundle {
+                sprite: Sprite {
+                    custom_size: Some(Vec2::new(9.6_f32, 6.4_f32)),
+                    anchor: Anchor::Center,
+                    ..default()
+                },
+                transform: Transform::from_translation(ENEMY_STARTING_POSITION)
+                    .with_scale(Vec2::splat(BALL_DIAMETER).extend(1.0)),
+                ..default()
+            },
+            physical: PhysicalBundle {
+                ..default()
+            },
+            name: Name::new("Enemy"),
+
+            animation_timer: AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+
+            enemy: Enemy { xp: 1 },
+            follow_player: FollowPlayer,
+        }
+    }
 }
 
 pub fn spawn_enemy(
@@ -228,7 +236,7 @@ pub fn animate_sprite(
 
 pub fn flip_sprite(
     time: Res<Time>,
-    mut query: Query<(&mut AnimationTimer, &mut Sprite, &LinearVelocity )>,
+    mut query: Query<(&mut AnimationTimer, &mut Sprite, &LinearVelocity)>,
 ) {
     for (mut timer, mut atlas, velocity) in &mut query {
         if timer.just_finished() {
