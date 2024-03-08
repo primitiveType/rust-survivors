@@ -2,8 +2,6 @@ use std::fs;
 use std::fs::DirEntry;
 
 use bevy::prelude::{Bundle, SpatialBundle};
-use bevy::reflect::erased_serde::__private::serde::Serializer;
-use bevy_inspector_egui::__macro_exports::bevy_reflect::erased_serde::__private::serde;
 use serde::Deserialize;
 use serde::Serialize;
 

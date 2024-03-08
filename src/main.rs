@@ -9,7 +9,6 @@ use bevy_xpbd_2d::prelude::*;
 use components::{CollisionEvent, CollisionSound, HealthUi};
 use constants::BACKGROUND_COLOR;
 use inspector::add_inspector;
-use systems::{dev, guns, movement, spawning};
 
 use crate::{
     initialization::inspector,

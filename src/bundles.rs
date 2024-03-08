@@ -1,4 +1,4 @@
-use bevy::asset::{Assets, AssetServer, ErasedAssetLoader, Handle};
+use bevy::asset::{Assets, AssetServer, Handle};
 use bevy::core::Name;
 use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{Bundle, Circle, Color, ColorMaterial, Commands, Component, default, Deref, DerefMut, Mesh, Query, Res, ResMut, TextureAtlasLayout, Time, Timer, TimerMode, Transform};
@@ -21,7 +21,7 @@ pub struct Handles {
 }
 
 pub fn setup_assets(mut commands: Commands,
-                    asset_server: Res<AssetServer>,
+                    _asset_server: Res<AssetServer>,
                     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
     let layout = TextureAtlasLayout::from_grid(Vec2::new(96.0, 64.0), 8, 1, None, None);
@@ -133,7 +133,7 @@ impl Default for EnemyBundle {
 
             enemy: Enemy { xp: 1 },
             follow_player: FollowPlayer,
-            animation_indices: AnimationIndices {first: 0,  last: 7},
+            animation_indices: AnimationIndices { first: 0, last: 7 },
         }
     }
 }
@@ -254,10 +254,9 @@ pub fn animate_sprite(
 }
 
 pub fn flip_sprite(
-    time: Res<Time>,
     mut query: Query<(&mut AnimationTimer, &mut Sprite, &LinearVelocity)>,
 ) {
-    for (mut timer, mut atlas, velocity) in &mut query {
+    for (timer, mut atlas, velocity) in &mut query {
         if timer.just_finished() {
             atlas.flip_x = velocity.x < 0.0;
         }
