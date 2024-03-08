@@ -32,7 +32,6 @@ mod initialization;
 mod bundles;
 
 
-
 #[derive(States, Debug, Hash, PartialEq, Eq, Clone, Default)]
 pub enum AppState {
     #[default]
@@ -46,12 +45,11 @@ fn main() {
     // data drive guns
     // show gun info on level up choice
     // display enemy health (maybe)
-    // projectiles can be added to player over time
     // camera moves with player
     // add background
     // get rid of walls
 //PATH=C:\Users\Arthu\.rustup\toolchains\nightly-x86_64-pc-windows-msvc\bin\;E:\Unity Projects\rust-survivors\target\debug\deps
-   let mut app_binding = App::new();
+    let mut app_binding = App::new();
     let app: &mut App = app_binding
         .init_state::<AppState>()
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))// prevents blurry sprites
