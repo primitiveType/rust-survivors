@@ -54,17 +54,17 @@ impl Default for Bullet {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Serialize, Deserialize, Clone)]
 pub struct Health {
     pub value: f32,
 }
 
 
-#[derive(Component)]
+#[derive(Component, Serialize, Deserialize, Clone)]
 pub struct FollowPlayer;
 
 
-#[derive(Component, Reflect)]
+#[derive(Component, Reflect, Serialize, Deserialize, Clone)]
 pub struct MoveSpeed {
     pub value: f32,
 }
@@ -75,12 +75,12 @@ impl MoveSpeed {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Serialize, Deserialize, Clone)]
 pub struct Enemy {
     pub xp: u16,
 }
 
-#[derive(Component)]
+#[derive(Component, Serialize, Deserialize, Clone)]
 pub struct DamageOnTouch {
     pub value: f32,
 }
