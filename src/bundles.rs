@@ -1,15 +1,20 @@
-use bevy::asset::{Assets, AssetServer, Handle};
+use std::fmt;
+
+use bevy::asset::{AssetContainer, Assets, AssetServer, Handle};
 use bevy::core::Name;
 use bevy::math::{Vec2, Vec3};
-use bevy::prelude::{Bundle, Circle, Color, ColorMaterial, Commands, Component, default, Deref, DerefMut, Mesh, Query, Res, ResMut, TextureAtlasLayout, Time, Timer, TimerMode, Transform};
+use bevy::prelude::{Bundle, Changed, Circle, Color, ColorMaterial, Commands, Component, default, Deref, DerefMut, Entity, Image, Mesh, Query, Reflect, Res, ResMut, TextureAtlasLayout, Time, Timer, TimerMode, Transform};
 use bevy::sprite::{Anchor, MaterialMesh2dBundle, Sprite, SpriteSheetBundle, TextureAtlas};
 use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, LockedAxes, Mass, Restitution, RigidBody};
 use bevy_xpbd_2d::math::Vector2;
+use bevy_xpbd_2d::parry::transformation::utils::transform;
 use bevy_xpbd_2d::prelude::{Collider, Sensor};
-use rand::Rng;
+use serde::{Deserialize, Serialize};
 
+use crate::bundles::AnimationState::Run;
 use crate::components::{DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health, MoveSpeed, Player};
 use crate::constants::{BALL_DIAMETER, ENEMY_STARTING_POSITION, PADDLE_COLOR, PADDLE_SIZE, XP_DIAMETER};
+use crate::initialization::load_prefabs::{Animations, Atlases, load_enemy, load_enemy_data_from_path};
 use crate::physics::layers::GameLayer;
 
 const XP_COLOR: Color = Color::rgb(0.0, 1.0, 0.1);
@@ -100,110 +105,152 @@ impl Default for PhysicalBundle {
 }
 
 #[derive(Bundle)]
-struct EnemyBundle {
+pub struct EnemyBundle {
     sprite_bundle: SpriteSheetBundle,
     physical: PhysicalBundle,
+    sensor: Sensor,
     animation_timer: AnimationTimer,
+    enemy_data: EnemyData,
+    animator: Animator,
+}
+
+#[derive(Component, Deserialize, Serialize, Debug, Clone)]
+struct SpritePath(String);
+
+#[derive(Deserialize, Serialize, Bundle, Clone)]
+pub struct EnemyData {
+    pub sprite_path: SpritePath,
     enemy: Enemy,
-    name: Name,
+    pub name: Name,
     follow_player: FollowPlayer,
     animation_indices: AnimationIndices,
+    move_speed: MoveSpeed,
+    health: Health,
+    touch_damage: DamageOnTouch,
+}
 
+
+impl EnemyBundle {
+    pub fn from_path(
+        path: &str,
+        asset_server: Res<AssetServer>,
+        mut atlases: ResMut<Atlases>,
+    ) -> Self {
+        let enemy_data = load_enemy_data_from_path(path);
+        let image = asset_server.load(&enemy_data.sprite_path.0);
+        let str = enemy_data.name.as_str();
+        println!("{str}{}", atlases.map.keys().last().unwrap().to_string());
+        let layout = atlases.map[str].clone();
+        Self {
+            enemy_data: enemy_data.clone(),
+            sprite_bundle: Self::get_default_sprite_sheet_bundle(image, layout),
+            animator: Animator {
+                state: Run,
+                name: enemy_data.name.to_string(),
+            },
+            ..default()
+        }
+    }
+
+    fn get_default_sprite_sheet_bundle(image: Handle<Image>, layout: Handle<TextureAtlasLayout>) -> SpriteSheetBundle {
+        SpriteSheetBundle {
+            texture: image,
+            atlas: TextureAtlas {
+                layout,
+                index: 0,
+            },
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(9.6_f32, 6.4_f32)),
+                anchor: Anchor::Center,
+
+                ..default()
+            },
+            transform: Transform::from_translation(ENEMY_STARTING_POSITION)
+                .with_scale(Vec2::splat(BALL_DIAMETER).extend(1.0)),
+            ..default()
+        }
+    }
 }
 
 impl Default for EnemyBundle {
     fn default() -> Self {
         Self {
-            sprite_bundle: SpriteSheetBundle {
-                sprite: Sprite {
-                    custom_size: Some(Vec2::new(9.6_f32, 6.4_f32)),
-                    anchor: Anchor::Center,
-                    ..default()
-                },
-                transform: Transform::from_translation(ENEMY_STARTING_POSITION)
-                    .with_scale(Vec2::splat(BALL_DIAMETER).extend(1.0)),
-                ..default()
-            },
+            sprite_bundle: Self::get_default_sprite_sheet_bundle(Handle::default(), Handle::default()),
             physical: PhysicalBundle {
                 ..default()
             },
-            name: Name::new("Enemy"),
-
+            enemy_data: EnemyData {
+                sprite_path: SpritePath("".to_string()),
+                name: Name::new("Enemy"),
+                enemy: Enemy { xp: 1 },
+                follow_player: FollowPlayer,
+                animation_indices: AnimationIndices { first: 0, last: 7 },
+                move_speed: MoveSpeed { value: 1.0 },
+                health: Health { value: 5.0 },
+                touch_damage: DamageOnTouch { value: 1.0 },
+            },
+            sensor: Default::default(),
             animation_timer: AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
-
-            enemy: Enemy { xp: 1 },
-            follow_player: FollowPlayer,
-            animation_indices: AnimationIndices { first: 0, last: 7 },
+            animator: Animator { state: Run, name: "default".to_string() },
         }
     }
 }
 
-impl EnemyBundle {
-    fn with_sprite(path: String,
-                   asset_server: Res<AssetServer>,
-                   layout: Handle<TextureAtlasLayout>,
-    ) -> Self {
-        let texture = asset_server.load(path);
-        let animation_indices = AnimationIndices { first: 0, last: 7 };
+// impl EnemyBundle {
+//     fn with_sprite(path: String,
+//                    asset_server: Res<AssetServer>,
+//                    layout: Handle<TextureAtlasLayout>,
+//     ) -> Self {
+//         let texture = asset_server.load(path);
+//         let animation_indices = AnimationIndices { first: 0, last: 7 };
+//
+//         let enemy = Self {
+//             sprite_bundle: SpriteSheetBundle {
+//                 sprite: Sprite {
+//                     custom_size: Some(Vec2::new(9.6_f32, 6.4_f32)),
+//                     anchor: Anchor::Center,
+//                     ..default()
+//                 },
+//                 transform: Transform::from_translation(ENEMY_STARTING_POSITION)
+//                     .with_scale(Vec2::splat(BALL_DIAMETER).extend(1.0)),
+//                 atlas: TextureAtlas {
+//                     layout,
+//                     index: 0,
+//                 },
+//                 texture,
+//                 ..default()
+//             },
+//             physical: PhysicalBundle {
+//                 ..default()
+//             },
+//             sensor: Sensor,
+//             animation_timer: AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+//             enemy_data: EnemyData {
+//                 sprite_path: SpritePath(),
+//                 enemy: Enemy {},
+//                 name: Default::default(),
+//                 follow_player: FollowPlayer,
+//                 animation_indices,
+//                 move_speed: MoveSpeed {},
+//                 health: Health {},
+//                 touch_damage: DamageOnTouch {},
+//             },
+//         };
+//
+//         enemy
+//     }
+// }
 
-        let enemy = Self {
-            sprite_bundle: SpriteSheetBundle {
-                sprite: Sprite {
-                    custom_size: Some(Vec2::new(9.6_f32, 6.4_f32)),
-                    anchor: Anchor::Center,
-                    ..default()
-                },
-                transform: Transform::from_translation(ENEMY_STARTING_POSITION)
-                    .with_scale(Vec2::splat(BALL_DIAMETER).extend(1.0)),
-                atlas: TextureAtlas {
-                    layout,
-                    index: 0,
-                },
-                texture,
-                ..default()
-            },
-            physical: PhysicalBundle {
-                ..default()
-            },
-            name: Name::new("Enemy"),
-            animation_indices,
-            animation_timer: AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
-
-            enemy: Enemy { xp: 1 },
-            follow_player: FollowPlayer,
-        };
-
-        enemy
-    }
-}
+const ANIMATION_STATE_RUN: &str = "run";
 
 pub fn spawn_enemy(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     query: Query<&Handles>,
+    mut atlases: ResMut<Atlases>,
 ) {
-    let handles = query.single();
-
-
-    let knight_string: String = "sprites/knight/noBKG_KnightRun_strip.png".to_string();
-    let mut spawned = commands.spawn(
-        EnemyBundle::with_sprite(knight_string, asset_server, handles.knight_layout_handle.clone())
-    );
-
-
-    let mut rng = rand::thread_rng(); // Get a random number generator
-    let speed = rng.gen_range(100.0..300.0);
-    spawned.insert(MoveSpeed::new(speed));
-
-    spawned.insert(Health { value: 10.0 });
-    spawned.insert(LinearVelocity(Vec2::new(0.0, 0.0)));
-    spawned.insert(Collider::circle(0.5));
-    spawned.insert(RigidBody::Dynamic);
-    spawned.insert(CollisionLayers::new(GameLayer::Enemy, [GameLayer::Player, GameLayer::Enemy, GameLayer::Ground]));
-    spawned.insert(DamageOnTouch { value: 1.0 });
-
-    // spawned.insert(Sensor);
-    spawned.insert(Name::new("enemy"));
+    let bundle = load_enemy(0, asset_server, atlases);
+    let mut spawned = commands.spawn(bundle);
 }
 
 pub fn spawn_xp(
@@ -234,22 +281,38 @@ pub fn spawn_xp(
     spawned.insert(Name::new("xp"));
 }
 
-#[derive(Component, Deref, DerefMut)]
+#[derive(Component, Deref, DerefMut, Serialize, Deserialize, Default, Reflect)]
 pub struct AnimationTimer(Timer);
+
 
 pub fn animate_sprite(
     time: Res<Time>,
     mut query: Query<(&AnimationIndices, &mut AnimationTimer, &mut TextureAtlas)>,
 ) {
     for (indices, mut timer, mut atlas) in &mut query {
+        println!("Animating!");
+
         timer.tick(time.delta());
         if timer.just_finished() {
+            println!("Changing frames!");
+
             atlas.index = if atlas.index == indices.last {
                 indices.first
             } else {
                 atlas.index + 1
             };
         }
+    }
+}
+
+pub fn update_sprite(
+    animations: Res<Animations>,
+    mut entity_commands: Commands,
+    mut query: Query<(Entity, &mut AnimationTimer, &mut TextureAtlas, &Animator), Changed<Animator>>,
+) {
+    for (entity, timer, mut atlas, &ref animator) in &mut query.iter_mut() {
+        let state = &format!("{}/{}", &animator.name, &animator.state.to_string());
+        entity_commands.entity(entity).insert(animations.map[state]);
     }
 }
 
@@ -263,8 +326,27 @@ pub fn flip_sprite(
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Serialize, Deserialize, Clone, Copy, Reflect)]
 pub struct AnimationIndices {
     first: usize,
     last: usize,
+}
+
+#[derive(Component, Reflect)]
+pub struct Animator {
+    state: AnimationState,
+    name: String,
+}
+
+#[derive(Debug, Reflect)]
+pub enum AnimationState {
+    Run,
+}
+
+impl fmt::Display for AnimationState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+        // or, alternatively:
+        // fmt::Debug::fmt(self, f)
+    }
 }

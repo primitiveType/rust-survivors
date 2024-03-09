@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
 
@@ -15,6 +16,7 @@ use crate::{
     initialization::register_types::register_types,
     systems::*,
 };
+use crate::initialization::load_prefabs::{Animations, Atlases};
 
 mod components;
 
@@ -41,7 +43,11 @@ pub enum AppState {
 
 fn main() {
     //TODO:
-    // data drive guns
+    //1 minute timer
+    //scale difficulty
+    //level ups offer real choices
+    // - 3 weapons
+    // - 3 passives
     // show gun info on level up choice
     // display enemy health (maybe)
     // camera moves with player
@@ -66,8 +72,11 @@ fn main() {
         .insert_resource(Gravity(Vec2::default()))
         .insert_resource(SubstepCount(6))
         .insert_resource(ClearColor(BACKGROUND_COLOR))
+        .insert_resource(Atlases { map: HashMap::new(), image_map: HashMap::new() })
+        .insert_resource(Animations { map: HashMap::new() })
         .add_event::<CollisionEvent>()
         .add_systems(Startup, (setup::setup, ui::setup, initialization::load_prefabs::load_gun_test, bundles::setup_assets))
+        .add_systems(Startup, initialization::load_prefabs::load_sprites)
         // Add our gameplay simulation systems to the fixed timestep schedule
         // which runs at 64 Hz by default
         .add_systems(
