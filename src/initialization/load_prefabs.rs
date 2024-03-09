@@ -85,8 +85,14 @@ pub fn load_sprites(
             continue;
         } else if extension == Some("yml".as_ref()) {
             let asset_path_str = path.to_string();
+            //todo...
+            let parent = entry.path().parent().unwrap().file_name().unwrap().to_str().unwrap();
+            let path_without_extensions = entry.path().with_extension("");
+            let asset_filename_no_extension = path_without_extensions.file_name().unwrap().to_str().unwrap();
+
             let indices = load_data_from_path::<AnimationIndices>(path);
-            animations.map.insert(asset_path_str, indices);
+            animations.map.insert(format!("{}/{}", parent, asset_filename_no_extension), indices);
+            println!("inserted animation {}", asset_path_str);
         } else {
             let tester = entry.path().with_extension("");
             let asset_filename_no_extension = tester.file_name().unwrap().to_str().unwrap();
