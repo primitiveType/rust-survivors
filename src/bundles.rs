@@ -123,7 +123,6 @@ pub struct EnemyData {
     enemy: Enemy,
     pub name: Name,
     follow_player: FollowPlayer,
-    animation_indices: AnimationIndices,
     move_speed: MoveSpeed,
     health: Health,
     touch_damage: DamageOnTouch,
@@ -160,13 +159,12 @@ impl EnemyBundle {
                 index: 0,
             },
             sprite: Sprite {
-                custom_size: Some(Vec2::new(9.6_f32, 6.4_f32)),
                 anchor: Anchor::Center,
 
                 ..default()
             },
             transform: Transform::from_translation(ENEMY_STARTING_POSITION)
-                .with_scale(Vec2::splat(BALL_DIAMETER).extend(1.0)),
+                .with_scale(Vec2::splat(4.0).extend(1.0)),
             ..default()
         }
     }
@@ -184,7 +182,6 @@ impl Default for EnemyBundle {
                 name: Name::new("Enemy"),
                 enemy: Enemy { xp: 1 },
                 follow_player: FollowPlayer,
-                animation_indices: AnimationIndices { first: 0, last: 7 },
                 move_speed: MoveSpeed { value: 1.0 },
                 health: Health { value: 5.0 },
                 touch_damage: DamageOnTouch { value: 1.0 },
@@ -244,12 +241,13 @@ impl Default for EnemyBundle {
 const ANIMATION_STATE_RUN: &str = "run";
 
 pub fn spawn_enemy(
+    enemy: usize,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     query: Query<&Handles>,
     mut atlases: ResMut<Atlases>,
 ) {
-    let bundle = load_enemy(0, asset_server, atlases);
+    let bundle = load_enemy(enemy, asset_server, atlases);
     let mut spawned = commands.spawn(bundle);
 }
 
@@ -290,12 +288,8 @@ pub fn animate_sprite(
     mut query: Query<(&AnimationIndices, &mut AnimationTimer, &mut TextureAtlas)>,
 ) {
     for (indices, mut timer, mut atlas) in &mut query {
-        println!("Animating!");
-
         timer.tick(time.delta());
         if timer.just_finished() {
-            println!("Changing frames!");
-
             atlas.index = if atlas.index == indices.last {
                 indices.first
             } else {
@@ -305,13 +299,14 @@ pub fn animate_sprite(
     }
 }
 
-pub fn update_sprite(
+pub fn update_animations(
     animations: Res<Animations>,
     mut entity_commands: Commands,
-    mut query: Query<(Entity, &mut AnimationTimer, &mut TextureAtlas, &Animator), Changed<Animator>>,
+    mut query: Query<(Entity, &Animator), Changed<Animator>>,
 ) {
-    for (entity, timer, mut atlas, &ref animator) in &mut query.iter_mut() {
+    for (entity, &ref animator) in &mut query.iter_mut() {
         let state = &format!("{}/{}", &animator.name, &animator.state.to_string());
+        println!("{}", state);
         entity_commands.entity(entity).insert(animations.map[state]);
     }
 }

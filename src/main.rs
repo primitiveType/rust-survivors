@@ -57,6 +57,7 @@ fn main() {
     let mut app_binding = App::new();
     let app: &mut App = app_binding
         .init_state::<AppState>()
+        .insert_resource(Msaa::Off)
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))// prevents blurry sprites
         .add_plugins(PhysicsPlugins::default())
         .add_plugins(
@@ -87,6 +88,7 @@ fn main() {
                 audio::play_collision_sound,
                 stats::die_at_zero_health,
                 guns::destroy_bullets,
+                bundles::update_animations,
                 bundles::animate_sprite,
                 bundles::flip_sprite,
             ).run_if(in_state(AppState::InGame))
