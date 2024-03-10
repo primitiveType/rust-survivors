@@ -29,7 +29,7 @@ pub fn pickup_xp(mut query: Query<(Entity, &mut Player, &CollidingEntities)>,
     for (_, mut player, collisions) in query.iter_mut() {
         for collision in collisions.iter() {
             if let Ok(xp) = xps.get(*collision) {
-                player.xp = player.xp + xp.1.value;
+                player.xp += xp.1.value;
                 commands.entity(*collision).despawn();
                 if player.xp / 2 > player.level {
                     next_state.set(AppState::LevelUp);

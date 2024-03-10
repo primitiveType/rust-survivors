@@ -69,11 +69,6 @@ pub struct MoveSpeed {
     pub value: f32,
 }
 
-impl MoveSpeed {
-    pub(crate) fn new(value: f32) -> Self {
-        MoveSpeed { value }
-    }
-}
 
 #[derive(Component, Serialize, Deserialize, Clone)]
 pub struct Enemy {

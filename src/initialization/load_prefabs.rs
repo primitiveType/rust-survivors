@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 use std::fs;
 use std::fs::DirEntry;
-use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 
 use bevy::asset::{Assets, AssetServer, Handle};
 use bevy::math::vec2;
-use bevy::prelude::{Bundle, Commands, default, Image, Res, ResMut, Resource, SpatialBundle, SpriteBundle};
+use bevy::prelude::{Bundle, Image, Res, ResMut, Resource, SpatialBundle};
 use bevy::sprite::TextureAtlasLayout;
 use serde::Deserialize;
 use serde::Serialize;
@@ -117,37 +116,6 @@ pub fn load_sprites(
 }
 
 
-fn load_assets_from_directory(
-    asset_server: Res<AssetServer>,
-    mut commands: Commands,
-) {
-    let root_path = "path/to/assets"; // Adjust to your assets directory
-    let root_path = std::path::Path::new(root_path);
-
-    for entry in WalkDir::new(root_path)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_file()) // Make sure it's a file
-    {
-        let path = entry.path();
-        if let Some(ext) = path.extension() {
-            if ext == "png" { // Adjust based on your asset type, assuming PNG images here
-                // Convert the path to a relative path string that lives long enough
-                if let Ok(asset_path) = path.strip_prefix(root_path) {
-                    // Convert Path to String for asset loading
-                    let asset_path_str = asset_path.to_str().unwrap().to_string();
-                    let handle: Handle<Image> = asset_server.load(asset_path_str);
-                    // Use the handle as needed, e.g., attaching to an entity
-                    commands.spawn(SpriteBundle {
-                        texture: handle,
-                        ..default()
-                    });
-                }
-            }
-        }
-    }
-}
-
 // pub fn save_gun( ) {
 //     let gun_bundle: Gun =
 //          Gun { last_shot_time: 0, cooldown: 200 };
@@ -168,7 +136,7 @@ pub fn load_gun(gun: usize) -> Gun {
     gun
 }
 
-pub fn save_enemy(bundle: EnemyData) {
+pub fn _save_enemy(bundle: EnemyData) {
     let enemy_yaml = serde_yaml::to_string(&bundle).expect("Unable to serialize!");
     fs::write(ENEMIES_PATH, enemy_yaml).expect("Unable to write file!");
 }
@@ -176,13 +144,11 @@ pub fn save_enemy(bundle: EnemyData) {
 pub fn load_enemy(
     enemy: usize,
     asset_server: Res<AssetServer>,
-    mut atlases: ResMut<Atlases>,
+    atlases: ResMut<Atlases>,
 ) -> EnemyBundle {
     let file_path = get_enemy_path(enemy);
     EnemyBundle::from_path(file_path.to_str().unwrap(), asset_server, atlases)
 }
-
-pub fn load_enemy_new(asset_server: ResMut<AssetServer>, mut atlases: ResMut<Atlases>, mut layouts: ResMut<Assets<TextureAtlasLayout>>, mut animations: ResMut<Animations>) {}
 
 
 fn get_enemy_path(index: usize) -> PathBuf {
@@ -192,7 +158,7 @@ fn get_enemy_path(index: usize) -> PathBuf {
     path.path()
 }
 
-pub fn load_enemy_data(enemy: usize) -> EnemyData {
+pub fn _load_enemy_data(enemy: usize) -> EnemyData {
     let file_path = get_enemy_path(enemy);
 
     load_enemy_data_from_path(file_path.to_str().unwrap())
@@ -204,7 +170,7 @@ pub fn load_enemy_data_from_path(path: &str) -> EnemyData {
 
 pub fn load_data_from_path<T: for<'a> Deserialize<'a>>(path: &str) -> T {
     let enemy_yaml = fs::read_to_string(path).expect("failed to load yaml!");
-    let mut enemy = serde_yaml::from_str::<T>(enemy_yaml.as_str()).expect(&format!("failed to deserialize data at path {}!", path));
+    let enemy = serde_yaml::from_str::<T>(enemy_yaml.as_str()).unwrap_or_else(|_| panic!("failed to deserialize data at path {}!", path));
     enemy
 }
 
