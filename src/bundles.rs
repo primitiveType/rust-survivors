@@ -10,10 +10,10 @@ use bevy_xpbd_2d::math::Vector2;
 use bevy_xpbd_2d::prelude::{Collider, Sensor};
 use serde::{Deserialize, Serialize};
 
-use crate::bundles::AnimationState::Run;
+use crate::bundles::AnimationState::{Idle, Run};
 use crate::components::{DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health, MoveSpeed, Player};
 use crate::constants::{ENEMY_STARTING_POSITION, PADDLE_COLOR, PADDLE_SIZE, XP_DIAMETER};
-use crate::initialization::load_prefabs::{Animations, Atlases, load_enemy, load_enemy_data_from_path};
+use crate::initialization::load_prefabs::{Animations, Atlases, AtlasLayout, load_enemy, load_enemy_data_from_path};
 use crate::physics::layers::GameLayer;
 
 const XP_COLOR: Color = Color::rgb(0.0, 1.0, 0.1);
@@ -45,6 +45,9 @@ pub struct PlayerBundle {
     pub player: Player,
     pub health: Health,
     pub physical: PhysicalBundle,
+    pub animation_indices: AnimationIndices,
+    pub animator: Animator,
+    pub animation_timer: AnimationTimer,
 }
 
 impl Default for PlayerBundle {
@@ -56,9 +59,9 @@ impl Default for PlayerBundle {
                 ..default()
             },
 
+            animation_indices: AnimationIndices { first: 0, last: 0 },
             sprite: SpriteSheetBundle {
                 sprite: Sprite {
-                    color: PADDLE_COLOR,
                     ..default()
                 },
                 transform: Transform {
@@ -72,9 +75,53 @@ impl Default for PlayerBundle {
             name: Name::new("Player"),
             player: Default::default(),
             health: Health { value: 100.0 },
+            animator: Animator { state: AnimationState::Run, name: "default".to_string() },
+            animation_timer: AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+
         }
     }
 }
+
+impl PlayerBundle {
+    pub fn with_sprite(atlases: ResMut<Atlases>) -> Self {
+        let key = "knight_Run";
+
+        Self {
+            physical: PhysicalBundle {
+                collision_layers: CollisionLayers::new(GameLayer::Player, [GameLayer::Ball, GameLayer::Ground, GameLayer::Enemy, GameLayer::XP]),
+
+                ..default()
+            },
+
+            sprite: SpriteSheetBundle {
+                texture: atlases.image_map[key].clone(),
+                atlas: TextureAtlas {
+                    layout: atlases.map[key].clone(),
+                    index: 0,
+                },
+                sprite: Sprite {
+                    ..default()
+                },
+                transform: Transform {
+                    translation: Vec3::new(0.0, -250.0, 0.0),
+                    scale: Vec2::splat(4.0).extend(1.0),
+
+                    ..default()
+                },
+                ..default()
+            },
+            animation_timer: AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+
+            name: Name::new("Player"),
+            player: Default::default(),
+            health: Health { value: 100.0 },
+            animation_indices: AnimationIndices { first: 0, last: 7 },//TODO: make all this shit accessible somehow
+
+            animator: Animator { state: Run, name: "knight".to_string() },
+        }
+    }
+}
+
 
 #[derive(Bundle)]
 pub struct PhysicalBundle {
@@ -135,13 +182,14 @@ impl EnemyBundle {
         atlases: ResMut<Atlases>,
     ) -> Self {
         let enemy_data = load_enemy_data_from_path(path);
-        let image = asset_server.load(&enemy_data.sprite_path.0);
-        let str = enemy_data.name.as_str();
-        println!("{str}{}", atlases.map.keys().last().unwrap());
-        let layout = atlases.map[str].clone();
+        // let image = asset_server.load(&enemy_data.sprite_path.0);
+        // let str = enemy_data.name.as_str();
+        // let str = &format!("{}_{}", str, "Run");
+        // println!("{str}{}", atlases.map.keys().last().unwrap());
+        // let layout = atlases.map[str].clone();
         Self {
             enemy_data: enemy_data.clone(),
-            sprite_bundle: Self::get_default_sprite_sheet_bundle(image, layout),
+            sprite_bundle: Self::get_default_sprite_sheet_bundle(Handle::default(), Handle::default()),
             animator: Animator {
                 state: Run,
                 name: enemy_data.name.to_string(),
@@ -296,15 +344,39 @@ pub fn animate_sprite(
     }
 }
 
+pub fn update_animation_state(
+    mut query: Query<(&mut Animator, &LinearVelocity)>, )
+{
+    for (mut animator, velocity) in &mut query.iter_mut() {
+        if velocity.length() == 0.0 {
+            println!("Idle at {}, {} ", velocity.x, velocity.y);
+            animator.state = Idle;
+        } else if animator.state != Run {//looks stupid, but necessary to not trigger a change.
+            animator.state = Run;
+        }
+    }
+}
+
 pub fn update_animations(
     animations: Res<Animations>,
+    atlases: Res<Atlases>,
     mut entity_commands: Commands,
-    mut query: Query<(Entity, &Animator), Changed<Animator>>,
+    mut query: Query<(Entity, &Animator, &Handle<Image>), Changed<Animator>>,
 ) {
-    for (entity, animator) in &mut query.iter_mut() {
-        let state = &format!("{}/{}", &animator.name, &animator.state.to_string());
-        println!("{}", state);
+    for (entity, animator, image) in &mut query.iter_mut() {
+        let state = &format!("{}_{}", &animator.name, &animator.state.to_string());
+        println!("state : {}", state);
+        println!("image map:");
+
+        atlases.image_map.iter().for_each(|x| println!("{}", x.0));
         entity_commands.entity(entity).insert(animations.map[state]);
+        entity_commands.entity(entity).insert(atlases.image_map[state].clone());
+        entity_commands.entity(entity).insert(
+            TextureAtlas {
+                layout: atlases.map[state].clone(),
+                index: 0,
+            },
+        );
     }
 }
 
@@ -313,6 +385,9 @@ pub fn flip_sprite(
 ) {
     for (timer, mut atlas, velocity) in &mut query {
         if timer.just_finished() {
+            if velocity.x == 0.0 {
+                continue;
+            }
             atlas.flip_x = velocity.x < 0.0;
         }
     }
@@ -330,9 +405,10 @@ pub struct Animator {
     name: String,
 }
 
-#[derive(Debug, Reflect)]
+#[derive(Debug, Reflect, PartialEq)]
 pub enum AnimationState {
     Run,
+    Idle,
 }
 
 impl fmt::Display for AnimationState {
