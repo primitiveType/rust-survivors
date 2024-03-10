@@ -1,11 +1,12 @@
 use crate::*;
-use crate::components::{Gun, WallBundle, WallLocation};
+use crate::components::Gun;
 use crate::constants::{SCORE_COLOR, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, TEXT_COLOR};
 
 // Add the game's entities to our world
 pub fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    atlases: ResMut<Atlases>,
 ) {
     // Camera
     commands.spawn(Camera2dBundle::default());
@@ -14,7 +15,7 @@ pub fn setup(
     let ball_collision_sound = asset_server.load("sounds/breakout_collision.ogg");
     commands.insert_resource(CollisionSound(ball_collision_sound));
 
-    spawn_player(&mut commands);
+    spawn_player(&mut commands, atlases);
 
     spawn_background(&mut commands);
 
@@ -61,17 +62,18 @@ pub fn setup(
     ));
 
     // Walls
-    commands.spawn(WallBundle::new(WallLocation::Left));
-    commands.spawn(WallBundle::new(WallLocation::Right));
-    commands.spawn(WallBundle::new(WallLocation::Bottom));
-    commands.spawn(WallBundle::new(WallLocation::Top));
+    // commands.spawn(WallBundle::new(WallLocation::Left));
+    // commands.spawn(WallBundle::new(WallLocation::Right));
+    // commands.spawn(WallBundle::new(WallLocation::Bottom));
+    // commands.spawn(WallBundle::new(WallLocation::Top));
 }
 
 
-fn spawn_player(commands: &mut Commands) {
+fn spawn_player(commands: &mut Commands,
+                atlases: ResMut<Atlases>, ) {
     // Paddle
 
-    commands.spawn(bundles::PlayerBundle::default())
+    commands.spawn(bundles::PlayerBundle::with_sprite(atlases))
 
         .with_children(|parent| {
             // parent.spawn((Gun { last_shot_time: 0, cooldown: 1_000 }, SpatialBundle { ..default() }));

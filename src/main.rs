@@ -76,8 +76,8 @@ fn main() {
         .insert_resource(Atlases { map: HashMap::new(), image_map: HashMap::new() })
         .insert_resource(Animations { map: HashMap::new() })
         .add_event::<CollisionEvent>()
-        .add_systems(Startup, (setup::setup, ui::setup, initialization::load_prefabs::load_gun_test, bundles::setup_assets))
-        .add_systems(Startup, initialization::load_prefabs::load_sprites)
+
+        .add_systems(Startup, (initialization::load_prefabs::load_sprites, setup::setup, ui::setup, initialization::load_prefabs::load_gun_test, bundles::setup_assets).chain())
         // Add our gameplay simulation systems to the fixed timestep schedule
         // which runs at 64 Hz by default
         .add_systems(
@@ -91,6 +91,7 @@ fn main() {
                 bundles::update_animations,
                 bundles::animate_sprite,
                 bundles::flip_sprite,
+                bundles::update_animation_state,
             ).run_if(in_state(AppState::InGame))
                 // `chain`ing systems together runs them in order
                 .chain(),

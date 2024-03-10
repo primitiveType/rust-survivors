@@ -80,17 +80,18 @@ pub fn load_sprites(
         println!("{}", entry.path().display());
         let path = entry.path().to_str().unwrap();
         let extension = entry.path().extension();
+        let parent = entry.path().parent().unwrap().file_name().unwrap().to_str().unwrap();
+
         if extension == Some("layout".as_ref()) {
             continue;
         } else if extension == Some("yml".as_ref()) {
             let asset_path_str = path.to_string();
             //todo...
-            let parent = entry.path().parent().unwrap().file_name().unwrap().to_str().unwrap();
             let path_without_extensions = entry.path().with_extension("");
             let asset_filename_no_extension = path_without_extensions.file_name().unwrap().to_str().unwrap();
 
             let indices = load_data_from_path::<AnimationIndices>(path);
-            animations.map.insert(format!("{}/{}", parent, asset_filename_no_extension), indices);
+            animations.map.insert(format!("{}_{}", parent, asset_filename_no_extension), indices);
             println!("inserted animation {}", asset_path_str);
         } else {
             let tester = entry.path().with_extension("");
@@ -108,8 +109,9 @@ pub fn load_sprites(
                                                            atlas.rows,
                                                            None, None);
                 let layout_handle = layouts.add(layout);
-                atlases.map.insert(asset_filename_no_extension.to_string(), layout_handle);
-                atlases.image_map.insert(asset_filename_no_extension.to_string(), handle);
+                let key = format!("{}_{}", parent, asset_filename_no_extension);
+                atlases.map.insert(key.clone(), layout_handle);
+                atlases.image_map.insert(key, handle);
             }
         }
     }
