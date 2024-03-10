@@ -22,7 +22,6 @@ pub fn player_shoot(
     time: Res<Time>,
     spatial_query: SpatialQuery,
 ) {
-
     for (mut gun, transform) in query.iter_mut() {
         if time.elapsed().as_millis() - gun.last_shot_time > gun.cooldown {
             let translation = transform.translation();
@@ -53,7 +52,7 @@ pub fn enemy_takes_damage_from_bullets(mut query: Query<(&mut Health, &Enemy, &C
             if let Ok(mut bullet) = damager {
                 if bullet.hits <= bullet.pierce {
                     entity.value -= bullet.damage;
-                    bullet.hits = bullet.hits + 1;
+                    bullet.hits += 1;
                 }
             }
         }

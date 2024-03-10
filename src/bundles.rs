@@ -1,19 +1,18 @@
 use std::fmt;
 
-use bevy::asset::{AssetContainer, Assets, AssetServer, Handle};
+use bevy::asset::{Assets, AssetServer, Handle};
 use bevy::core::Name;
 use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{Bundle, Changed, Circle, Color, ColorMaterial, Commands, Component, default, Deref, DerefMut, Entity, Image, Mesh, Query, Reflect, Res, ResMut, TextureAtlasLayout, Time, Timer, TimerMode, Transform};
 use bevy::sprite::{Anchor, MaterialMesh2dBundle, Sprite, SpriteSheetBundle, TextureAtlas};
 use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, LockedAxes, Mass, Restitution, RigidBody};
 use bevy_xpbd_2d::math::Vector2;
-use bevy_xpbd_2d::parry::transformation::utils::transform;
 use bevy_xpbd_2d::prelude::{Collider, Sensor};
 use serde::{Deserialize, Serialize};
 
 use crate::bundles::AnimationState::Run;
 use crate::components::{DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health, MoveSpeed, Player};
-use crate::constants::{BALL_DIAMETER, ENEMY_STARTING_POSITION, PADDLE_COLOR, PADDLE_SIZE, XP_DIAMETER};
+use crate::constants::{ENEMY_STARTING_POSITION, PADDLE_COLOR, PADDLE_SIZE, XP_DIAMETER};
 use crate::initialization::load_prefabs::{Animations, Atlases, load_enemy, load_enemy_data_from_path};
 use crate::physics::layers::GameLayer;
 
@@ -115,7 +114,7 @@ pub struct EnemyBundle {
 }
 
 #[derive(Component, Deserialize, Serialize, Debug, Clone)]
-struct SpritePath(String);
+pub struct SpritePath(String);
 
 #[derive(Deserialize, Serialize, Bundle, Clone)]
 pub struct EnemyData {
@@ -133,12 +132,12 @@ impl EnemyBundle {
     pub fn from_path(
         path: &str,
         asset_server: Res<AssetServer>,
-        mut atlases: ResMut<Atlases>,
+        atlases: ResMut<Atlases>,
     ) -> Self {
         let enemy_data = load_enemy_data_from_path(path);
         let image = asset_server.load(&enemy_data.sprite_path.0);
         let str = enemy_data.name.as_str();
-        println!("{str}{}", atlases.map.keys().last().unwrap().to_string());
+        println!("{str}{}", atlases.map.keys().last().unwrap());
         let layout = atlases.map[str].clone();
         Self {
             enemy_data: enemy_data.clone(),
@@ -238,17 +237,15 @@ impl Default for EnemyBundle {
 //     }
 // }
 
-const ANIMATION_STATE_RUN: &str = "run";
 
 pub fn spawn_enemy(
     enemy: usize,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    query: Query<&Handles>,
-    mut atlases: ResMut<Atlases>,
+    atlases: ResMut<Atlases>,
 ) {
     let bundle = load_enemy(enemy, asset_server, atlases);
-    let mut spawned = commands.spawn(bundle);
+    commands.spawn(bundle);
 }
 
 pub fn spawn_xp(
@@ -304,7 +301,7 @@ pub fn update_animations(
     mut entity_commands: Commands,
     mut query: Query<(Entity, &Animator), Changed<Animator>>,
 ) {
-    for (entity, &ref animator) in &mut query.iter_mut() {
+    for (entity, animator) in &mut query.iter_mut() {
         let state = &format!("{}/{}", &animator.name, &animator.state.to_string());
         println!("{}", state);
         entity_commands.entity(entity).insert(animations.map[state]);

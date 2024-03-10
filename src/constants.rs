@@ -10,7 +10,6 @@ pub const PADDLE_PADDING: f32 = 10.0;
 
 // We set the z-value of the ball to 1 so it renders on top in the case of overlapping sprites.
 pub const ENEMY_STARTING_POSITION: Vec3 = Vec3::new(0.0, 0.0, 0.0);
-pub const BALL_DIAMETER: f32 = 30.;
 pub const XP_DIAMETER: f32 = 5.;
 
 pub const WALL_THICKNESS: f32 = 10.0;
