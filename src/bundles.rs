@@ -189,7 +189,7 @@ impl EnemyBundle {
         // let layout = atlases.map[str].clone();
         Self {
             enemy_data: enemy_data.clone(),
-            sprite_bundle: Self::get_default_sprite_sheet_bundle(Handle::default(), Handle::default()),
+            sprite_bundle: get_default_sprite_sheet_bundle(Handle::default(), Handle::default()),
             animator: Animator {
                 state: Run,
                 name: enemy_data.name.to_string(),
@@ -197,30 +197,30 @@ impl EnemyBundle {
             ..default()
         }
     }
+}
 
-    fn get_default_sprite_sheet_bundle(image: Handle<Image>, layout: Handle<TextureAtlasLayout>) -> SpriteSheetBundle {
-        SpriteSheetBundle {
-            texture: image,
-            atlas: TextureAtlas {
-                layout,
-                index: 0,
-            },
-            sprite: Sprite {
-                anchor: Anchor::Center,
+pub fn get_default_sprite_sheet_bundle(image: Handle<Image>, layout: Handle<TextureAtlasLayout>) -> SpriteSheetBundle {
+    SpriteSheetBundle {
+        texture: image,
+        atlas: TextureAtlas {
+            layout,
+            index: 0,
+        },
+        sprite: Sprite {
+            anchor: Anchor::Center,
 
-                ..default()
-            },
-            transform: Transform::from_translation(ENEMY_STARTING_POSITION)
-                .with_scale(Vec2::splat(4.0).extend(1.0)),
             ..default()
-        }
+        },
+        transform: Transform::from_translation(ENEMY_STARTING_POSITION)
+            .with_scale(Vec2::splat(4.0).extend(1.0)),
+        ..default()
     }
 }
 
 impl Default for EnemyBundle {
     fn default() -> Self {
         Self {
-            sprite_bundle: Self::get_default_sprite_sheet_bundle(Handle::default(), Handle::default()),
+            sprite_bundle: get_default_sprite_sheet_bundle(Handle::default(), Handle::default()),
             physical: PhysicalBundle {
                 ..default()
             },
@@ -349,7 +349,6 @@ pub fn update_animation_state(
 {
     for (mut animator, velocity) in &mut query.iter_mut() {
         if velocity.length() == 0.0 {
-            println!("Idle at {}, {} ", velocity.x, velocity.y);
             animator.state = Idle;
         } else if animator.state != Run {//looks stupid, but necessary to not trigger a change.
             animator.state = Run;

@@ -2,7 +2,7 @@ use bevy::asset::Handle;
 use bevy::audio::AudioSource;
 use bevy::math::Vec2;
 use bevy::prelude::{Bundle, ColorMaterial, Component, default, Event, Reflect, Resource, Sprite, SpriteBundle, Transform};
-use bevy::sprite::MaterialMesh2dBundle;
+use bevy::sprite::{MaterialMesh2dBundle, SpriteSheetBundle};
 use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, Mass, Restitution, RigidBody};
 use bevy_xpbd_2d::prelude::Collider;
 use serde::Deserialize;
