@@ -1,0 +1,11 @@
+sprite_path: sprites/skeleton/skeleton.png
+enemy:
+  xp: 1
+name: 'skeleton'
+follow_player: null
+move_speed:
+  value: 80.0
+health:
+  value: 15.0
+touch_damage:
+  value: 2.0
