@@ -108,6 +108,7 @@ fn main() {
                 bundles::animate_sprite,
                 bundles::flip_sprite,
                 bundles::update_animation_state,
+                guns::destroy_explosions,
             ).run_if(in_state(AppState::InGame))
                 // `chain`ing systems together runs them in order
                 .chain(),

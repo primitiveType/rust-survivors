@@ -1,9 +1,9 @@
-use bevy::asset::AssetServer;
+use bevy::asset::{Assets, AssetServer, Handle};
 use bevy::math::Vec3;
-use bevy::prelude::{Commands, default, Entity, GlobalTransform, Query, Res, SpriteSheetBundle, Time, Transform, Vec2};
-use bevy_asepritesheet::animator::{AnimatedSpriteBundle, SpriteAnimator};
-use bevy_asepritesheet::core::load_spritesheet;
-use bevy_asepritesheet::prelude::AnimHandle;
+use bevy::prelude::{Commands, default, Entity, EventReader, GlobalTransform, Query, Res, SpriteSheetBundle, Time, Transform, Vec2, With};
+use bevy_asepritesheet::animator::{AnimatedSpriteBundle, AnimFinishEvent, SpriteAnimator};
+use bevy_asepritesheet::core::{load_spritesheet, load_spritesheet_then};
+use bevy_asepritesheet::prelude::{AnimEndAction, AnimEventSender, AnimHandle, Spritesheet};
 use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, Mass, Restitution};
 pub use bevy_xpbd_2d::parry::na::DimAdd;
 use bevy_xpbd_2d::prelude::{Collider, CollidingEntities, RigidBody, SpatialQuery, SpatialQueryFilter};
@@ -60,18 +60,73 @@ pub fn enemy_takes_damage_from_bullets(mut query: Query<(&mut Health, &Enemy, &C
     }
 }
 
-pub fn destroy_bullets(bullets: Query<(&Bullet, Entity)>,
-                       mut _commands: Commands,
+pub fn destroy_bullets(bullets: Query<(&Bullet, Entity, &Transform)>,
+                       mut commands: Commands,
+                       asset_server: Res<AssetServer>,
                        time: Res<Time>,
 ) {
-    for (bullet, entity) in bullets.iter() {
+    for (bullet, entity, transform) in bullets.iter() {
         if bullet.timestamp + bullet.lifetime < time.elapsed().as_millis()
             || bullet.hits > bullet.pierce
         {
-            _commands.entity(entity).despawn();
+            commands.entity(entity).despawn();
+            spawn_explosion(transform.translation, &mut commands, &asset_server);
         }
     }
 }
+
+const FIREBALL_EXPLODE_ANIMATION: &'static str = "Fireball_explode";
+
+fn spawn_explosion(position: Vec3, commands: &mut Commands, asset_server: &Res<AssetServer>) {
+    let sheet_handle = load_spritesheet_then(
+        commands,
+        asset_server,
+        "bullets.json",
+        bevy::sprite::Anchor::Center,
+        |sheet| {
+            let explode = sheet.get_anim_handle(FIREBALL_EXPLODE_ANIMATION);
+            let mut explodeMut = sheet.get_anim_mut(&explode);
+            explodeMut.unwrap().end_action = AnimEndAction::Stop;
+        },
+    );
+    commands.spawn((
+        AnimEventSender,
+        AnimatedSpriteBundle {
+            animator: SpriteAnimator::from_anim(AnimHandle::from_index(
+                1)),
+            spritesheet: sheet_handle,
+            sprite_bundle: SpriteSheetBundle
+            {
+                transform: Transform::from_translation(position),
+                ..default()
+            },
+
+            ..Default::default()
+        }));
+}
+
+pub fn destroy_explosions(
+    mut commands: Commands,
+    mut events: EventReader<AnimFinishEvent>,
+    spritesheet_assets: Res<Assets<Spritesheet>>,
+    animated_sprite_query: Query<&Handle<Spritesheet>, With<SpriteAnimator>>,
+) {
+    for event in events.read() {
+        // get the spritesheet handle off the animated sprite entity
+        if let Ok(sheet_handle) = animated_sprite_query.get(event.entity) {
+            if let Some(anim_sheet) = spritesheet_assets.get(sheet_handle) {
+                // get the animation reference from the spritesheet
+                if let Ok(anim) = anim_sheet.get_anim(&event.anim) {
+                    if anim.name == FIREBALL_EXPLODE_ANIMATION {
+                        commands.entity(event.entity).despawn();
+                    }
+                }
+            }
+        }
+        println!("Animation {:?} complete!", event.anim);
+    }
+}
+
 
 fn spawn_projectile(
     commands: &mut Commands,
