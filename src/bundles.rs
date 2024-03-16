@@ -5,6 +5,7 @@ use bevy::core::Name;
 use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{Bundle, Changed, Circle, Color, ColorMaterial, Commands, Component, default, Deref, DerefMut, Entity, Image, Mesh, Query, Reflect, Res, ResMut, TextureAtlasLayout, Time, Timer, TimerMode, Transform};
 use bevy::sprite::{Anchor, MaterialMesh2dBundle, Sprite, SpriteSheetBundle, TextureAtlas};
+use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
 use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, LockedAxes, Mass, Restitution, RigidBody};
 use bevy_xpbd_2d::math::Vector2;
 use bevy_xpbd_2d::prelude::{Collider, Sensor};
@@ -40,7 +41,8 @@ pub fn setup_assets(mut commands: Commands,
 
 #[derive(Bundle)]
 pub struct PlayerBundle {
-    pub sprite: SpriteSheetBundle,
+    pub sprite: AnimatedSpriteBundle,
+    // pub sprite: SpriteSheetBundle,
     pub name: Name,
     pub player: Player,
     pub health: Health,
@@ -60,17 +62,24 @@ impl Default for PlayerBundle {
             },
 
             animation_indices: AnimationIndices { first: 0, last: 0 },
-            sprite: SpriteSheetBundle {
-                sprite: Sprite {
-                    ..default()
-                },
-                transform: Transform {
-                    translation: Vec3::new(0.0, -250.0, 0.0),
-                    scale: PADDLE_SIZE,
-                    ..default()
-                },
-                ..default()
+            sprite: AnimatedSpriteBundle {
+                sprite_bundle: Default::default(),
+                spritesheet: Default::default(),
+                animator: Default::default(),
+                needs_img: Default::default(),
+                needs_atlas: Default::default(),
             },
+            // SpriteSheetBundle {
+            //     sprite: Sprite {
+            //         ..default()
+            //     },
+            //     transform: Transform {
+            //         translation: Vec3::new(0.0, -250.0, 0.0),
+            //         scale: PADDLE_SIZE,
+            //         ..default()
+            //     },
+            //     ..default()
+            // },
 
             name: Name::new("Player"),
             player: Default::default(),
@@ -93,21 +102,21 @@ impl PlayerBundle {
                 ..default()
             },
 
-            sprite: SpriteSheetBundle {
-                texture: atlases.image_map[key].clone(),
-                atlas: TextureAtlas {
-                    layout: atlases.map[key].clone(),
-                    index: 0,
-                },
-                sprite: Sprite {
-                    ..default()
-                },
-                transform: Transform {
-                    translation: Vec3::new(0.0, -250.0, 0.0),
-                    scale: Vec2::splat(4.0).extend(1.0),
-
-                    ..default()
-                },
+            sprite: AnimatedSpriteBundle {
+                // texture: atlases.image_map[key].clone(),
+                // atlas: TextureAtlas {
+                //     layout: atlases.map[key].clone(),
+                //     index: 0,
+                // },
+                // sprite: Sprite {
+                //     ..default()
+                // },
+                // transform: Transform {
+                //     translation: Vec3::new(0.0, -250.0, 0.0),
+                //     scale: Vec2::splat(4.0).extend(1.0),
+                //
+                //     ..default()
+                // },
                 ..default()
             },
             animation_timer: AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
@@ -292,7 +301,7 @@ pub fn spawn_enemy(
     asset_server: Res<AssetServer>,
     atlases: ResMut<Atlases>,
 ) {
-    let bundle = load_enemy(enemy, asset_server, atlases);
+    let mut bundle = load_enemy(enemy, asset_server, atlases);
     commands.spawn(bundle);
 }
 
@@ -364,10 +373,10 @@ pub fn update_animations(
 ) {
     for (entity, animator, image) in &mut query.iter_mut() {
         let state = &format!("{}_{}", &animator.name, &animator.state.to_string());
-        println!("state : {}", state);
-        println!("image map:");
-
-        atlases.image_map.iter().for_each(|x| println!("{}", x.0));
+        // println!("state : {}", state);
+        // println!("image map:");
+        // 
+        // atlases.image_map.iter().for_each(|x| println!("{}", x.0));
         entity_commands.entity(entity).insert(animations.map[state]);
         entity_commands.entity(entity).insert(atlases.image_map[state].clone());
         entity_commands.entity(entity).insert(

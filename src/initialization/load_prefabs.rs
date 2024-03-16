@@ -177,5 +177,5 @@ pub fn load_data_from_path<T: for<'a> Deserialize<'a>>(path: &str) -> T {
 }
 
 pub fn load_gun_test() {
-    load_gun(999);
+    // load_gun(999);
 }

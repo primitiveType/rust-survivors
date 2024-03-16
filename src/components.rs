@@ -3,6 +3,7 @@ use bevy::audio::AudioSource;
 use bevy::math::Vec2;
 use bevy::prelude::{Bundle, ColorMaterial, Component, default, Event, Reflect, Resource, Sprite, SpriteBundle, Transform};
 use bevy::sprite::{MaterialMesh2dBundle, SpriteSheetBundle};
+use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
 use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, Mass, Restitution, RigidBody};
 use bevy_xpbd_2d::prelude::Collider;
 use serde::Deserialize;
@@ -22,6 +23,9 @@ pub struct Gun {
     #[serde(skip)]
     pub last_shot_time: u128,
     pub cooldown: u128,
+    pub bullet_size: f32,
+    pub pierce: u8,
+    pub bullet_speed: f32,
 }
 
 impl Default for Gun {
@@ -94,7 +98,8 @@ pub struct CollisionSound(pub Handle<AudioSource>);
 // This bundle is a collection of the components that define a "wall" in our game
 #[derive(Bundle)]
 pub struct BulletBundle {
-    pub material: MaterialMesh2dBundle<ColorMaterial>,
+    pub sprite_sheet: AnimatedSpriteBundle,
+    // pub material: MaterialMesh2dBundle<ColorMaterial>,
     pub collider: Collider,
     pub rigid_body: RigidBody,
     pub friction: Friction,
