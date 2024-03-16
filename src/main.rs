@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 
 use bevy::prelude::*;
+use bevy_asepritesheet::core::SpriteAnimController;
 use bevy_asepritesheet::prelude::AsepritesheetPlugin;
 use bevy_prng::WyRand;
 use bevy_rand::prelude::EntropyPlugin;
@@ -60,7 +61,7 @@ fn main() {
     let app: &mut App = app_binding
         .init_state::<AppState>()
         .insert_resource(Msaa::Off)
-
+        .insert_resource(SpriteAnimController::default())
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))// prevents blurry sprites
         .init_asset::<bevy_asepritesheet::aseprite_data::SpritesheetData>()
         .add_plugins(PhysicsPlugins::default())
@@ -136,11 +137,11 @@ fn main() {
                      ).run_if(in_state(AppState::LevelUp)))
         .add_systems(
             OnEnter(AppState::LevelUp),
-            ui::toggle_level_ui_system,
+            (ui::toggle_level_ui_system, ui::pause_animations),
         )
         .add_systems(
             OnExit(AppState::LevelUp),
-            ui::toggle_level_ui_system,
+            (ui::toggle_level_ui_system, ui::resume_animations),
         )
         .add_systems(
             OnEnter(AppState::InGame),

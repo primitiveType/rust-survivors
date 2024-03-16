@@ -1,6 +1,10 @@
+use std::time::Duration;
+
 use bevy::asset::{Assets, AssetServer, Handle};
 use bevy::math::Vec3;
 use bevy::prelude::{Commands, default, Entity, EventReader, GlobalTransform, Query, Res, SpriteSheetBundle, Time, Transform, Vec2, With};
+use bevy::time::Timer;
+use bevy::time::TimerMode::Once;
 use bevy_asepritesheet::animator::{AnimatedSpriteBundle, AnimFinishEvent, SpriteAnimator};
 use bevy_asepritesheet::core::{load_spritesheet, load_spritesheet_then};
 use bevy_asepritesheet::prelude::{AnimEndAction, AnimEventSender, AnimHandle, Spritesheet};
@@ -36,7 +40,7 @@ pub fn player_shoot(
                 println!("Bang!");
                 let mut delta = projection.point - to_vec2(translation);
                 delta = delta.normalize();
-                spawn_projectile(&mut commands, &asset_server, &gun, translation, delta, time.elapsed().as_millis());
+                spawn_projectile(&mut commands, &asset_server, &gun, translation, delta);
             }
         }
     }
@@ -60,33 +64,34 @@ pub fn enemy_takes_damage_from_bullets(mut query: Query<(&mut Health, &Enemy, &C
     }
 }
 
-pub fn destroy_bullets(bullets: Query<(&Bullet, Entity, &Transform)>,
+pub fn destroy_bullets(mut bullets: Query<(&mut Bullet, Entity, &Transform)>,
                        mut commands: Commands,
                        asset_server: Res<AssetServer>,
                        time: Res<Time>,
 ) {
-    for (bullet, entity, transform) in bullets.iter() {
-        if bullet.timestamp + bullet.lifetime < time.elapsed().as_millis()
+    for (mut bullet, entity, transform) in bullets.iter_mut() {
+        bullet.timer.tick(time.delta());
+        if bullet.timer.finished()
             || bullet.hits > bullet.pierce
         {
             commands.entity(entity).despawn();
-            spawn_explosion(transform.translation, &mut commands, &asset_server);
+            spawn_particle(transform.translation, &mut commands, &asset_server, "bullets.json".to_string());
         }
     }
 }
 
 const FIREBALL_EXPLODE_ANIMATION: &'static str = "Fireball_explode";
 
-fn spawn_explosion(position: Vec3, commands: &mut Commands, asset_server: &Res<AssetServer>) {
+fn spawn_particle(position: Vec3, commands: &mut Commands, asset_server: &Res<AssetServer>, sprite_sheet: String) {
     let sheet_handle = load_spritesheet_then(
         commands,
         asset_server,
-        "bullets.json",
+        sprite_sheet,
         bevy::sprite::Anchor::Center,
         |sheet| {
-            let explode = sheet.get_anim_handle(FIREBALL_EXPLODE_ANIMATION);
-            let mut explodeMut = sheet.get_anim_mut(&explode);
-            explodeMut.unwrap().end_action = AnimEndAction::Stop;
+            let explode = sheet.get_anim_handle(FIREBALL_EXPLODE_ANIMATION);//TODO: i guess its not possible to pass a satring to spawn_particle for the animation. consider using the same animation name
+            let mut explode_mut = sheet.get_anim_mut(&explode);
+            explode_mut.unwrap().end_action = AnimEndAction::Stop;
         },
     );
     commands.spawn((
@@ -134,7 +139,6 @@ fn spawn_projectile(
     gun: &Gun,
     position: Vec3,
     direction: Vec2,
-    timestamp: u128,
 ) {
     //todo: cache this and store in what is currently called atlases.
     let sheet_handle = load_spritesheet(
@@ -170,7 +174,7 @@ fn spawn_projectile(
                                    [GameLayer::Ground,
                                        GameLayer::Enemy]),
         bullet: Bullet
-        { damage: 5.0, timestamp, pierce: gun.pierce, ..default() },
+        { damage: 5.0, timer: Timer::new(Duration::from_secs(2_u64), Once), pierce: gun.pierce, ..default() },
 
     };
     commands.spawn(bundle);

@@ -1,8 +1,9 @@
 use bevy::asset::Handle;
 use bevy::audio::AudioSource;
 use bevy::math::Vec2;
-use bevy::prelude::{Bundle, ColorMaterial, Component, default, Event, Reflect, Resource, Sprite, SpriteBundle, Transform};
+use bevy::prelude::{Bundle, ColorMaterial, Component, default, Event, Reflect, Resource, Sprite, SpriteBundle, Timer, Transform};
 use bevy::sprite::{MaterialMesh2dBundle, SpriteSheetBundle};
+use bevy::time::TimerMode;
 use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
 use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, Mass, Restitution, RigidBody};
 use bevy_xpbd_2d::prelude::Collider;
@@ -43,7 +44,7 @@ pub struct Bullet {
     pub hits: u8,
     pub pierce: u8,
     pub lifetime: u128,
-    pub timestamp: u128,
+    pub timer: Timer,
 }
 
 impl Default for Bullet {
@@ -53,7 +54,7 @@ impl Default for Bullet {
             hits: 0,
             pierce: 0,
             lifetime: 5_000,
-            timestamp: 0,
+            timer: Timer::new(Default::default(), TimerMode::Once),
         }
     }
 }

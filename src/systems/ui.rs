@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_asepritesheet::core::SpriteAnimController;
 
 use crate::AppState;
 use crate::components::{Health, HealthUi, Player};
@@ -126,6 +127,15 @@ pub fn toggle_level_ui_system(
             *visibility = Visibility::Hidden;
         }
     }
+}
+
+
+pub fn pause_animations(mut animation_timers: ResMut<SpriteAnimController>) {
+    animation_timers.is_active = false;
+}
+
+pub fn resume_animations(mut animation_timers: ResMut<SpriteAnimController>) {
+    animation_timers.is_active = true;
 }
 
 

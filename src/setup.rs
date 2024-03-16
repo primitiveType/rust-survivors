@@ -83,7 +83,7 @@ fn spawn_player(commands: &mut Commands,
             // parent.spawn((Gun { last_shot_time: 0, cooldown: 1_000 }, SpatialBundle { ..default() }));
             parent.spawn((Gun {
                 last_shot_time: 0,
-                cooldown: 2_000,
+                cooldown: 1_00,
                 bullet_size: 10_f32,
                 pierce: 100,
                 bullet_speed: 80_f32,
