@@ -3,6 +3,7 @@ use crate::components::Gun;
 use crate::constants::{SCORE_COLOR, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, TEXT_COLOR};
 
 // Add the game's entities to our world
+// #[bevycheck::system]
 pub fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -12,10 +13,10 @@ pub fn setup(
     commands.spawn(Camera2dBundle::default());
 
     // Sound
-    let ball_collision_sound = asset_server.load("sounds/breakout_collision.ogg");
-    commands.insert_resource(CollisionSound(ball_collision_sound));
+    // let ball_collision_sound = asset_server.load("sounds/breakout_collision.ogg");
+    // commands.insert_resource(CollisionSound(ball_collision_sound));
 
-    spawn_player(&mut commands, atlases);
+    spawn_player(&mut commands, atlases, asset_server);
 
     spawn_background(&mut commands);
 
@@ -70,14 +71,23 @@ pub fn setup(
 
 
 fn spawn_player(commands: &mut Commands,
-                atlases: ResMut<Atlases>, ) {
-    // Paddle
+                atlases: ResMut<Atlases>,
+                asset_server: Res<AssetServer>,
+) {
+
+
 
     commands.spawn(bundles::PlayerBundle::with_sprite(atlases))
 
         .with_children(|parent| {
             // parent.spawn((Gun { last_shot_time: 0, cooldown: 1_000 }, SpatialBundle { ..default() }));
-            parent.spawn((Gun { last_shot_time: 0, cooldown: 2_000 }, SpatialBundle { ..default() }));
+            parent.spawn((Gun {
+                last_shot_time: 0,
+                cooldown: 2_000,
+                bullet_size: 10_f32,
+                pierce: 100,
+                bullet_speed: 80_f32,
+            }, SpatialBundle { ..default() }));
             // parent.spawn((Gun { last_shot_time: 0, cooldown: 500 }, SpatialBundle { ..default() }));
             // parent.spawn((Gun { last_shot_time: 0, cooldown: 125 }, SpatialBundle { ..default() }));
         });

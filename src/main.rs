@@ -3,11 +3,12 @@ use std::fmt::Debug;
 use std::hash::Hash;
 
 use bevy::prelude::*;
+use bevy_asepritesheet::prelude::AsepritesheetPlugin;
 use bevy_prng::WyRand;
 use bevy_rand::prelude::EntropyPlugin;
 use bevy_xpbd_2d::prelude::*;
 
-use components::{CollisionEvent, CollisionSound, HealthUi};
+use components::{CollisionEvent, HealthUi};
 use constants::BACKGROUND_COLOR;
 use inspector::add_inspector;
 
@@ -43,6 +44,7 @@ pub enum AppState {
 
 fn main() {
     //TODO:
+    //use animation event of aseprite to trigger bullet explosion
     //1 minute timer
     //scale difficulty
     //level ups offer real choices
@@ -58,8 +60,13 @@ fn main() {
     let app: &mut App = app_binding
         .init_state::<AppState>()
         .insert_resource(Msaa::Off)
+
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))// prevents blurry sprites
+        .init_asset::<bevy_asepritesheet::aseprite_data::SpritesheetData>()
         .add_plugins(PhysicsPlugins::default())
+        .add_plugins(
+            AsepritesheetPlugin::new(&["sprite.json"]),
+        )
         .add_plugins(
             stepping::SteppingPlugin::default()
                 .add_schedule(Update)
@@ -77,7 +84,16 @@ fn main() {
         .insert_resource(Animations { map: HashMap::new() })
         .add_event::<CollisionEvent>()
 
-        .add_systems(Startup, (initialization::load_prefabs::load_sprites, setup::setup, ui::setup, initialization::load_prefabs::load_gun_test, bundles::setup_assets).chain())
+        .add_systems(
+            Startup,
+            (
+                initialization::load_prefabs::load_sprites,
+                setup::setup,
+                ui::setup,
+                initialization::load_prefabs::load_gun_test,
+                bundles::setup_assets,
+            ).chain(),
+        )
         // Add our gameplay simulation systems to the fixed timestep schedule
         // which runs at 64 Hz by default
         .add_systems(
@@ -85,7 +101,7 @@ fn main() {
             (
                 spawning::enemy_spawn_cycle,
                 guns::player_shoot,
-                audio::play_collision_sound,
+                // audio::play_collision_sound,
                 stats::die_at_zero_health,
                 guns::destroy_bullets,
                 bundles::update_animations,

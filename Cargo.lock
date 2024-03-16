@@ -406,6 +406,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_asepritesheet"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e4cf51f959625cfda24ab4810f487ca04ed8d9e81eabcdf26e89f6f56fac025"
+dependencies = [
+ "bevy",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "bevy_asset"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1240,6 +1251,16 @@ checksum = "3e1ef1d5e328abe1b76df974245f78e17fd17867583883d5e77444c6a8223a64"
 dependencies = [
  "quote",
  "syn 2.0.48",
+]
+
+[[package]]
+name = "bevycheck"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35eff4e62ba08efdfa824e835bd7d33875d3f9871dab5c41a8d1c9ed374e89af"
+dependencies = [
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -3720,10 +3741,12 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
+ "bevy_asepritesheet",
  "bevy_editor_pls",
  "bevy_prng",
  "bevy_rand",
  "bevy_xpbd_2d",
+ "bevycheck",
  "rand",
  "rand_core 0.6.4",
  "serde",

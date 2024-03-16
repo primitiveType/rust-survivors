@@ -1,12 +1,11 @@
-use bevy::prelude::{Commands, KeyCode, Query, Res, Time, Transform, With, Without};
-use bevy_xpbd_2d::prelude::{CollidingEntities, LinearVelocity};
 use bevy::input::ButtonInput;
 use bevy::math::Vec2;
+use bevy::prelude::{Commands, KeyCode, Query, Res, Time, Transform, With, Without};
+use bevy_xpbd_2d::prelude::{CollidingEntities, LinearVelocity};
 
 use crate::components::{DamageOnTouch, FollowPlayer, Health, MoveSpeed, Player};
 use crate::constants::{BOTTOM_WALL, LEFT_WALL, PADDLE_PADDING, PADDLE_SIZE, PADDLE_SPEED, RIGHT_WALL, TOP_WALL, WALL_THICKNESS};
 use crate::extensions::vectors::to_vec2;
-
 
 pub fn set_follower_velocity(
     mut query: Query<(&mut LinearVelocity, &MoveSpeed, &Transform), (With<FollowPlayer>, Without<Player>)>,
@@ -15,8 +14,10 @@ pub fn set_follower_velocity(
     let player = player_query.single();
 
     for (mut velocity, move_speed, transform) in query.iter_mut() {
-        let direction = (player.translation - transform.translation).normalize();
+        let direction = (player.translation - transform.translation).normalize_or_zero();
+
         let new_velocity = direction * move_speed.value;
+
         velocity.0 = to_vec2(new_velocity);
     }
 }

@@ -14,7 +14,9 @@ pub fn enemy_spawn_cycle(
 ) {
     let count = query.iter().len();
 
+
     if count < 3 {
+        println!("Spawning.");
         spawn_enemy(count, _commands, asset_server, atlases);
     }
 }
