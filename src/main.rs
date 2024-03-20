@@ -45,8 +45,8 @@ pub enum AppState {
 
 fn main() {
     //TODO:
-    //use animation event of aseprite to trigger bullet explosion
     //1 minute timer
+    //make spawn rate more interesting
     //scale difficulty
     //level ups offer real choices
     // - 3 weapons
@@ -77,7 +77,7 @@ fn main() {
         )
         .add_plugins(EntropyPlugin::<WyRand>::default())
 
-        // .add_plugins(PhysicsDebugPlugin::default())
+        .add_plugins(PhysicsDebugPlugin::default())
         .insert_resource(Gravity(Vec2::default()))
         .insert_resource(SubstepCount(6))
         .insert_resource(ClearColor(BACKGROUND_COLOR))

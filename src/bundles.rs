@@ -6,9 +6,13 @@ use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{Bundle, Changed, Circle, Color, ColorMaterial, Commands, Component, default, Deref, DerefMut, Entity, Image, Mesh, Query, Reflect, Res, ResMut, TextureAtlasLayout, Time, Timer, TimerMode, Transform};
 use bevy::sprite::{Anchor, MaterialMesh2dBundle, Sprite, SpriteSheetBundle, TextureAtlas};
 use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
+use bevy_prng::WyRand;
+use bevy_rand::prelude::GlobalEntropy;
 use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, LockedAxes, Mass, Restitution, RigidBody};
 use bevy_xpbd_2d::math::Vector2;
 use bevy_xpbd_2d::prelude::{Collider, Sensor};
+use rand::Rng;
+use rand_core::RngCore;
 use serde::{Deserialize, Serialize};
 
 use crate::bundles::AnimationState::{Idle, Run};
@@ -111,12 +115,15 @@ impl PlayerBundle {
                 // sprite: Sprite {
                 //     ..default()
                 // },
-                // transform: Transform {
-                //     translation: Vec3::new(0.0, -250.0, 0.0),
-                //     scale: Vec2::splat(4.0).extend(1.0),
-                //
-                //     ..default()
-                // },
+                sprite_bundle: SpriteSheetBundle {
+                    transform: Transform {
+                        translation: Vec3::new(0.0, -250.0, 0.0),
+                        scale: Vec2::splat(4.0).extend(1.0),
+
+                        ..default()
+                    },
+                    ..default()
+                },
                 ..default()
             },
             animation_timer: AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
@@ -300,8 +307,18 @@ pub fn spawn_enemy(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     atlases: ResMut<Atlases>,
+    mut rng: ResMut<GlobalEntropy<WyRand>>,
 ) {
     let mut bundle = load_enemy(enemy, asset_server, atlases);
+    //get random position outside screen
+    let mut rng = rand::thread_rng();
+    let value = rng.gen_range(0.0..1.0);
+    let angle = value * 2.0 * std::f32::consts::PI;
+    // Calculate the direction vector from the angle
+    let mut direction = Vec2::new(angle.cos(), angle.sin());
+    let distance = Vec2::splat(600.0);
+    direction = direction * distance;
+    bundle.sprite_bundle.transform.translation = direction.extend(0.0);
     commands.spawn(bundle);
 }
 
@@ -375,7 +392,7 @@ pub fn update_animations(
         let state = &format!("{}_{}", &animator.name, &animator.state.to_string());
         // println!("state : {}", state);
         // println!("image map:");
-        // 
+        //
         // atlases.image_map.iter().for_each(|x| println!("{}", x.0));
         entity_commands.entity(entity).insert(animations.map[state]);
         entity_commands.entity(entity).insert(atlases.image_map[state].clone());

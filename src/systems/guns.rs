@@ -128,7 +128,6 @@ pub fn destroy_explosions(
                 }
             }
         }
-        println!("Animation {:?} complete!", event.anim);
     }
 }
 

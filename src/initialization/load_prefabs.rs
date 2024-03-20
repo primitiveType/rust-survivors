@@ -68,6 +68,7 @@ pub struct AtlasLayout {
 const GUNS_PATH: &str = "E:\\Unity Projects\\rust-survivors\\assets\\prefabs\\guns\\";
 const ENEMIES_PATH: &str = "E:\\Unity Projects\\rust-survivors\\assets\\prefabs\\enemies\\";
 const SPRITES_PATH: &str = "E:\\Unity Projects\\rust-survivors\\assets\\sprites";
+const PREFABS_PATH: &str = "prototypes/";
 
 
 pub fn load_sprites(

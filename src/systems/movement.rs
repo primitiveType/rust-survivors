@@ -4,7 +4,7 @@ use bevy::prelude::{Commands, KeyCode, Query, Res, Time, Transform, With, Withou
 use bevy_xpbd_2d::prelude::{CollidingEntities, LinearVelocity};
 
 use crate::components::{DamageOnTouch, FollowPlayer, Health, MoveSpeed, Player};
-use crate::constants::{BOTTOM_WALL, LEFT_WALL, PADDLE_PADDING, PADDLE_SIZE, PADDLE_SPEED, RIGHT_WALL, TOP_WALL, WALL_THICKNESS};
+use crate::constants::{BOTTOM_WALL, LEFT_WALL, PADDLE_PADDING, PADDLE_SIZE, PLAYER_SPEED, RIGHT_WALL, TOP_WALL, WALL_THICKNESS};
 use crate::extensions::vectors::to_vec2;
 
 pub fn set_follower_velocity(
@@ -65,7 +65,7 @@ pub fn move_player(
 
     // Calculate the new horizontal paddle position based on player input
     let new_player_velocity: Vec2 =
-        direction * PADDLE_SPEED * time.delta_seconds();
+        direction * PLAYER_SPEED * time.delta_seconds();
 
     // Update the paddle position,
     // making sure it doesn't cause the paddle to leave the arena
