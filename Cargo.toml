@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 #bevy = { version = "0.13.0" }
-bevy = { version = "0.13.0", features = ["dynamic_linking", "serialize"] }
+bevy = { version = "0.13.0", features = ["dynamic_linking", "serialize", "trace_tracy"] }
 bevy-inspector-egui = "0.23.2"
 bevy_editor_pls = "0.8.0"
 bevy_xpbd_2d = "0.4"
@@ -20,6 +20,9 @@ serde = "1.0.197"
 walkdir = "2.3.2"
 bevy_asepritesheet = "0.6.0"
 bevycheck = "0.5.2"
+tracing-tracy = "0.11.0"
+#bevy_proto = { version = "0.11.0", features = ["default", "yaml"] }//doesn't support bevy 13
+
 # Enable a small amount of optimization in debug mode
 [profile.dev]
 opt-level = 1

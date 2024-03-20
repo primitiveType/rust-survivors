@@ -1,6 +1,8 @@
 use bevy::asset::AssetServer;
 use bevy::prelude::{Commands, Query, Res, ResMut};
 pub use bevy::utils::petgraph::visit::Walker;
+use bevy_prng::WyRand;
+use bevy_rand::prelude::GlobalEntropy;
 
 use crate::bundles::spawn_enemy;
 use crate::components::Enemy;
@@ -11,12 +13,13 @@ pub fn enemy_spawn_cycle(
     _commands: Commands,
     asset_server: Res<AssetServer>,
     atlases: ResMut<Atlases>,
+    mut rng: ResMut<GlobalEntropy<WyRand>>,
 ) {
     let count = query.iter().len();
 
 
-    if count < 3 {
+    if count < 200 {
         println!("Spawning.");
-        spawn_enemy(count, _commands, asset_server, atlases);
+        spawn_enemy(1, _commands, asset_server, atlases, rng);
     }
 }
