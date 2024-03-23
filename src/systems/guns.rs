@@ -1,39 +1,52 @@
 use std::time::Duration;
 
 use bevy::asset::{Assets, Handle};
+use bevy::ecs::query::QueryEntityError;
 use bevy::math::Vec3;
-use bevy::prelude::{Commands, default, Entity, EventReader, GlobalTransform, Query, Res, SpriteSheetBundle, Time, Transform, Vec2, With};
+use bevy::prelude::{Commands, default, Entity, EventReader, GlobalTransform, Mut, Or, Query, Res, SpriteSheetBundle, Time, Transform, Vec2, With};
 use bevy::time::Timer;
 use bevy::time::TimerMode::Once;
 use bevy_asepritesheet::animator::{AnimatedSpriteBundle, AnimFinishEvent, SpriteAnimator};
 use bevy_asepritesheet::prelude::{AnimEventSender, AnimHandle, Spritesheet};
-use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, Mass, Restitution};
-use bevy_xpbd_2d::prelude::{Collider, CollidingEntities, RigidBody, SpatialQuery, SpatialQueryFilter};
+use bevy_rapier2d::dynamics::RigidBody;
+use bevy_rapier2d::geometry::{ActiveEvents, Collider, CollisionGroups, Restitution};
+use bevy_rapier2d::na::point;
+use bevy_rapier2d::pipeline::CollisionEvent;
+use bevy_rapier2d::plugin::RapierContext;
+use bevy_rapier2d::prelude::{Group, QueryFilter, Velocity};
+use crate::bundles::PhysicalBundle;
 
-use crate::components::{Bullet, BulletBundle, Enemy, Gun, Health};
+use crate::components::{Bullet, BulletBundle, DamageOnTouch, Enemy, Gun, Health, Player};
 use crate::extensions::vectors::to_vec2;
 use crate::initialization::load_prefabs::Atlases;
 use crate::Name;
-use crate::physics::layers::GameLayer;
+use crate::physics::layers::game_layer;
 
 pub fn player_shoot(
     mut commands: Commands,
     mut query: Query<(&mut Gun, &GlobalTransform)>,
     time: Res<Time>,
-    spatial_query: SpatialQuery,
-    atlases: Res<Atlases>
+    rapier_context: Res<RapierContext>,
+    atlases: Res<Atlases>,
 ) {
     for (mut gun, transform) in query.iter_mut() {
         if time.elapsed().as_millis() - gun.last_shot_time > gun.cooldown {
-
             let translation = transform.translation();
-            let maybe_projection =
-                spatial_query.project_point(
-                    to_vec2(translation),
-                    true,
-                    SpatialQueryFilter::from_mask(GameLayer::Enemy),
-                );
-            if let Some(projection) = maybe_projection {
+            if let Some((entity, projection)) = rapier_context.project_point(
+                to_vec2(translation),
+                true,
+                QueryFilter {
+                    flags: Default::default(),
+                    groups: Some(CollisionGroups::new(game_layer::ENEMY, game_layer::ENEMY)),//is this filter correct?
+                    exclude_collider: None,
+                    exclude_rigid_body: None,
+                    predicate: None,
+                },
+            ) {
+                // The collider closest to the point has this `handle`.
+                // println!("Projected point on entity {:?}. Point projection: {}", entity, projection.point);
+                // println!("Point was inside of the collider shape: {}", projection.is_inside);
+
                 gun.last_shot_time = time.elapsed().as_millis();
 
                 let mut delta = projection.point - to_vec2(translation);
@@ -45,29 +58,48 @@ pub fn player_shoot(
     }
 }
 
-
-pub fn enemy_takes_damage_from_bullets(mut query: Query<(&mut Health, &Enemy, &CollidingEntities)>,
-                                       mut bullets: Query<&mut Bullet>,
-                                       _commands: Commands,
+pub fn deal_damage_on_collide(
+    mut collision_events: EventReader<CollisionEvent>,
+    mut health_query: Query<(Entity, &mut Health)>,
+    damage_query: Query<(Entity, &DamageOnTouch)>,
 ) {
-    for (mut entity, _enemy, colliding_entities) in query.iter_mut() {
-        for colliding_entity in colliding_entities.iter() {
-            let damager = bullets.get_mut(*colliding_entity);
-            if let Ok(mut bullet) = damager {
-                if bullet.hits <= bullet.pierce {
-                    entity.value -= bullet.damage;
-                    bullet.hits += 1;
+    for collision_event in collision_events.read() {
+        
+        match collision_event {
+            CollisionEvent::Started(entity1, entity2, _flags) => {
+                {//entity 2 damages entity 1 if it can
+                    let entity1_health = health_query.get_mut(*entity1);
+                    let entity2_damage = damage_query.get(*entity2);
+                    
+                    try_deal_damage(entity2_damage, entity1_health);
+                }
+                {//entity 1 damages entity 2 if it can
+                    let entity2_health = health_query.get_mut(*entity2);
+                    let entity1_damage = damage_query.get(*entity1);
+                    try_deal_damage(entity1_damage, entity2_health);
                 }
             }
+            _ => {}
         }
     }
 }
+
+fn try_deal_damage(entity1_damage: Result<(Entity, &DamageOnTouch), QueryEntityError>, entity2_health: Result<(Entity, Mut<Health>), QueryEntityError>) {
+    match (entity1_damage, entity2_health) {
+        (Ok((_, damage)), Ok((_, mut health))) => {
+            println!("damage being dealt!");
+            health.value = health.value - damage.value;
+        }
+        _ => {}
+    }
+}
+
 
 pub fn destroy_bullets(mut bullets: Query<(&mut Bullet, Entity, &Transform)>,
                        mut commands: Commands,
                        time: Res<Time>,
                        atlases: Res<Atlases>,
-                       sprite_assets: Res<Assets<Spritesheet>>
+                       sprite_assets: Res<Assets<Spritesheet>>,
 ) {
     for (mut bullet, entity, transform) in bullets.iter_mut() {
         bullet.timer.tick(time.delta());
@@ -77,11 +109,6 @@ pub fn destroy_bullets(mut bullets: Query<(&mut Bullet, Entity, &Transform)>,
             commands.entity(entity).despawn();
             spawn_particle(transform.translation, &mut commands, "bullet".to_string(), FIREBALL_EXPLODE_ANIMATION, &atlases, &sprite_assets);
 
-            if bullet.hits > bullet.pierce {
-                println!("Destroying bullet due to collisions.");
-            } else {
-                println!("Projectile expired.")
-            }
         }
     }
 }
@@ -156,23 +183,23 @@ fn spawn_projectile(
 
             ..Default::default()
         },
-        rigid_body: RigidBody::Dynamic,
-        mass: Mass(
-            1.0),
-        collider: Collider::circle(
-            0.5),
-        friction: Friction::ZERO,
-        restitution: Restitution::new(
-            1.0),
+        physical: PhysicalBundle {
+            collider: Collider::cuboid(
+                0.5, 0.5),
+            restitution: Restitution::new(1.0),
+            velocity: Velocity { linvel: direction * speed, angvel: 0.0 },
+            collision_layers: CollisionGroups::new(game_layer::PLAYER, Group::from(game_layer::GROUND | game_layer::ENEMY)),
+            rigid_body: RigidBody::Dynamic,
 
-        linear_velocity: LinearVelocity(direction * speed),
-        mask: CollisionLayers::new(GameLayer::Player,
-                                   [GameLayer::Ground,
-                                       GameLayer::Enemy]),
+            ..default()
+        },
         bullet: Bullet
-        { damage: 5.0, timer: Timer::new(Duration::from_secs(2_u64), Once), pierce: gun.pierce, ..default() },
+        { timer: Timer::new(Duration::from_secs(2_u64), Once), pierce: gun.pierce, ..default() },
+        
 
         name: Name::new("bullet"),
+        sensor: Default::default(),
+        damage: DamageOnTouch {value: 5.0},
     };
     commands.spawn(bundle);
 }

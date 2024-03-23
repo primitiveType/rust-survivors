@@ -1,14 +1,15 @@
 use bevy::input::ButtonInput;
 use bevy::math::Vec2;
-use bevy::prelude::{Commands, KeyCode, Query, Res, Time, Transform, With, Without};
-use bevy_xpbd_2d::prelude::{CollidingEntities, LinearVelocity};
+use bevy::prelude::{Commands, EventReader, KeyCode, Query, Res, Time, Transform, With, Without};
+use bevy_rapier2d::dynamics::Velocity;
 
-use crate::components::{DamageOnTouch, FollowPlayer, Health, MoveSpeed, Player};
+use crate::components::{ DamageOnTouch, FollowPlayer, Health, MoveSpeed, Player};
 use crate::constants::{BOTTOM_WALL, LEFT_WALL, PADDLE_PADDING, PADDLE_SIZE, PLAYER_SPEED, RIGHT_WALL, TOP_WALL, WALL_THICKNESS};
 use crate::extensions::vectors::to_vec2;
-
+use bevy::prelude::*;
+use bevy_rapier2d::prelude::*;
 pub fn set_follower_velocity(
-    mut query: Query<(&mut LinearVelocity, &MoveSpeed, &Transform), (With<FollowPlayer>, Without<Player>)>,
+    mut query: Query<(&mut Velocity, &MoveSpeed, &Transform), (With<FollowPlayer>, Without<Player>)>,
     player_query: Query<&mut Transform, With<Player>>,
 ) {
     let player = player_query.single();
@@ -18,28 +19,30 @@ pub fn set_follower_velocity(
 
         let new_velocity = direction * move_speed.value;
 
-        velocity.0 = to_vec2(new_velocity);
+        velocity.linvel = to_vec2(new_velocity);
     }
 }
 
-pub fn player_takes_damage_from_enemy(mut query: Query<(&mut Health, &CollidingEntities), With<Player>>,
-                                      damagers: Query<&DamageOnTouch>,
-                                      mut _commands: Commands,
+pub fn _debug_collisions(
+                        mut collision_events: EventReader<CollisionEvent>,
 ) {
-    for (mut entity, colliding_entities) in query.iter_mut() {
-        for colliding_entity in colliding_entities.iter() {
-            let damager = damagers.get(*colliding_entity);
-            if let Ok(damage) = damager {
-                entity.value -= damage.value;
+    for collision_event in collision_events.read() {
+        match collision_event {
+            CollisionEvent::Started(collider1, collider2, flags) => {
+                println!("Collision started between {:?} and {:?}", collider1, collider2);
+            }
+            CollisionEvent::Stopped(collider1, collider2, flags) => {
+                println!("Collision stopped between {:?} and {:?}", collider1, collider2);
             }
         }
     }
+
 }
 
 
 pub fn move_player(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<&mut LinearVelocity, With<Player>>,
+    mut query: Query<&mut Velocity, With<Player>>,
     time: Res<Time>,
 ) {
     let mut paddle_velocity = query.single_mut();
@@ -65,7 +68,7 @@ pub fn move_player(
 
     // Calculate the new horizontal paddle position based on player input
     let new_player_velocity: Vec2 =
-        direction * PLAYER_SPEED * time.delta_seconds();
+        direction * PLAYER_SPEED;
 
     // Update the paddle position,
     // making sure it doesn't cause the paddle to leave the arena
@@ -74,7 +77,7 @@ pub fn move_player(
 
     let upper_bound = TOP_WALL + WALL_THICKNESS / 2.0 + PADDLE_SIZE.y / 2.0 + PADDLE_PADDING;
     let lower_bound = BOTTOM_WALL - WALL_THICKNESS / 2.0 - PADDLE_SIZE.y / 2.0 - PADDLE_PADDING;
-    paddle_velocity.x = new_player_velocity.x.clamp(left_bound, right_bound);
-    paddle_velocity.y = new_player_velocity.y.clamp(lower_bound, upper_bound);
+    paddle_velocity.linvel.x = new_player_velocity.x.clamp(left_bound, right_bound);
+    paddle_velocity.linvel.y = new_player_velocity.y.clamp(lower_bound, upper_bound);
 }
 

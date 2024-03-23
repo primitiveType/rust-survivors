@@ -9,7 +9,7 @@ use bevy::prelude::Reflect;
 use bevy::prelude::Res;
 use bevy::prelude::Sprite;
 use bevy_asepritesheet::prelude::{AnimHandle, SpriteAnimator, Spritesheet};
-use bevy_xpbd_2d::components::LinearVelocity;
+use bevy_rapier2d::dynamics::Velocity;
 use serde::{Deserialize, Serialize};
 
 use crate::initialization::load_prefabs::Atlases;
@@ -45,10 +45,10 @@ pub struct SpritePath(pub String);
 
 
 pub fn update_animation_state(
-    mut query: Query<(&mut AnimatorController, &LinearVelocity)>, )
+    mut query: Query<(&mut AnimatorController, &Velocity)>, )
 {
     for (mut animator, velocity) in &mut query.iter_mut() {
-        if velocity.length() == 0.0 {
+        if velocity.linvel.length() == 0.0 {
             animator.state = AnimationState::Idle;
         } else if animator.state != AnimationState::Walk {//looks stupid, but necessary to not trigger a change.
             animator.state = AnimationState::Walk;
@@ -58,13 +58,13 @@ pub fn update_animation_state(
 
 
 pub fn flip_sprite(
-    mut query: Query<(&mut Sprite, &LinearVelocity)>,
+    mut query: Query<(&mut Sprite, &Velocity)>,
 ) {
     for (mut atlas, velocity) in &mut query {
-        if velocity.x == 0.0 {
+        if velocity.linvel.x == 0.0 {
             continue;
         }
-        atlas.flip_x = velocity.x < 0.0;
+        atlas.flip_x = velocity.linvel.x < 0.0;
     }
 }
 

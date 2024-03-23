@@ -1,3 +1,6 @@
+use bevy_rapier2d::prelude::RapierDebugRenderPlugin;
+use bevy_rapier2d::prelude::NoUserData;
+use bevy_rapier2d::prelude::RapierPhysicsPlugin;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -7,9 +10,11 @@ use bevy_asepritesheet::core::SpriteAnimController;
 use bevy_asepritesheet::prelude::AsepritesheetPlugin;
 use bevy_prng::WyRand;
 use bevy_rand::prelude::EntropyPlugin;
-use bevy_xpbd_2d::prelude::*;
+use bevy_rapier2d::pipeline::CollisionEvent;
+use bevy_rapier2d::plugin::{PhysicsSet, RapierConfiguration, TimestepMode};
+use bevy_tween::DefaultTweenPlugins;
 
-use components::{CollisionEvent, HealthUi};
+use components::{HealthUi};
 use constants::BACKGROUND_COLOR;
 use inspector::add_inspector;
 
@@ -33,6 +38,7 @@ mod setup;
 mod extensions;
 mod initialization;
 mod bundles;
+mod time;
 
 
 #[derive(States, Debug, Hash, PartialEq, Eq, Clone, Default)]
@@ -61,10 +67,21 @@ fn main() {
     let app: &mut App = app_binding
         .init_state::<AppState>()
         .insert_resource(Msaa::Off)
+        .insert_resource(RapierConfiguration {
+            gravity: Vec2::ZERO,
+            // timestep_mode: TimestepMode::Fixed {
+            //     dt: time::DEFAULT_TIMESTEP.as_secs_f32(),
+            //     substeps: 1,
+            // },
+            ..default()
+        })
         .insert_resource(SpriteAnimController::default())
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))// prevents blurry sprites
+        .add_plugins(DefaultTweenPlugins)
         .init_asset::<bevy_asepritesheet::aseprite_data::SpritesheetData>()
-        .add_plugins(PhysicsPlugins::default())
+        .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0).with_default_system_setup(true).in_schedule(time::PhysicsSchedule))
+        .add_plugins(time::TimePlugin)
+        .add_plugins(RapierDebugRenderPlugin::default())
         .add_plugins(
             AsepritesheetPlugin::new(&["sprite.json"]),
         )
@@ -76,14 +93,12 @@ fn main() {
                 .at(Val::Percent(35.0), Val::Percent(50.0)),
         )
         .add_plugins(EntropyPlugin::<WyRand>::default())
-
-        .add_plugins(PhysicsDebugPlugin::default())
-        .insert_resource(Gravity(Vec2::default()))
-        .insert_resource(SubstepCount(6))
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .insert_resource(Atlases { sprite_sheets: HashMap::new() })
         .add_event::<CollisionEvent>()
-
+        //physics stuff, so that we can pause physics
+        .add_systems(PostUpdate, time::run_physics_schedule)
+        //startup systems, spawn player etc
         .add_systems(
             Startup,
             (
@@ -117,9 +132,10 @@ fn main() {
             (movement::move_player,
              movement::set_follower_velocity,
              ui::update_player_health_ui,
-             movement::player_takes_damage_from_enemy,
-             guns::enemy_takes_damage_from_bullets,
-             stats::pickup_xp,
+             // movement::_debug_collisions,
+             guns::deal_damage_on_collide,
+             stats::pick_up_xp_on_touch,
+             stats::vacuum_xp_on_touch,
              stats::level_up,
             ).run_if(in_state(AppState::InGame)))
         .add_systems(Update,
