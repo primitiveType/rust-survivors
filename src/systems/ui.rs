@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_asepritesheet::core::SpriteAnimController;
 
 use crate::AppState;
-use crate::components::{Health, HealthUi, Player};
+use crate::components::{Health, HealthUi, Player, XP};
 use crate::initialization::load_prefabs::load_gun;
 
 #[derive(Component)]
@@ -139,9 +139,10 @@ pub fn resume_animations(mut animation_timers: ResMut<SpriteAnimController>) {
 }
 
 
-pub fn update_player_health_ui(player_query: Query<(&Health, &Player)>, mut query: Query<&mut Text, With<HealthUi>>) {
+pub fn update_player_health_ui(player_query: Query<(&Health, &Player)>, player_xp_query: Query<(&XP, &Player)>, mut query: Query<&mut Text, With<HealthUi>>) {
     let mut text = query.single_mut();
-    let (player_health, player) = player_query.single();
+    let (player_health, _) = player_query.single();
+    let (xp, _) = player_xp_query.single();
     text.sections[1].value = player_health.value.to_string();
-    text.sections[3].value = player.xp.to_string();
+    text.sections[3].value = xp.amount.to_string();
 }

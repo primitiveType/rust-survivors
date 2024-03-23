@@ -1,35 +1,32 @@
 use std::time::Duration;
 
-use bevy::asset::{Assets, AssetServer, Handle};
+use bevy::asset::{Assets, Handle};
 use bevy::math::Vec3;
 use bevy::prelude::{Commands, default, Entity, EventReader, GlobalTransform, Query, Res, SpriteSheetBundle, Time, Transform, Vec2, With};
 use bevy::time::Timer;
 use bevy::time::TimerMode::Once;
 use bevy_asepritesheet::animator::{AnimatedSpriteBundle, AnimFinishEvent, SpriteAnimator};
-use bevy_asepritesheet::core::{load_spritesheet, load_spritesheet_then};
-use bevy_asepritesheet::prelude::{AnimEndAction, AnimEventSender, AnimHandle, Spritesheet};
+use bevy_asepritesheet::prelude::{AnimEventSender, AnimHandle, Spritesheet};
 use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, Mass, Restitution};
-pub use bevy_xpbd_2d::parry::na::DimAdd;
 use bevy_xpbd_2d::prelude::{Collider, CollidingEntities, RigidBody, SpatialQuery, SpatialQueryFilter};
 
 use crate::components::{Bullet, BulletBundle, Enemy, Gun, Health};
 use crate::extensions::vectors::to_vec2;
+use crate::initialization::load_prefabs::Atlases;
+use crate::Name;
 use crate::physics::layers::GameLayer;
-
-const BULLET_SIZE: Vec3 = Vec3::new(5.0, 5.0, 1.0);
-
 
 pub fn player_shoot(
     mut commands: Commands,
     mut query: Query<(&mut Gun, &GlobalTransform)>,
-    asset_server: Res<AssetServer>,
     time: Res<Time>,
     spatial_query: SpatialQuery,
+    atlases: Res<Atlases>
 ) {
     for (mut gun, transform) in query.iter_mut() {
         if time.elapsed().as_millis() - gun.last_shot_time > gun.cooldown {
+
             let translation = transform.translation();
-            gun.last_shot_time = time.elapsed().as_millis();
             let maybe_projection =
                 spatial_query.project_point(
                     to_vec2(translation),
@@ -37,10 +34,12 @@ pub fn player_shoot(
                     SpatialQueryFilter::from_mask(GameLayer::Enemy),
                 );
             if let Some(projection) = maybe_projection {
-                println!("Bang!");
+                gun.last_shot_time = time.elapsed().as_millis();
+
                 let mut delta = projection.point - to_vec2(translation);
                 delta = delta.normalize();
-                spawn_projectile(&mut commands, &asset_server, &gun, translation, delta);
+
+                spawn_projectile(&mut commands, &gun, translation, delta, &atlases);
             }
         }
     }
@@ -66,8 +65,9 @@ pub fn enemy_takes_damage_from_bullets(mut query: Query<(&mut Health, &Enemy, &C
 
 pub fn destroy_bullets(mut bullets: Query<(&mut Bullet, Entity, &Transform)>,
                        mut commands: Commands,
-                       asset_server: Res<AssetServer>,
                        time: Res<Time>,
+                       atlases: Res<Atlases>,
+                       sprite_assets: Res<Assets<Spritesheet>>
 ) {
     for (mut bullet, entity, transform) in bullets.iter_mut() {
         bullet.timer.tick(time.delta());
@@ -75,31 +75,36 @@ pub fn destroy_bullets(mut bullets: Query<(&mut Bullet, Entity, &Transform)>,
             || bullet.hits > bullet.pierce
         {
             commands.entity(entity).despawn();
-            spawn_particle(transform.translation, &mut commands, &asset_server, "bullets.json".to_string());
+            spawn_particle(transform.translation, &mut commands, "bullet".to_string(), FIREBALL_EXPLODE_ANIMATION, &atlases, &sprite_assets);
+
+            if bullet.hits > bullet.pierce {
+                println!("Destroying bullet due to collisions.");
+            } else {
+                println!("Projectile expired.")
+            }
         }
     }
 }
 
 const FIREBALL_EXPLODE_ANIMATION: &'static str = "Fireball_explode";
 
-fn spawn_particle(position: Vec3, commands: &mut Commands, asset_server: &Res<AssetServer>, sprite_sheet: String) {
-    let sheet_handle = load_spritesheet_then(
-        commands,
-        asset_server,
-        sprite_sheet,
-        bevy::sprite::Anchor::Center,
-        |sheet| {
-            let explode = sheet.get_anim_handle(FIREBALL_EXPLODE_ANIMATION);//TODO: i guess its not possible to pass a satring to spawn_particle for the animation. consider using the same animation name
-            let mut explode_mut = sheet.get_anim_mut(&explode);
-            explode_mut.unwrap().end_action = AnimEndAction::Stop;
-        },
-    );
+fn spawn_particle(position: Vec3, commands: &mut Commands, sprite_sheet: String, animation: &str, atlases: &Res<Atlases>, sprite_assets: &Res<Assets<Spritesheet>>) {
+    let spritesheet = atlases.sprite_sheets.get(&sprite_sheet).expect("failed to find explode animation!").clone();
+    let mut anim_handle = AnimHandle::from_index(0);
+    // Attempt to get the asset using the handle
+    if let Some(asset) = sprite_assets.get(&spritesheet) {
+        // Now you have access to the asset (`T`) here
+        // Do something with the asset
+        anim_handle = asset.get_anim_handle(animation);
+    } else {
+        // The asset is not loaded yet, you might handle this case accordingly
+        println!("Asset not loaded yet");
+    }
     commands.spawn((
         AnimEventSender,
         AnimatedSpriteBundle {
-            animator: SpriteAnimator::from_anim(AnimHandle::from_index(
-                1)),
-            spritesheet: sheet_handle,
+            animator: SpriteAnimator::from_anim(anim_handle),
+            spritesheet,
             sprite_bundle: SpriteSheetBundle
             {
                 transform: Transform::from_translation(position),
@@ -134,25 +139,16 @@ pub fn destroy_explosions(
 
 fn spawn_projectile(
     commands: &mut Commands,
-    asset_server: &Res<AssetServer>,
     gun: &Gun,
     position: Vec3,
     direction: Vec2,
+    atlases: &Res<Atlases>,
 ) {
-    //todo: cache this and store in what is currently called atlases.
-    let sheet_handle = load_spritesheet(
-        commands,
-        asset_server,
-        "bullets.json",
-        bevy::sprite::Anchor::Center,
-    );
-
-
     let speed = gun.bullet_speed;
     let bundle = BulletBundle {
         sprite_sheet: AnimatedSpriteBundle {
             animator: SpriteAnimator::from_anim(AnimHandle::from_index(0)),
-            spritesheet: sheet_handle,
+            spritesheet: atlases.sprite_sheets.get("bullet").expect("failed to find asset for bullet!").clone(),
             sprite_bundle: SpriteSheetBundle {
                 transform: Transform::from_translation(position),
                 ..default()
@@ -168,6 +164,7 @@ fn spawn_projectile(
         friction: Friction::ZERO,
         restitution: Restitution::new(
             1.0),
+
         linear_velocity: LinearVelocity(direction * speed),
         mask: CollisionLayers::new(GameLayer::Player,
                                    [GameLayer::Ground,
@@ -175,6 +172,7 @@ fn spawn_projectile(
         bullet: Bullet
         { damage: 5.0, timer: Timer::new(Duration::from_secs(2_u64), Once), pierce: gun.pierce, ..default() },
 
+        name: Name::new("bullet"),
     };
     commands.spawn(bundle);
 }

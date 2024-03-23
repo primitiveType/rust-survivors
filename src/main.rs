@@ -18,7 +18,7 @@ use crate::{
     initialization::register_types::register_types,
     systems::*,
 };
-use crate::initialization::load_prefabs::{Animations, Atlases};
+use crate::initialization::load_prefabs::Atlases;
 
 mod components;
 
@@ -81,8 +81,7 @@ fn main() {
         .insert_resource(Gravity(Vec2::default()))
         .insert_resource(SubstepCount(6))
         .insert_resource(ClearColor(BACKGROUND_COLOR))
-        .insert_resource(Atlases { map: HashMap::new(), image_map: HashMap::new() })
-        .insert_resource(Animations { map: HashMap::new() })
+        .insert_resource(Atlases { sprite_sheets: HashMap::new() })
         .add_event::<CollisionEvent>()
 
         .add_systems(
@@ -92,7 +91,6 @@ fn main() {
                 setup::setup,
                 ui::setup,
                 initialization::load_prefabs::load_gun_test,
-                bundles::setup_assets,
             ).chain(),
         )
         // Add our gameplay simulation systems to the fixed timestep schedule
@@ -105,10 +103,9 @@ fn main() {
                 // audio::play_collision_sound,
                 stats::die_at_zero_health,
                 guns::destroy_bullets,
-                bundles::update_animations,
-                bundles::animate_sprite,
-                bundles::flip_sprite,
-                bundles::update_animation_state,
+                animation::set_spritesheet_from_animation_info,
+                animation::flip_sprite,
+                animation::update_animation_state,
                 guns::destroy_explosions,
             ).run_if(in_state(AppState::InGame))
                 // `chain`ing systems together runs them in order
@@ -123,6 +120,7 @@ fn main() {
              movement::player_takes_damage_from_enemy,
              guns::enemy_takes_damage_from_bullets,
              stats::pickup_xp,
+             stats::level_up,
             ).run_if(in_state(AppState::InGame)))
         .add_systems(Update,
                      (//Always update loop

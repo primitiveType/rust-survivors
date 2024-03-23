@@ -5,3 +5,4 @@ pub mod spawning;
 pub mod ui;
 pub mod dev;
 pub mod audio;
+pub mod animation;

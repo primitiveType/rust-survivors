@@ -1,12 +1,12 @@
 use crate::*;
-use crate::components::Gun;
+use crate::components::{Gun, XPVacuum};
 use crate::constants::{SCORE_COLOR, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, TEXT_COLOR};
+use crate::physics::layers::GameLayer;
 
 // Add the game's entities to our world
 // #[bevycheck::system]
 pub fn setup(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     atlases: ResMut<Atlases>,
 ) {
     // Camera
@@ -16,7 +16,7 @@ pub fn setup(
     // let ball_collision_sound = asset_server.load("sounds/breakout_collision.ogg");
     // commands.insert_resource(CollisionSound(ball_collision_sound));
 
-    spawn_player(&mut commands, atlases, asset_server);
+    spawn_player(&mut commands, atlases);
 
     spawn_background(&mut commands);
 
@@ -72,11 +72,7 @@ pub fn setup(
 
 fn spawn_player(commands: &mut Commands,
                 atlases: ResMut<Atlases>,
-                asset_server: Res<AssetServer>,
 ) {
-
-
-
     commands.spawn(bundles::PlayerBundle::with_sprite(atlases))
 
         .with_children(|parent| {
@@ -88,6 +84,16 @@ fn spawn_player(commands: &mut Commands,
                 pierce: 100,
                 bullet_speed: 80_f32,
             }, SpatialBundle { ..default() }));
+
+            parent.spawn((XPVacuum {},
+                          Collider::circle(50.0),
+                          Friction::ZERO,
+                          Restitution::new(1.0),
+                          CollisionLayers::new(GameLayer::XP, [GameLayer::XP]),
+                          LockedAxes::ROTATION_LOCKED,
+                          SpatialBundle { ..default() },
+                          Sensor,
+            ));
             // parent.spawn((Gun { last_shot_time: 0, cooldown: 500 }, SpatialBundle { ..default() }));
             // parent.spawn((Gun { last_shot_time: 0, cooldown: 125 }, SpatialBundle { ..default() }));
         });
