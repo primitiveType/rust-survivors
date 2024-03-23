@@ -13,11 +13,10 @@ pub fn enemy_spawn_cycle(
     atlases: ResMut<Atlases>,
     rng: ResMut<GlobalEntropy<WyRand>>,
 ) {
-    let count = query.iter().len();
+    let mut count = query.iter().len();
 
 
     if count < 1 {
-        println!("Spawning.");
         spawn_enemy(1, _commands, atlases, rng);
     }
 }

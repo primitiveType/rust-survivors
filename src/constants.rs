@@ -4,7 +4,7 @@ use bevy::prelude::{Color, Val};
 // These constants are defined in `Transform` units.
 // Using the default 2D camera they correspond 1:1 with screen pixels.
 pub const PADDLE_SIZE: Vec3 = Vec3::new(50.0, 50.0, 1.0);
-pub const PLAYER_SPEED: f32 = 50_000.0;
+pub const PLAYER_SPEED: f32 = 200.0;
 // How close can the paddle get to the wall
 pub const PADDLE_PADDING: f32 = 10.0;
 

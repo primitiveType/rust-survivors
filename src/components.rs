@@ -3,10 +3,10 @@ use bevy::prelude::Component;
 use bevy::prelude::Event;
 use bevy::prelude::Reflect;
 use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
-use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, Mass, Restitution, RigidBody};
-use bevy_xpbd_2d::prelude::Collider;
+use bevy_rapier2d::geometry::Sensor;
 use serde::Deserialize;
 use serde::Serialize;
+use crate::bundles::PhysicalBundle;
 
 #[derive(Component, Default)]
 pub struct Player {
@@ -35,7 +35,6 @@ impl Default for Gun {
 
 #[derive(Component)]
 pub struct Bullet {
-    pub damage: f32,
     pub hits: u8,
     pub pierce: u8,
     pub lifetime: u128,
@@ -45,7 +44,6 @@ pub struct Bullet {
 impl Default for Bullet {
     fn default() -> Self {
         Bullet {
-            damage: 1.0,
             hits: 0,
             pierce: 0,
             lifetime: 5_000,
@@ -93,29 +91,17 @@ pub struct XP {
 #[derive(Component)]
 pub struct XPVacuum {}
 
-#[derive(Event, Default)]
-pub struct CollisionEvent;
-
 
 // This bundle is a collection of the components that define a "wall" in our game
 #[derive(Bundle)]
 pub struct BulletBundle {
     pub sprite_sheet: AnimatedSpriteBundle,
-    // pub material: MaterialMesh2dBundle<ColorMaterial>,
-    pub collider: Collider,
-    pub rigid_body: RigidBody,
-    pub friction: Friction,
-    pub restitution: Restitution,
-    pub mask: CollisionLayers,
     pub bullet: Bullet,
-    pub mass: Mass,
-    pub linear_velocity: LinearVelocity,
+    pub physical: PhysicalBundle,
     pub name: Name,
+    pub sensor: Sensor,
+    pub damage: DamageOnTouch,
 }
-
-
-
-
 
 
 #[derive(Component)]

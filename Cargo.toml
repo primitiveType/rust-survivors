@@ -10,7 +10,8 @@ edition = "2021"
 bevy = { version = "0.13.0", features = ["dynamic_linking", "serialize", "trace_tracy"] }
 bevy-inspector-egui = "0.23.2"
 bevy_editor_pls = "0.8.0"
-bevy_xpbd_2d = "0.4"
+#bevy_xpbd_2d = "0.4"
+bevy_rapier2d = { version = "0.25.0", features = ["parallel"] }
 rand_core = "0.6"
 bevy_rand = "0.5"
 bevy_prng = { version = "0.5", features = ["rand_chacha", "wyrand"] }
@@ -21,6 +22,10 @@ walkdir = "2.3.2"
 bevy_asepritesheet = "0.6.0"
 bevycheck = "0.5.2"
 tracing-tracy = "0.11.0"
+bevy_tween = "0.2.0"
+
+#bevy_ecs_tilemap = { git = "https://github.com/StarArawn/bevy_ecs_tilemap" }
+#bevy_ecs_ldtk = {git = "https://github.com/theshortcut/bevy_ecs_ldtk", branch = "bevy-0.13"}
 #bevy_proto = { version = "0.11.0", features = ["default", "yaml"] }//doesn't support bevy 13
 
 # Enable a small amount of optimization in debug mode
@@ -30,4 +35,11 @@ opt-level = 1
 # Enable high optimizations for dependencies (incl. Bevy), but not for our code:
 [profile.dev.package."*"]
 opt-level = 3
+
+# Add this to your Cargo.toml
+[profile.dev.package.rapier2d]#rendundant, I think
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
 

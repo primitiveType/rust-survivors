@@ -1,10 +1,13 @@
-use bevy::prelude::{ResMut, Time};
-use bevy_xpbd_2d::prelude::{Physics, PhysicsTime};
+use bevy::prelude::*;
+use bevy::prelude::ResMut;
 
-pub fn pause(mut time: ResMut<Time<Physics>>) {
+use crate::time;
+use crate::time::PhysicsTimeExt;
+
+pub fn pause(mut time: ResMut<time::PhysicsTime>,) {
     time.pause();
 }
 
-pub fn unpause(mut time: ResMut<Time<Physics>>) {
-    time.unpause();
+pub fn unpause(mut time: ResMut<time::PhysicsTime>,) {
+    time.resume();
 }

@@ -6,9 +6,9 @@ use bevy::sprite::{MaterialMesh2dBundle, SpriteSheetBundle};
 use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
 use bevy_prng::WyRand;
 use bevy_rand::prelude::GlobalEntropy;
-use bevy_xpbd_2d::components::{CollisionLayers, Friction, LinearVelocity, LockedAxes, Mass, Restitution, RigidBody};
-use bevy_xpbd_2d::math::Vector2;
-use bevy_xpbd_2d::prelude::{Collider, Sensor};
+use bevy_rapier2d::dynamics::{LockedAxes, RigidBody, Velocity};
+use bevy_rapier2d::geometry::{ActiveEvents, Collider, CollisionGroups, Friction, Group, Restitution, Sensor};
+use bevy_rapier2d::na::Vector2;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +17,7 @@ use crate::animation::AnimationState::Walk;
 use crate::components::{DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health, MoveSpeed, Player, XP};
 use crate::constants::XP_DIAMETER;
 use crate::initialization::load_prefabs::{Atlases, load_enemy, load_enemy_data_from_path};
-use crate::physics::layers::GameLayer;
+use crate::physics::layers::game_layer;
 use crate::systems::animation::AnimationState::Idle;
 
 const XP_COLOR: Color = Color::rgb(0.0, 1.0, 0.1);
@@ -38,7 +38,7 @@ impl Default for PlayerBundle {
     fn default() -> Self {
         Self {
             physical: PhysicalBundle {
-                collision_layers: CollisionLayers::new(GameLayer::Player, [GameLayer::Ball, GameLayer::Ground, GameLayer::Enemy, GameLayer::XP]),
+                collision_layers: CollisionGroups::new(game_layer::PLAYER, game_layer::GROUND | game_layer::ENEMY | game_layer::XP),
 
                 ..default()
             },
@@ -64,8 +64,9 @@ impl PlayerBundle {
     pub fn with_sprite(atlases: ResMut<Atlases>) -> Self {
         Self {
             physical: PhysicalBundle {
-                collision_layers: CollisionLayers::new(GameLayer::Player, [GameLayer::Ball, GameLayer::Ground, GameLayer::Enemy]),
-
+                collider: Collider::ball(2.0),
+                rigid_body: RigidBody::Dynamic,
+                collision_layers: CollisionGroups::new(game_layer::PLAYER, Group::from(game_layer::GROUND | game_layer::ENEMY | game_layer::XP)),
                 ..default()
             },
             sprite: AnimatedSpriteBundle {
@@ -93,27 +94,30 @@ impl PlayerBundle {
 
 #[derive(Bundle)]
 pub struct PhysicalBundle {
-    pub mass: Mass,
+    // pub mass: Mass,
     pub collider: Collider,
-    pub friction: Friction,
+    // pub friction: Friction,
     pub restitution: Restitution,
-    pub linear_velocity: LinearVelocity,
-    pub collision_layers: CollisionLayers,
-    pub locked_axes: LockedAxes,
+    pub velocity: Velocity,
+    pub collision_layers: CollisionGroups,
+    // pub locked_axes: LockedAxes,
     pub rigid_body: RigidBody,
+    pub locked_axes: LockedAxes,
+    pub active_events: ActiveEvents
 }
 
 impl Default for PhysicalBundle {
     fn default() -> Self {
         Self {
-            mass: Mass(10.0),
-            collider: Collider::circle(0.5),
-            friction: Friction::ZERO,
+            // mass: Mass(10.0),
+            collider: Collider::ball(4.0),
+            // friction: Friction::ZERO,
             restitution: Restitution::new(1.0),
-            linear_velocity: LinearVelocity(Vector2::ZERO),
-            collision_layers: CollisionLayers::ALL,
-            locked_axes: LockedAxes::ROTATION_LOCKED,
+            velocity: Velocity { linvel: Vec2::ZERO, angvel: 0.0 },
+            collision_layers: Default::default(),
             rigid_body: RigidBody::Dynamic,
+            locked_axes: LockedAxes::ROTATION_LOCKED,
+            active_events: ActiveEvents::COLLISION_EVENTS,
         }
     }
 }
@@ -122,7 +126,7 @@ impl Default for PhysicalBundle {
 pub struct EnemyBundle {
     animation_bundle: AnimatedSpriteBundle,
     physical: PhysicalBundle,
-    sensor: Sensor,
+    // sensor: Sensor,
     enemy_data: EnemyData,
     animator: AnimatorController,
 }
@@ -171,12 +175,12 @@ impl EnemyBundle {
 }
 
 
-
 impl Default for EnemyBundle {
     fn default() -> Self {
         Self {
             // sprite_bundle: get_default_sprite_sheet_bundle(Handle::default(), Handle::default()),
             physical: PhysicalBundle {
+                collision_layers: CollisionGroups::new(game_layer::ENEMY, Group::from(game_layer::PLAYER | game_layer::ENEMY)),
                 ..default()
             },
             enemy_data: EnemyData {
@@ -184,18 +188,17 @@ impl Default for EnemyBundle {
                 name: Name::new("Enemy"),
                 enemy: Enemy { xp: 1 },
                 follow_player: FollowPlayer,
-                move_speed: MoveSpeed { value: 1.0 },
+                move_speed: MoveSpeed { value: 0.1 },
                 health: Health { value: 5.0 },
                 touch_damage: DamageOnTouch { value: 1.0 },
             },
-            sensor: Default::default(),
+            // sensor: Default::default(),
             animator: AnimatorController { state: Walk, name: "default".to_string() },
             animation_bundle: Default::default(),
 
         }
     }
 }
-
 
 
 pub fn spawn_enemy(
@@ -235,10 +238,10 @@ pub fn spawn_xp(
     ));
 
 
-    spawned.insert(LinearVelocity(Vec2::new(0.0, 0.0)));
-    spawned.insert(Collider::circle(0.5));
+    spawned.insert(Velocity { linvel: Vec2::ZERO, angvel: 0.0 });
+    spawned.insert(Collider::ball(0.5));
     spawned.insert(RigidBody::Dynamic);
-    spawned.insert(CollisionLayers::new(GameLayer::XP, [GameLayer::XP]));
+    spawned.insert(CollisionGroups::new(game_layer::XP, game_layer::XP | game_layer::PLAYER));
     spawned.insert(GainXPOnTouch { value: 1u16 });
 
     spawned.insert(Sensor);
