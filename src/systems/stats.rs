@@ -122,9 +122,9 @@ pub fn level_up(
     mut query: Query<(Entity, &mut Player, &XP)>,
     mut next_state: ResMut<NextState<AppState>>) {
     for (_, mut player, xp) in query.iter_mut() {
-        if xp.amount / 2 > player.level {
-            next_state.set(AppState::LevelUp);
-            player.level = player.level + 1;
-        }
+        // if xp.amount / 2 > player.level {
+        //     next_state.set(AppState::LevelUp);
+        //     player.level = player.level + 1;
+        // }
     }
 }

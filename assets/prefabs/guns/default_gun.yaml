@@ -2,4 +2,4 @@ cooldown: 200
 last_shot_time: 0
 bullet_size: 10.0
 pierce: 100
-bullet_speed: 80.0
+bullet_speed: 280.0

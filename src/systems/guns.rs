@@ -61,16 +61,21 @@ pub fn player_shoot(
 pub fn deal_damage_on_collide(
     mut collision_events: EventReader<CollisionEvent>,
     mut health_query: Query<(Entity, &mut Health)>,
+    enemy_query: Query<(Entity, &Enemy)>,//HACK do something smarter.
     damage_query: Query<(Entity, &DamageOnTouch)>,
 ) {
     for collision_event in collision_events.read() {
-        
         match collision_event {
             CollisionEvent::Started(entity1, entity2, _flags) => {
                 {//entity 2 damages entity 1 if it can
                     let entity1_health = health_query.get_mut(*entity1);
                     let entity2_damage = damage_query.get(*entity2);
-                    
+
+                    let enemy1 = enemy_query.get(*entity1);
+                    let enemy2 = enemy_query.get(*entity2);
+                    if enemy1.is_ok() && enemy2.is_ok() {
+                        continue;
+                    }
                     try_deal_damage(entity2_damage, entity1_health);
                 }
                 {//entity 1 damages entity 2 if it can
@@ -87,7 +92,6 @@ pub fn deal_damage_on_collide(
 fn try_deal_damage(entity1_damage: Result<(Entity, &DamageOnTouch), QueryEntityError>, entity2_health: Result<(Entity, Mut<Health>), QueryEntityError>) {
     match (entity1_damage, entity2_health) {
         (Ok((_, damage)), Ok((_, mut health))) => {
-            println!("damage being dealt!");
             health.value = health.value - damage.value;
         }
         _ => {}
@@ -108,7 +112,6 @@ pub fn destroy_bullets(mut bullets: Query<(&mut Bullet, Entity, &Transform)>,
         {
             commands.entity(entity).despawn();
             spawn_particle(transform.translation, &mut commands, "bullet".to_string(), FIREBALL_EXPLODE_ANIMATION, &atlases, &sprite_assets);
-
         }
     }
 }
@@ -195,11 +198,10 @@ fn spawn_projectile(
         },
         bullet: Bullet
         { timer: Timer::new(Duration::from_secs(2_u64), Once), pierce: gun.pierce, ..default() },
-        
 
         name: Name::new("bullet"),
         sensor: Default::default(),
-        damage: DamageOnTouch {value: 5.0},
+        damage: DamageOnTouch { value: 5.0 },
     };
     commands.spawn(bundle);
 }

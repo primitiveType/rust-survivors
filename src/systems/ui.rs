@@ -114,7 +114,6 @@ fn button_clicked(action: &ButtonAction,
     let mut gun_spawn = commands.spawn((load_gun(*action as usize), SpatialBundle { ..default() }));
 
     gun_spawn.set_parent(player_entity);
-    //TODO: set translation to local zero :(
 }
 
 pub fn toggle_level_ui_system(
