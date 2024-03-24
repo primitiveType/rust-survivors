@@ -56,7 +56,13 @@ fn main() {
     //scale difficulty
     //level ups offer real choices
     // - 3 weapons
+    // santa water
+    // whip
+    // laser?
     // - 3 passives
+        //move speed
+    // xp gain
+    // damage
     // show gun info on level up choice
     // display enemy health (maybe)
     // camera moves with player
@@ -81,7 +87,7 @@ fn main() {
         .init_asset::<bevy_asepritesheet::aseprite_data::SpritesheetData>()
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0).with_default_system_setup(true).in_schedule(time::PhysicsSchedule))
         .add_plugins(time::TimePlugin)
-        .add_plugins(RapierDebugRenderPlugin::default())
+        // .add_plugins(RapierDebugRenderPlugin::default())
         .add_plugins(
             AsepritesheetPlugin::new(&["sprite.json"]),
         )
