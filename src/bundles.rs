@@ -190,7 +190,7 @@ impl Default for EnemyBundle {
                 follow_player: FollowPlayer,
                 move_speed: MoveSpeed { value: 0.1 },
                 health: Health { value: 5.0 },
-                touch_damage: DamageOnTouch { value: 1.0 },
+                touch_damage: DamageOnTouch { value: 1.0 , ..default()},
             },
             // sensor: Default::default(),
             animator: AnimatorController { state: Walk, name: "default".to_string() },

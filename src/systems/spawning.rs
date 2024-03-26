@@ -16,7 +16,7 @@ pub fn enemy_spawn_cycle(
     let mut count = query.iter().len();
 
 
-    if count < 2000 {
+    if count < 200 {
         spawn_enemy(1, _commands, atlases, rng);
     }
 }

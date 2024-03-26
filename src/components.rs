@@ -1,7 +1,10 @@
+use std::time::Duration;
 use bevy::prelude::*;
 use bevy::prelude::Component;
 use bevy::prelude::Event;
 use bevy::prelude::Reflect;
+use bevy::prelude::TimerMode::Once;
+use bevy::time::TimerMode::Repeating;
 use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
 use bevy_rapier2d::geometry::Sensor;
 use serde::Deserialize;
@@ -14,21 +17,42 @@ pub struct Player {
     pub level: u16,
 }
 
-#[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
-pub struct Gun {
+#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+pub struct Cooldown {
     #[serde(skip)]
-    pub last_shot_time: u128,
-    pub cooldown: u128,
+    pub timer: Timer,
+}
+
+#[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct Flask {
+    pub bullet_size: f32,
+}
+
+#[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct FireBallGun {
     pub bullet_size: f32,
     pub pierce: u8,
     pub bullet_speed: f32,
 }
 
-impl Default for Gun {
+#[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct AttackSpeed {
+    pub percent: f32,
+}
+
+impl Default for Cooldown {
     fn default() -> Self {
         Self {
-            cooldown: 1_000,
+            timer: bevy::prelude::Timer::new(Duration::from_secs(2_u64), Repeating),
             ..default()
+        }
+    }
+}
+
+impl Cooldown {
+    pub fn with_cooldown(ms: u64) -> Self {
+        Self {
+            timer: bevy::prelude::Timer::new(Duration::from_millis(ms), Repeating),
         }
     }
 }
@@ -37,17 +61,29 @@ impl Default for Gun {
 pub struct Bullet {
     pub hits: u8,
     pub pierce: u8,
-    pub lifetime: u128,
+}
+
+#[derive(Component)]
+pub struct Lifetime {
     pub timer: Timer,
 }
+
+impl Lifetime {
+    pub fn from_seconds(seconds: f32) -> Self {
+        Self {
+            timer: Timer::new(Duration::from_secs_f32(seconds), Once),
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct Expired {}
 
 impl Default for Bullet {
     fn default() -> Self {
         Bullet {
             hits: 0,
             pierce: 0,
-            lifetime: 5_000,
-            timer: Timer::new(Default::default(), TimerMode::Once),
         }
     }
 }
@@ -76,6 +112,18 @@ pub struct Enemy {
 #[derive(Component, Serialize, Deserialize, Clone)]
 pub struct DamageOnTouch {
     pub value: f32,
+    #[serde(skip)]
+
+    pub count_triggers: u32,
+}
+
+impl Default for DamageOnTouch {
+    fn default() -> Self {
+        Self {
+            value: 1.0,
+            count_triggers: 0,
+        }
+    }
 }
 
 #[derive(Component)]
@@ -101,6 +149,17 @@ pub struct BulletBundle {
     pub name: Name,
     pub sensor: Sensor,
     pub damage: DamageOnTouch,
+    pub lifetime: Lifetime,
+}
+
+#[derive(Bundle)]
+pub struct FlaskProjectileBundle {
+    pub sprite_sheet: AnimatedSpriteBundle,
+    pub physical: PhysicalBundle,
+    pub name: Name,
+    pub sensor: Sensor,
+    pub damage: DamageOnTouch,
+    pub lifetime: Lifetime,
 }
 
 
