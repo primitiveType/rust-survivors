@@ -119,15 +119,23 @@ fn main() {
         .add_systems(
             FixedUpdate,
             (
+                guns::expire_entities,
+                guns::expire_bullets_on_hit,
+                guns::expired_bullets_explode,
                 spawning::enemy_spawn_cycle,
-                guns::player_shoot,
+                //abilities
+                guns::advance_cooldowns,
+                guns::fireball_gun,
+                guns::flask_weapon,
                 // audio::play_collision_sound,
+                //stats
                 stats::die_at_zero_health,
-                guns::destroy_bullets,
+                guns::expire_bullets_on_hit,
                 animation::set_spritesheet_from_animation_info,
                 animation::flip_sprite,
                 animation::update_animation_state,
                 guns::destroy_explosions,
+                guns::destroy_expired_entities,
             ).run_if(in_state(AppState::InGame))
                 // `chain`ing systems together runs them in order
                 .chain(),
@@ -136,6 +144,7 @@ fn main() {
             //InGame update loop
             Update,
             (movement::move_player,
+                movement::camera_follow,
              movement::set_follower_velocity,
              ui::update_player_health_ui,
              // movement::_debug_collisions,

@@ -23,6 +23,16 @@ pub fn set_follower_velocity(
     }
 }
 
+pub fn camera_follow(mut query : Query<(&mut Transform, &Camera2d), Without<Player>>,
+                     player_query: Query<&mut Transform, With<Player>>,
+){
+    let player = player_query.single();
+    
+    for (mut transform, camera) in query.iter_mut() {
+        transform.translation = player.translation;
+    }
+}
+
 pub fn _debug_collisions(
                         mut collision_events: EventReader<CollisionEvent>,
 ) {

@@ -1,7 +1,7 @@
 use bevy_rapier2d::geometry::{ActiveEvents, Collider, Restitution, Sensor};
-use bevy_rapier2d::prelude::CollisionGroups;
+use bevy_rapier2d::prelude::{CollisionGroups, Velocity};
 use crate::*;
-use crate::components::{Gun, XPVacuum};
+use crate::components::{Cooldown, AttackSpeed, FireBallGun, XPVacuum, Flask, FollowPlayer, MoveSpeed};
 use crate::constants::{SCORE_COLOR, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, TEXT_COLOR};
 use crate::physics::layers::game_layer;
 
@@ -12,7 +12,9 @@ pub fn setup(
     atlases: ResMut<Atlases>,
 ) {
     // Camera
-    commands.spawn(Camera2dBundle::default());
+    let mut camera = commands.spawn(Camera2dBundle::default());
+
+
 
     // Sound
     // let ball_collision_sound = asset_server.load("sounds/breakout_collision.ogg");
@@ -78,15 +80,20 @@ fn spawn_player(commands: &mut Commands,
     commands.spawn(bundles::PlayerBundle::with_sprite(atlases))
 
         .with_children(|parent| {
-            // parent.spawn((Gun { last_shot_time: 0, cooldown: 1_000 }, SpatialBundle { ..default() }));
-            parent.spawn((Gun {
-                last_shot_time: 0,
-                cooldown: 1_00,
-                bullet_size: 50_f32,
-                pierce: 0,
-                bullet_speed: 380_f32,
-            }, SpatialBundle { ..default() }));
-            // 
+            //fireball gun
+            parent.spawn((Cooldown::with_cooldown(1000),
+                          FireBallGun {
+                              bullet_size: 50000_f32,
+                              pierce: 0,
+                              bullet_speed: 380_f32,
+                          },
+                          SpatialBundle { ..default() }));
+            // flask gun
+            parent.spawn((Cooldown::with_cooldown(5000),
+                          Flask {
+                              bullet_size: 50.0,
+                          },
+                          SpatialBundle { ..default() }));
             parent.spawn((XPVacuum {},
                           Collider::ball(50.0),
                           // Friction::ZERO,
@@ -97,8 +104,8 @@ fn spawn_player(commands: &mut Commands,
                           Sensor,
                           ActiveEvents::COLLISION_EVENTS,
             ));
-            // parent.spawn((Gun { last_shot_time: 0, cooldown: 500 }, SpatialBundle { ..default() }));
-            // parent.spawn((Gun { last_shot_time: 0, cooldown: 125 }, SpatialBundle { ..default() }));
+            parent.spawn((AttackSpeed { percent: 100.0 },
+            ));
         });
 }
 

@@ -11,7 +11,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::bundles::{EnemyBundle, EnemyData};
-use crate::components::Gun;
+use crate::components::Cooldown;
 
 //on startup, load all images
 //have texture layouts loaded as well, possibly as files next to the images?
@@ -20,7 +20,7 @@ use crate::components::Gun;
 
 #[derive(Bundle, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct GunBundle {
-    pub gun: Gun,
+    pub gun: Cooldown,
     #[serde(skip)]
     pub spatial_bundle: SpatialBundle,
 }
@@ -89,7 +89,7 @@ pub fn load_sprites(mut commands: Commands, asset_server: Res<AssetServer>, mut 
     //
     // atlases.sprite_sheets.insert(FIREBALL_EXPLODE_ANIMATION, sheet_handle);
 }
-pub fn load_gun(gun: usize) -> Gun {
+pub fn load_gun(gun: usize) -> Cooldown {
     let paths: Vec<DirEntry> = fs::read_dir(GUNS_PATH).unwrap().filter_map(|entry| entry.ok()).collect();
 
     let paths_count = paths.len();
@@ -97,7 +97,7 @@ pub fn load_gun(gun: usize) -> Gun {
     let file_path = path.path();
     println!("Loaded gun {}", file_path.display());
     let gun_yaml = fs::read_to_string(file_path).expect("failed to load yaml!");
-    let gun = serde_yaml::from_str::<Gun>(gun_yaml.as_str()).expect("failed to deserialize gun!");
+    let gun = serde_yaml::from_str::<Cooldown>(gun_yaml.as_str()).expect("failed to deserialize gun!");
 
     gun
 }
