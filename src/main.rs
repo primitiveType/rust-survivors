@@ -13,6 +13,7 @@ use bevy_rand::prelude::EntropyPlugin;
 use bevy_rapier2d::pipeline::CollisionEvent;
 use bevy_rapier2d::plugin::{PhysicsSet, RapierConfiguration, TimestepMode};
 use bevy_tween::DefaultTweenPlugins;
+use spew::prelude::{SpawnEvent, SpewApp, SpewPlugin};
 
 use components::{HealthUi};
 use constants::BACKGROUND_COLOR;
@@ -23,7 +24,9 @@ use crate::{
     initialization::register_types::register_types,
     systems::*,
 };
+use crate::bundles::{EnemySpawnData, Object};
 use crate::initialization::load_prefabs::Atlases;
+use crate::systems::guns::{FireballSpawnData, FlaskSpawnData};
 
 mod components;
 
@@ -83,6 +86,9 @@ fn main() {
         })
         .insert_resource(SpriteAnimController::default())
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))// prevents blurry sprites
+        .add_plugins(SpewPlugin::<Object, EnemySpawnData>::default())
+        .add_plugins(SpewPlugin::<Object, FireballSpawnData>::default())
+        .add_plugins(SpewPlugin::<Object, FlaskSpawnData>::default())
         .add_plugins(DefaultTweenPlugins)
         .init_asset::<bevy_asepritesheet::aseprite_data::SpritesheetData>()
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0).with_default_system_setup(true).in_schedule(time::PhysicsSchedule))
@@ -102,6 +108,9 @@ fn main() {
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .insert_resource(Atlases { sprite_sheets: HashMap::new() })
         .add_event::<CollisionEvent>()
+        .add_spawner((Object::Enemy, bundles::spawn_enemy))
+        .add_spawner((Object::Fireball, guns::spawn_fireball))
+        .add_spawner((Object::Flask, guns::spawn_flask_projectile))
         //physics stuff, so that we can pause physics
         .add_systems(PostUpdate, time::run_physics_schedule)
         //startup systems, spawn player etc
@@ -187,3 +196,4 @@ fn main() {
 
     app.run();
 }
+

@@ -23,6 +23,7 @@ bevy_asepritesheet = "0.6.0"
 bevycheck = "0.5.2"
 tracing-tracy = "0.11.0"
 bevy_tween = "0.2.0"
+spew = "0.5.1"
 
 #bevy_ecs_tilemap = { git = "https://github.com/StarArawn/bevy_ecs_tilemap" }
 #bevy_ecs_ldtk = {git = "https://github.com/theshortcut/bevy_ecs_ldtk", branch = "bevy-0.13"}

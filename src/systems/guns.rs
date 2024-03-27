@@ -3,7 +3,7 @@ use std::time::Duration;
 use bevy::asset::{Assets, Handle};
 use bevy::ecs::query::QueryEntityError;
 use bevy::math::{Vec3, Vec3Swizzles};
-use bevy::prelude::{Commands, default, Entity, EventReader, GlobalTransform, Mut, Query, Res, SpriteSheetBundle, Time, Transform, Vec2, With};
+use bevy::prelude::{Commands, default, Entity, EventReader, EventWriter, GlobalTransform, In, Mut, Query, Res, ResMut, SpriteSheetBundle, Time, Transform, Vec2, With};
 use bevy_asepritesheet::animator::{AnimatedSpriteBundle, AnimFinishEvent, SpriteAnimator};
 use bevy_asepritesheet::prelude::{AnimEventSender, AnimHandle, Spritesheet};
 use bevy_rapier2d::dynamics::RigidBody;
@@ -13,8 +13,9 @@ use bevy_rapier2d::pipeline::CollisionEvent;
 use bevy_rapier2d::plugin::RapierContext;
 use bevy_rapier2d::prelude::{Group, QueryFilter, Velocity};
 use rand::Rng;
+use spew::prelude::SpawnEvent;
 
-use crate::bundles::PhysicalBundle;
+use crate::bundles::{Object, PhysicalBundle};
 use crate::components::{Cooldown, Bullet, BulletBundle, DamageOnTouch, Enemy, FireBallGun, Health, AttackSpeed, Flask, FlaskProjectileBundle, Lifetime, Expired};
 use crate::extensions::vectors::to_vec2;
 use crate::initialization::load_prefabs::Atlases;
@@ -49,9 +50,8 @@ pub fn advance_cooldowns(
 }
 
 pub fn flask_weapon(
-    mut commands: Commands,
     mut query: Query<(&mut Cooldown, &GlobalTransform, &Flask)>,
-    atlases: Res<Atlases>,
+    mut spawner: EventWriter<SpawnEvent<Object, FlaskSpawnData>>,
 ) {
     for (mut ability, transform, flask) in query.iter_mut() {
         if ability.timer.just_finished() {
@@ -62,24 +62,24 @@ pub fn flask_weapon(
             let angle = value * 2.0 * std::f32::consts::PI;
             // Calculate the direction vector from the angle
             let mut direction = Vec2::new(angle.cos(), angle.sin());
-            
-            
+
+
             let distance = Vec2::splat(rng.gen_range(50.0..400.0));
             direction = direction * distance;
-            
-            spawn_flask_projectile(&mut commands, flask, direction, &atlases);
+
+            spawner.send(SpawnEvent::with_data(Object::Flask, FlaskSpawnData { gun: flask.clone(), position: direction }));
+            // spawn_flask_projectile(&mut commands, flask, direction, &atlases);
         }
     }
 }
 
 
 pub fn fireball_gun(
-    mut commands: Commands,
     mut query: Query<(&mut Cooldown, &GlobalTransform, &FireBallGun)>,
+    mut spawner: EventWriter<SpawnEvent<Object, FireballSpawnData>>,
     rapier_context: Res<RapierContext>,
-    atlases: Res<Atlases>,
 ) {
-    for (mut ability, transform, gun) in query.iter_mut() {
+    for (ability, transform, gun) in query.iter_mut() {
         if ability.timer.just_finished() {
             let translation = transform.translation();
             if let Some((entity, projection)) = rapier_context.project_point(
@@ -100,7 +100,8 @@ pub fn fireball_gun(
                 let mut delta = projection.point - to_vec2(translation);
                 delta = delta.normalize();
 
-                spawn_fireball(&mut commands, &gun, translation, delta, &atlases);
+                spawner.send(SpawnEvent::with_data(Object::Fireball, FireballSpawnData { gun: gun.clone(), position: translation, direction: delta }));
+                // spawn_fireball(&mut commands, &gun, translation, delta, &atlases);
             }
         }
     }
@@ -162,7 +163,7 @@ pub fn expire_bullets_on_hit(mut bullets: Query<(&mut Bullet, Entity, &Transform
 pub fn expired_bullets_explode(mut bullets: Query<(Entity, &Bullet, &Transform), With<Expired>>,
                                mut commands: Commands,
                                atlases: Res<Atlases>,
-                               sprite_assets: Res<Assets<Spritesheet>>,) {
+                               sprite_assets: Res<Assets<Spritesheet>>, ) {
     for (bullet, entity, transform) in bullets.iter_mut() {
         spawn_particle(transform.translation, &mut commands, "bullet".to_string(), FIREBALL_EXPLODE_ANIMATION, &atlases, &sprite_assets);
     }
@@ -237,20 +238,25 @@ pub fn destroy_explosions(
     }
 }
 
-pub const BACKGROUND_PROJECTILE_LAYER: f32 = -1.0;
-fn spawn_flask_projectile(
-    commands: &mut Commands,
-    gun: &Flask,
+pub struct FlaskSpawnData {
+    gun: Flask,
     position: Vec2,
-    atlases: &Res<Atlases>,
+}
+
+pub const BACKGROUND_PROJECTILE_LAYER: f32 = -1.0;
+
+pub fn spawn_flask_projectile(
+    In(data): In<FlaskSpawnData>,
+    mut commands: Commands,
+    atlases: Res<Atlases>,
 ) {
-    let size = gun.bullet_size;
+    let size = data.gun.bullet_size;
     let bundle = FlaskProjectileBundle {
         sprite_sheet: AnimatedSpriteBundle {
             animator: SpriteAnimator::from_anim(AnimHandle::from_index(0)),
             spritesheet: atlases.sprite_sheets.get("bullet").expect("failed to find asset for bullet!").clone(),
             sprite_bundle: SpriteSheetBundle {
-                transform: Transform::from_translation(position.extend(BACKGROUND_PROJECTILE_LAYER)).with_scale(Vec2::splat(10.0).extend(1.0)),
+                transform: Transform::from_translation(data.position.extend(BACKGROUND_PROJECTILE_LAYER)).with_scale(Vec2::splat(10.0).extend(1.0)),
                 ..default()
             },
 
@@ -268,26 +274,30 @@ fn spawn_flask_projectile(
         },
         name: Name::new("flask"),
         sensor: Default::default(),
-        damage: DamageOnTouch { value: 100.0 , ..default() },
+        damage: DamageOnTouch { value: 100.0, ..default() },
         lifetime: Lifetime::from_seconds(2.0),
     };
     commands.spawn(bundle);
 }
 
-fn spawn_fireball(
-    commands: &mut Commands,
-    gun: &FireBallGun,
+pub struct FireballSpawnData {
+    gun: FireBallGun,
     position: Vec3,
     direction: Vec2,
-    atlases: &Res<Atlases>,
+}
+
+pub fn spawn_fireball(
+    In(data): In<FireballSpawnData>,
+    atlases: ResMut<Atlases>,
+    mut commands: Commands,
 ) {
-    let speed = gun.bullet_speed;
+    let speed = data.gun.bullet_speed;
     let bundle = BulletBundle {
         sprite_sheet: AnimatedSpriteBundle {
             animator: SpriteAnimator::from_anim(AnimHandle::from_index(0)),
             spritesheet: atlases.sprite_sheets.get("bullet").expect("failed to find asset for bullet!").clone(),
             sprite_bundle: SpriteSheetBundle {
-                transform: Transform::from_translation(position).with_scale(Vec3::new(2.0, 2.0, 0.0)),
+                transform: Transform::from_translation(data.position).with_scale(Vec3::new(2.0, 2.0, 0.0)),
                 ..default()
             },
 
@@ -297,18 +307,18 @@ fn spawn_fireball(
             collider: Collider::ball(
                 0.5),
             restitution: Restitution::new(1.0),
-            velocity: Velocity { linvel: direction * speed, angvel: 0.0 },
+            velocity: Velocity { linvel: data.direction * speed, angvel: 0.0 },
             collision_layers: CollisionGroups::new(game_layer::PLAYER, Group::from(game_layer::GROUND | game_layer::ENEMY)),
             rigid_body: RigidBody::Dynamic,
 
             ..default()
         },
         bullet: Bullet
-        { pierce: gun.pierce, ..default() },
+        { pierce: data.gun.pierce, ..default() },
 
         name: Name::new("bullet"),
         sensor: Default::default(),
-        damage: DamageOnTouch { value: 5.0 , ..default()},
+        damage: DamageOnTouch { value: 5.0, ..default() },
         lifetime: Lifetime::from_seconds(2.0),
     };
     commands.spawn(bundle);
