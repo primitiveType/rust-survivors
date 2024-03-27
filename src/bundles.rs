@@ -1,7 +1,8 @@
+use bevy::app::App;
 use bevy::asset::Assets;
 use bevy::core::Name;
 use bevy::math::{Vec2, Vec3};
-use bevy::prelude::{Bundle, Circle, Color, ColorMaterial, Commands, default, Mesh, ResMut, Transform};
+use bevy::prelude::{Bundle, Circle, Color, ColorMaterial, Commands, default, In, Mesh, ResMut, Transform};
 use bevy::sprite::{MaterialMesh2dBundle, SpriteSheetBundle};
 use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
 use bevy_prng::WyRand;
@@ -21,7 +22,14 @@ use crate::physics::layers::game_layer;
 use crate::systems::animation::AnimationState::Idle;
 
 const XP_COLOR: Color = Color::rgb(0.0, 1.0, 0.1);
-
+#[derive(Debug, Eq, PartialEq)]
+pub enum Object {
+    Cube,
+    Player,
+    Enemy,
+    Fireball,
+    Flask
+}
 
 #[derive(Bundle)]
 pub struct PlayerBundle {
@@ -200,14 +208,16 @@ impl Default for EnemyBundle {
     }
 }
 
-
+pub struct EnemySpawnData{
+    pub enemy_num : usize,
+}
 pub fn spawn_enemy(
-    enemy: usize,
-    mut commands: Commands,
+    In(enemy_spawn_data): In<EnemySpawnData>,
     atlases: ResMut<Atlases>,
     _rng: ResMut<GlobalEntropy<WyRand>>,
+    mut commands: Commands,
 ) {
-    let mut bundle = load_enemy(enemy, atlases);
+    let mut bundle = load_enemy(enemy_spawn_data.enemy_num, atlases);
     //get random position outside screen
     let mut rng = rand::thread_rng();
     let value = rng.gen_range(0.0..1.0);

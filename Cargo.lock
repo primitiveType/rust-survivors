@@ -3783,6 +3783,7 @@ dependencies = [
  "rand_core 0.6.4",
  "serde",
  "serde_yaml",
+ "spew",
  "tracing-tracy",
  "walkdir",
 ]
@@ -3983,6 +3984,15 @@ dependencies = [
  "num-traits",
  "robust",
  "smallvec",
+]
+
+[[package]]
+name = "spew"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0da22ed2e64c6d5686a052298dbe6732bb535a6b5a087e4ab7b1bbcdc9c99744"
+dependencies = [
+ "bevy",
 ]
 
 [[package]]
