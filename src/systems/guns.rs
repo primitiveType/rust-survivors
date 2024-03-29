@@ -17,6 +17,7 @@ use spew::prelude::SpawnEvent;
 
 use crate::bundles::{Object, PhysicalBundle};
 use crate::components::{Cooldown, Bullet, BulletBundle, DamageOnTouch, Enemy, FireBallGun, Health, AttackSpeed, Flask, FlaskProjectileBundle, Lifetime, Expired};
+use crate::extensions::spew_extensions::{Spawn, Spawner};
 use crate::extensions::vectors::to_vec2;
 use crate::initialization::load_prefabs::Atlases;
 use crate::Name;
@@ -51,7 +52,7 @@ pub fn advance_cooldowns(
 
 pub fn flask_weapon(
     mut query: Query<(&mut Cooldown, &GlobalTransform, &Flask)>,
-    mut spawner: EventWriter<SpawnEvent<Object, FlaskSpawnData>>,
+    mut spawner: Spawner<FlaskSpawnData>,
 ) {
     for (mut ability, transform, flask) in query.iter_mut() {
         if ability.timer.just_finished() {
@@ -67,7 +68,8 @@ pub fn flask_weapon(
             let distance = Vec2::splat(rng.gen_range(50.0..400.0));
             direction = direction * distance;
 
-            spawner.send(SpawnEvent::with_data(Object::Flask, FlaskSpawnData { gun: flask.clone(), position: direction }));
+            
+            spawner.spawn(Object::Flask, FlaskSpawnData { gun: flask.clone(), position: translation.xy() + direction });
             // spawn_flask_projectile(&mut commands, flask, direction, &atlases);
         }
     }
@@ -76,7 +78,7 @@ pub fn flask_weapon(
 
 pub fn fireball_gun(
     mut query: Query<(&mut Cooldown, &GlobalTransform, &FireBallGun)>,
-    mut spawner: EventWriter<SpawnEvent<Object, FireballSpawnData>>,
+    mut spawner: Spawner<FireballSpawnData>,
     rapier_context: Res<RapierContext>,
 ) {
     for (ability, transform, gun) in query.iter_mut() {
@@ -100,7 +102,7 @@ pub fn fireball_gun(
                 let mut delta = projection.point - to_vec2(translation);
                 delta = delta.normalize();
 
-                spawner.send(SpawnEvent::with_data(Object::Fireball, FireballSpawnData { gun: gun.clone(), position: translation, direction: delta }));
+                spawner.spawn(Object::Fireball, FireballSpawnData { gun: gun.clone(), position: translation, direction: delta });
                 // spawn_fireball(&mut commands, &gun, translation, delta, &atlases);
             }
         }

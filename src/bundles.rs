@@ -22,13 +22,14 @@ use crate::physics::layers::game_layer;
 use crate::systems::animation::AnimationState::Idle;
 
 const XP_COLOR: Color = Color::rgb(0.0, 1.0, 0.1);
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum Object {
     Cube,
     Player,
     Enemy,
     Fireball,
-    Flask
+    Flask,
 }
 
 #[derive(Bundle)]
@@ -111,7 +112,7 @@ pub struct PhysicalBundle {
     // pub locked_axes: LockedAxes,
     pub rigid_body: RigidBody,
     pub locked_axes: LockedAxes,
-    pub active_events: ActiveEvents
+    pub active_events: ActiveEvents,
 }
 
 impl Default for PhysicalBundle {
@@ -198,7 +199,7 @@ impl Default for EnemyBundle {
                 follow_player: FollowPlayer,
                 move_speed: MoveSpeed { value: 0.1 },
                 health: Health { value: 5.0 },
-                touch_damage: DamageOnTouch { value: 1.0 , ..default()},
+                touch_damage: DamageOnTouch { value: 1.0, ..default() },
             },
             // sensor: Default::default(),
             animator: AnimatorController { state: Walk, name: "default".to_string() },
@@ -208,9 +209,11 @@ impl Default for EnemyBundle {
     }
 }
 
-pub struct EnemySpawnData{
-    pub enemy_num : usize,
+pub struct EnemySpawnData {
+    pub enemy_num: usize,
+    pub player_position: Vec2,
 }
+
 pub fn spawn_enemy(
     In(enemy_spawn_data): In<EnemySpawnData>,
     atlases: ResMut<Atlases>,
@@ -226,7 +229,7 @@ pub fn spawn_enemy(
     let mut direction = Vec2::new(angle.cos(), angle.sin());
     let distance = Vec2::splat(600.0);
     direction = direction * distance;
-    bundle.animation_bundle.sprite_bundle.transform.translation = direction.extend(0.0);
+    bundle.animation_bundle.sprite_bundle.transform.translation = (direction + enemy_spawn_data.player_position).extend(0.0);
     commands.spawn(bundle);
 }
 
