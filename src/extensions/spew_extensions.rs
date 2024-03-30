@@ -1,4 +1,3 @@
-use std::env::Args;
 use bevy::prelude::EventWriter;
 use spew::prelude::SpawnEvent;
 use crate::bundles::Object;

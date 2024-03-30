@@ -8,7 +8,6 @@ use bevy_asepritesheet::prelude::AsepritesheetPlugin;
 use bevy_egui::{EguiContexts, EguiPlugin};
 use bevy_prng::WyRand;
 use bevy_rand::prelude::EntropyPlugin;
-use bevy_rapier2d::na::DimAdd;
 use bevy_rapier2d::pipeline::CollisionEvent;
 use bevy_rapier2d::plugin::RapierConfiguration;
 use bevy_rapier2d::prelude::NoUserData;
@@ -202,5 +201,5 @@ fn main() {
     app.run();
 }
 
-fn ui_example_system(mut contexts: EguiContexts) {}
+fn ui_example_system(contexts: EguiContexts) {}
 

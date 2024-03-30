@@ -3,19 +3,16 @@ use std::time::Duration;
 use bevy::asset::{Assets, Handle};
 use bevy::ecs::query::QueryEntityError;
 use bevy::math::{Vec3, Vec3Swizzles};
-use bevy::prelude::{Commands, default, Entity, EventReader, EventWriter, GlobalTransform, In, Mut, Query, Res, ResMut, SpriteSheetBundle, Time, Transform, Vec2, With};
-use bevy::time::Timer;
+use bevy::prelude::{Commands, default, Entity, EventReader, GlobalTransform, In, Mut, Query, Res, ResMut, SpriteSheetBundle, Time, Transform, Vec2, With};
 use bevy_asepritesheet::animator::{AnimatedSpriteBundle, AnimFinishEvent, SpriteAnimator};
 use bevy_asepritesheet::prelude::{AnimEventSender, AnimHandle, Spritesheet};
 use bevy_rapier2d::dynamics::RigidBody;
 use bevy_rapier2d::geometry::{Collider, CollisionGroups, Restitution};
 use bevy_rapier2d::na::clamp;
-use bevy_rapier2d::parry::transformation::utils::transform;
 use bevy_rapier2d::pipeline::CollisionEvent;
 use bevy_rapier2d::plugin::RapierContext;
-use bevy_rapier2d::prelude::{Group, QueryFilter, Velocity};
+use bevy_rapier2d::prelude::{QueryFilter, Velocity};
 use rand::Rng;
-use spew::prelude::SpawnEvent;
 
 use crate::bundles::{Object, PhysicalBundle};
 use crate::components::{Cooldown, Bullet, BulletBundle, DamageOnTouch, Enemy, FireBallGun, Health, AttackSpeed, Flask, FlaskProjectileBundle, Lifetime, Expired, AbilityLevel};
@@ -30,15 +27,15 @@ pub fn advance_cooldowns(
     mut cdr_query: Query<&mut AttackSpeed>,
     time: Res<Time>,
 ) {//assumes only player needs concept of abilities and CDR, which might change.
-    for (mut ability) in query.iter_mut() {
+    for mut ability in query.iter_mut() {
         let mut total_cdr = 100.0f32;
-        for (cdr) in cdr_query.iter_mut() {
-            total_cdr = total_cdr + cdr.percent;
+        for cdr in cdr_query.iter_mut() {
+            total_cdr += cdr.percent;
         }
 
         let multiplier = total_cdr * 0.01f32;//convert percentage to multiplier
         let delta_seconds = time.delta().as_secs_f32();
-        let multiplied_delta = (delta_seconds * multiplier);
+        let multiplied_delta = delta_seconds * multiplier;
 
         let duration = Duration::from_secs_f32(multiplied_delta);
         //this idea of advancing the timer will make less sense if we
@@ -52,7 +49,7 @@ pub fn flask_weapon(
     mut query: Query<(&mut Cooldown, &GlobalTransform, &Flask, &AbilityLevel)>,
     mut spawner: Spawner<FlaskSpawnData>,
 ) {
-    for (mut ability, transform, flask, level) in query.iter_mut() {
+    for (ability, transform, flask, level) in query.iter_mut() {
         if level.level == 0 {
             continue;
         }
@@ -67,7 +64,7 @@ pub fn flask_weapon(
 
 
             let distance = Vec2::splat(rng.gen_range(50.0..400.0));
-            direction = direction * distance;
+            direction *= distance;
 
             let mut spawn_data = FlaskSpawnData::get_data_for_level(level.level);
             spawn_data.position = translation.xy() + direction;
@@ -151,8 +148,8 @@ pub fn deal_damage_on_collide(
 fn try_deal_damage(entity1_damage: Result<(Entity, Mut<DamageOnTouch>), QueryEntityError>, entity2_health: Result<(Entity, Mut<Health>), QueryEntityError>) {
     match (entity1_damage, entity2_health) {
         (Ok((_, mut damage)), Ok((_, mut health))) => {
-            health.value = health.value - damage.value;
-            damage.count_triggers = damage.count_triggers + 1;
+            health.value -= damage.value;
+            damage.count_triggers += 1;
         }
         _ => {}
     }
@@ -198,7 +195,7 @@ pub fn destroy_expired_entities(mut lifetimes: Query<(Entity, &Expired)>,
     }
 }
 
-const FIREBALL_EXPLODE_ANIMATION: &'static str = "Fireball_explode";
+const FIREBALL_EXPLODE_ANIMATION: &str = "Fireball_explode";
 
 fn spawn_particle(position: Vec3, commands: &mut Commands, sprite_sheet: String, animation: &str, atlases: &Res<Atlases>, sprite_assets: &Res<Assets<Spritesheet>>) {
     let spritesheet = atlases.sprite_sheets.get(&sprite_sheet).expect("failed to find explode animation!").clone();
@@ -291,7 +288,7 @@ pub fn spawn_flask_projectile(
                 10.0),
             restitution: Restitution::new(1.0),
             velocity: Velocity { linvel: Vec2::ZERO, angvel: 0.0 },
-            collision_layers: CollisionGroups::new(game_layer::PLAYER, Group::from(game_layer::GROUND | game_layer::ENEMY)),
+            collision_layers: CollisionGroups::new(game_layer::PLAYER, game_layer::GROUND | game_layer::ENEMY),
             rigid_body: RigidBody::Dynamic,
 
             ..default()
@@ -348,7 +345,7 @@ pub fn spawn_fireball(
                 0.5),
             restitution: Restitution::new(1.0),
             velocity: Velocity { linvel: data.direction * speed, angvel: 0.0 },
-            collision_layers: CollisionGroups::new(game_layer::PLAYER, Group::from(game_layer::GROUND | game_layer::ENEMY)),
+            collision_layers: CollisionGroups::new(game_layer::PLAYER, game_layer::GROUND | game_layer::ENEMY),
             rigid_body: RigidBody::Dynamic,
 
             ..default()

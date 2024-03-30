@@ -1,4 +1,3 @@
-use bevy::app::App;
 use bevy::asset::Assets;
 use bevy::core::Name;
 use bevy::math::{Vec2, Vec3};
@@ -8,8 +7,7 @@ use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
 use bevy_prng::WyRand;
 use bevy_rand::prelude::GlobalEntropy;
 use bevy_rapier2d::dynamics::{LockedAxes, RigidBody, Velocity};
-use bevy_rapier2d::geometry::{ActiveEvents, Collider, CollisionGroups, Friction, Group, Restitution, Sensor};
-use bevy_rapier2d::na::Vector2;
+use bevy_rapier2d::geometry::{ActiveEvents, Collider, CollisionGroups, Restitution, Sensor};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
@@ -19,7 +17,6 @@ use crate::components::{AbilityLevel, BaseMoveSpeed, DamageOnTouch, Enemy, Follo
 use crate::constants::{PLAYER_SPEED, XP_DIAMETER};
 use crate::initialization::load_prefabs::{Atlases, load_enemy, load_enemy_data_from_path};
 use crate::physics::layers::game_layer;
-use crate::physics::layers::game_layer::PLAYER;
 use crate::systems::animation::AnimationState::Idle;
 
 const XP_COLOR: Color = Color::rgb(0.0, 1.0, 0.1);
@@ -80,7 +77,7 @@ impl PlayerBundle {
             physical: PhysicalBundle {
                 collider: Collider::ball(2.0),
                 rigid_body: RigidBody::Dynamic,
-                collision_layers: CollisionGroups::new(game_layer::PLAYER, Group::from(game_layer::GROUND | game_layer::ENEMY | game_layer::XP)),
+                collision_layers: CollisionGroups::new(game_layer::PLAYER, game_layer::GROUND | game_layer::ENEMY | game_layer::XP),
                 ..default()
             },
             sprite: AnimatedSpriteBundle {
@@ -202,7 +199,7 @@ impl Default for EnemyBundle {
         Self {
             // sprite_bundle: get_default_sprite_sheet_bundle(Handle::default(), Handle::default()),
             physical: PhysicalBundle {
-                collision_layers: CollisionGroups::new(game_layer::ENEMY, Group::from(game_layer::PLAYER | game_layer::ENEMY)),
+                collision_layers: CollisionGroups::new(game_layer::ENEMY, game_layer::PLAYER | game_layer::ENEMY),
                 ..default()
             },
             enemy_data: EnemyData {
@@ -241,7 +238,7 @@ pub fn spawn_enemy(
     // Calculate the direction vector from the angle
     let mut direction = Vec2::new(angle.cos(), angle.sin());
     let distance = Vec2::splat(600.0);
-    direction = direction * distance;
+    direction *= distance;
     bundle.animation_bundle.sprite_bundle.transform.translation = (direction + enemy_spawn_data.player_position).extend(0.0);
     commands.spawn(bundle);
 }

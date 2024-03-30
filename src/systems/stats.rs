@@ -27,7 +27,7 @@ pub fn die_at_zero_health(query: Query<(Entity, &Enemy, &Health, &Transform)>,
 
 pub fn update_move_speed_from_passive(mut abilities: Query<(&AbilityLevel, &PassiveMoveSpeedMultiplier, &mut ParentMoveSpeedMultiplier)>,
 ) {
-    for (mut ability, _, mut parent_move_speed) in abilities.iter_mut() {
+    for (ability, _, mut parent_move_speed) in abilities.iter_mut() {
         parent_move_speed.value = 0.10 * ability.level as f32;
     }
 }
@@ -103,7 +103,7 @@ pub fn update_level_descriptions_fireball(mut abilities: Query<(&mut AbilityLeve
     }
 }
 
-pub fn push_stat_block(mut desc: &mut String, label: impl Display, value1: impl Display, value2: impl Display) {
+pub fn push_stat_block(desc: &mut String, label: impl Display, value1: impl Display, value2: impl Display) {
     desc.push_str("\r\n");
     desc.push_str(format!("{label}:").as_str());
     desc.push_str("\r\n");
@@ -134,14 +134,14 @@ pub fn pick_up_xp_on_touch(
                     }
                 }
 
-                let mut xp = xp_query.get(*xp_entity);
+                let xp = xp_query.get(*xp_entity);
                 if xp.is_err() {
                     //other entity was not an xp
                     continue;
                 }
 
                 let (e_entity, _player, mut player_xp) = player.unwrap();
-                player_xp.amount = player_xp.amount + xp.unwrap().1.value;
+                player_xp.amount += xp.unwrap().1.value;
                 commands.entity(*xp_entity).despawn();
             }
             _ => {}
@@ -173,7 +173,7 @@ pub fn vacuum_xp_on_touch(
                     }
                 }
 
-                let mut xp = xp_query.get(*xp_entity);
+                let xp = xp_query.get(*xp_entity);
                 if xp.is_err() {
                     //other entity was not an xp
                     continue;
@@ -195,7 +195,7 @@ pub fn level_up(
     for (_, mut player, xp) in query.iter_mut() {
         if xp.amount / 2 > player.level {
             next_state.set(AppState::LevelUp);
-            player.level = player.level + 1;
+            player.level += 1;
         }
     }
 }
