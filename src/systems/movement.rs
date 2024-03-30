@@ -1,13 +1,13 @@
 use bevy::input::ButtonInput;
 use bevy::math::Vec2;
-use bevy::prelude::{Commands, EventReader, KeyCode, Query, Res, Time, Transform, With, Without};
-use bevy_rapier2d::dynamics::Velocity;
-
-use crate::components::{ DamageOnTouch, FollowPlayer, Health, MoveSpeed, Player};
-use crate::constants::{BOTTOM_WALL, LEFT_WALL, PADDLE_PADDING, PADDLE_SIZE, PLAYER_SPEED, RIGHT_WALL, TOP_WALL, WALL_THICKNESS};
-use crate::extensions::vectors::to_vec2;
+use bevy::prelude::{EventReader, KeyCode, Query, Res, Time, Transform, With, Without};
 use bevy::prelude::*;
+use bevy_rapier2d::dynamics::Velocity;
 use bevy_rapier2d::prelude::*;
+
+use crate::components::{BaseMoveSpeed, FollowPlayer, MoveSpeed, ParentMoveSpeedMultiplier, Player};
+use crate::extensions::vectors::to_vec2;
+
 pub fn set_follower_velocity(
     mut query: Query<(&mut Velocity, &MoveSpeed, &Transform), (With<FollowPlayer>, Without<Player>)>,
     player_query: Query<&mut Transform, With<Player>>,
@@ -23,18 +23,31 @@ pub fn set_follower_velocity(
     }
 }
 
-pub fn camera_follow(mut query : Query<(&mut Transform, &Camera2d), Without<Player>>,
+pub fn apply_move_speed_multiplier(
+    mut parent_query: Query<(&mut MoveSpeed, &BaseMoveSpeed, &Children)>,
+    modifier_query: Query<(&ParentMoveSpeedMultiplier)>,
+) {
+    for (mut move_speed, base_move, children) in &mut parent_query {
+        let mut multiplier = 1.0;
+        for modifier in modifier_query.iter_many(children) {
+            multiplier += modifier.value;
+        }
+        move_speed.value = base_move.value * multiplier;
+    }
+}
+
+pub fn camera_follow(mut query: Query<(&mut Transform, &Camera2d), Without<Player>>,
                      player_query: Query<&mut Transform, With<Player>>,
-){
+) {
     let player = player_query.single();
-    
+
     for (mut transform, camera) in query.iter_mut() {
         transform.translation = player.translation;
     }
 }
 
 pub fn _debug_collisions(
-                        mut collision_events: EventReader<CollisionEvent>,
+    mut collision_events: EventReader<CollisionEvent>,
 ) {
     for collision_event in collision_events.read() {
         match collision_event {
@@ -46,16 +59,14 @@ pub fn _debug_collisions(
             }
         }
     }
-
 }
-
 
 pub fn move_player(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<&mut Velocity, With<Player>>,
+    mut query: Query<(&mut Velocity, &MoveSpeed), With<Player>>,
     time: Res<Time>,
 ) {
-    let mut paddle_velocity = query.single_mut();
+    let (mut velocity, move_speed) = query.single_mut();
     let mut direction: Vec2 = Default::default();
 
     if keyboard_input.pressed(KeyCode::KeyA) {
@@ -76,18 +87,11 @@ pub fn move_player(
     }
 
 
-    // Calculate the new horizontal paddle position based on player input
+    // Calculate the new horizontal position based on player input
     let new_player_velocity: Vec2 =
-        direction * PLAYER_SPEED;
+        direction * move_speed.value;
 
-    // Update the paddle position,
-    // making sure it doesn't cause the paddle to leave the arena
-    let left_bound = LEFT_WALL + WALL_THICKNESS / 2.0 + PADDLE_SIZE.x / 2.0 + PADDLE_PADDING;
-    let right_bound = RIGHT_WALL - WALL_THICKNESS / 2.0 - PADDLE_SIZE.x / 2.0 - PADDLE_PADDING;
 
-    let upper_bound = TOP_WALL + WALL_THICKNESS / 2.0 + PADDLE_SIZE.y / 2.0 + PADDLE_PADDING;
-    let lower_bound = BOTTOM_WALL - WALL_THICKNESS / 2.0 - PADDLE_SIZE.y / 2.0 - PADDLE_PADDING;
-    paddle_velocity.linvel.x = new_player_velocity.x.clamp(left_bound, right_bound);
-    paddle_velocity.linvel.y = new_player_velocity.y.clamp(lower_bound, upper_bound);
+    velocity.linvel = new_player_velocity;
 }
 

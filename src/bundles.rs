@@ -2,7 +2,7 @@ use bevy::app::App;
 use bevy::asset::Assets;
 use bevy::core::Name;
 use bevy::math::{Vec2, Vec3};
-use bevy::prelude::{Bundle, Circle, Color, ColorMaterial, Commands, default, In, Mesh, ResMut, Transform};
+use bevy::prelude::{Bundle, Circle, Color, ColorMaterial, Commands, default, In, Mesh, ResMut, SpatialBundle, Transform};
 use bevy::sprite::{MaterialMesh2dBundle, SpriteSheetBundle};
 use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
 use bevy_prng::WyRand;
@@ -15,10 +15,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::animation::{AnimationState, AnimatorController, SpritePath};
 use crate::animation::AnimationState::Walk;
-use crate::components::{DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health, MoveSpeed, Player, XP};
-use crate::constants::XP_DIAMETER;
+use crate::components::{AbilityLevel, BaseMoveSpeed, DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health, MoveSpeed, Player, XP};
+use crate::constants::{PLAYER_SPEED, XP_DIAMETER};
 use crate::initialization::load_prefabs::{Atlases, load_enemy, load_enemy_data_from_path};
 use crate::physics::layers::game_layer;
+use crate::physics::layers::game_layer::PLAYER;
 use crate::systems::animation::AnimationState::Idle;
 
 const XP_COLOR: Color = Color::rgb(0.0, 1.0, 0.1);
@@ -41,6 +42,8 @@ pub struct PlayerBundle {
     pub physical: PhysicalBundle,
     pub animator: AnimatorController,
     pub xp: XP,
+    move_speed: MoveSpeed,
+    pub base_speed: BaseMoveSpeed,
 }
 
 impl Default for PlayerBundle {
@@ -65,6 +68,8 @@ impl Default for PlayerBundle {
             health: Health { value: 100.0 },
             animator: AnimatorController { state: AnimationState::Walk, name: "default".to_string() },
             xp: XP { amount: 0 },
+            move_speed: MoveSpeed { value: 0.0 },
+            base_speed: BaseMoveSpeed { value: PLAYER_SPEED },
         }
     }
 }
@@ -95,7 +100,10 @@ impl PlayerBundle {
             player: Default::default(),
             health: Health { value: 100.0 },
             animator: AnimatorController { state: Idle, name: "player".to_string() },
-            xp: XP { amount: 0 },
+            
+            xp: XP { amount: 2 },
+            move_speed: MoveSpeed { value: 0.0 },
+            base_speed: BaseMoveSpeed { value: PLAYER_SPEED },
         }
     }
 }
@@ -151,6 +159,11 @@ pub struct EnemyData {
     touch_damage: DamageOnTouch,
 }
 
+pub struct AbilityBundle {
+    pub spatial: SpatialBundle,
+    pub name: Name,
+    pub ability: AbilityLevel,
+}
 
 impl EnemyBundle {
     pub fn from_path(

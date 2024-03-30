@@ -1,6 +1,3 @@
-use bevy_rapier2d::prelude::RapierDebugRenderPlugin;
-use bevy_rapier2d::prelude::NoUserData;
-use bevy_rapier2d::prelude::RapierPhysicsPlugin;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -8,21 +5,21 @@ use std::hash::Hash;
 use bevy::prelude::*;
 use bevy_asepritesheet::core::SpriteAnimController;
 use bevy_asepritesheet::prelude::AsepritesheetPlugin;
-use bevy_editor_pls::egui;
 use bevy_egui::{EguiContexts, EguiPlugin};
 use bevy_prng::WyRand;
 use bevy_rand::prelude::EntropyPlugin;
+use bevy_rapier2d::na::DimAdd;
 use bevy_rapier2d::pipeline::CollisionEvent;
-use bevy_rapier2d::plugin::{PhysicsSet, RapierConfiguration, TimestepMode};
+use bevy_rapier2d::plugin::RapierConfiguration;
+use bevy_rapier2d::prelude::NoUserData;
+use bevy_rapier2d::prelude::RapierPhysicsPlugin;
 use bevy_tween::DefaultTweenPlugins;
-use spew::prelude::{SpawnEvent, SpewApp, SpewPlugin};
+use spew::prelude::{SpewApp, SpewPlugin};
 
-use components::{HealthUi};
+use components::HealthUi;
 use constants::BACKGROUND_COLOR;
-use inspector::add_inspector;
 
 use crate::{
-    initialization::inspector,
     initialization::register_types::register_types,
     systems::*,
 };
@@ -101,7 +98,7 @@ fn main() {
 
                           .at(Val::Percent(35.0), Val::Percent(50.0)),
                       EntropyPlugin::<WyRand>::default(),
-                      // EguiPlugin,//not needed if editor-egui is imported
+                      EguiPlugin,//not needed if editor-egui is imported
         ))
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .insert_resource(Atlases { sprite_sheets: HashMap::new() })
@@ -149,19 +146,26 @@ fn main() {
                 // `chain`ing systems together runs them in order
                 .chain(),
         )
+
         .add_systems(
             //InGame update loop
             Update,
-            (movement::move_player,
-             movement::camera_follow,
-             movement::set_follower_velocity,
-             ui::update_player_health_ui,
-             // movement::_debug_collisions,
-             guns::deal_damage_on_collide,
-             stats::pick_up_xp_on_touch,
-             stats::vacuum_xp_on_touch,
-             stats::level_up,
-             ui_example_system,
+            (
+                (stats::update_move_speed_from_passive,
+                movement::apply_move_speed_multiplier,
+                movement::move_player,
+                movement::camera_follow,
+                movement::set_follower_velocity).chain(),
+                ui::update_player_health_ui,
+                // movement::_debug_collisions,
+                guns::deal_damage_on_collide,
+                stats::pick_up_xp_on_touch,
+                stats::vacuum_xp_on_touch,
+                stats::level_up,
+                ui_example_system,
+                stats::update_level_descriptions_flask,
+                stats::update_level_descriptions_fireball,
+                stats::update_level_descriptions_move_speed,
             ).run_if(in_state(AppState::InGame)))
         .add_systems(Update,
                      (//Always update loop
@@ -176,11 +180,11 @@ fn main() {
                      ).run_if(in_state(AppState::LevelUp)))
         .add_systems(
             OnEnter(AppState::LevelUp),
-            (ui::toggle_level_ui_system, ui::pause_animations),
+            (ui::prepare_level_up, ui::pause_animations),
         )
         .add_systems(
             OnExit(AppState::LevelUp),
-            (ui::toggle_level_ui_system, ui::resume_animations),
+            (ui::resume_animations, ui::cleanup_level_up),
         )
         .add_systems(
             OnEnter(AppState::InGame),
@@ -192,15 +196,11 @@ fn main() {
         )
         ;
 
-    let app: &mut App = add_inspector(app);
+    // let app: &mut App = add_inspector(app);
     let app: &mut App = register_types(app);
 
     app.run();
 }
 
-fn ui_example_system(mut contexts: EguiContexts) {
-    egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
-        ui.label("world");
-    });
-}
+fn ui_example_system(mut contexts: EguiContexts) {}
 

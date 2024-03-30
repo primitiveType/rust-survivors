@@ -1,9 +1,14 @@
 use bevy::prelude::*;
 use bevy_asepritesheet::core::SpriteAnimController;
+use bevy_egui::{egui, EguiContexts};
+use bevy_egui::egui::emath;
 
 use crate::AppState;
-use crate::components::{Health, HealthUi, Player, XP};
+use crate::components::{AbilityLevel, FireBallGun, Flask, Health, HealthUi, Player, XP};
 use crate::initialization::load_prefabs::load_gun;
+use bevy_egui::{EguiPlugin};
+use serde::{Deserialize, Serialize};
+use crate::bundles::AbilityBundle;
 
 #[derive(Component)]
 pub struct LevelUpUiRoot;
@@ -35,17 +40,17 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .with_children(|parent| {
 
             // Button one
-            let mut binding = parent.spawn(button());
-            let button1 = binding.insert(ButtonAction::OptionOne);
-            button1.with_children(|button| { button.spawn(button_text(&asset_server, "Option 1")); });
-            // Button two
-            let mut binding = parent.spawn(button());
-            let button1 = binding.insert(ButtonAction::OptionTwo);
-            button1.with_children(|parent| { parent.spawn(button_text(&asset_server, "Option 2")); });
-            // Button three
-            let mut binding = parent.spawn(button());
-            let button1 = binding.insert(ButtonAction::OptionThree);
-            button1.with_children(|parent| { parent.spawn(button_text(&asset_server, "Option 3")); });
+            // let mut binding = parent.spawn(button());
+            // let button1 = binding.insert(ButtonAction::OptionOne);
+            // button1.with_children(|button| { button.spawn(button_text(&asset_server, "Option 1")); });
+            // // Button two
+            // let mut binding = parent.spawn(button());
+            // let button1 = binding.insert(ButtonAction::OptionTwo);
+            // button1.with_children(|parent| { parent.spawn(button_text(&asset_server, "Option 2")); });
+            // // Button three
+            // let mut binding = parent.spawn(button());
+            // let button1 = binding.insert(ButtonAction::OptionThree);
+            // button1.with_children(|parent| { parent.spawn(button_text(&asset_server, "Option 3")); });
         });
 }
 
@@ -80,51 +85,69 @@ fn button_text(_asset_server: &Res<AssetServer>, text: &str) -> TextBundle {
 }
 
 pub fn button_system(
-    mut interaction_query: Query<(&Interaction, &mut BackgroundColor, &ButtonAction), (Changed<Interaction>, With<Button>)>,
     mut player_query: Query<(&Player, Entity)>,
     mut next_state: ResMut<NextState<AppState>>,
     mut commands: Commands,
+    mut choices: Query<&LevelUpChoice>,
+    mut abilities: Query<&mut AbilityLevel>,
+    mut contexts: EguiContexts,
 ) {
-    for (interaction, mut color, action) in interaction_query.iter_mut() {
-        match *interaction {
-            Interaction::Pressed => {
-                *color = Color::rgb(0.25, 0.25, 0.25).into();
-                button_clicked(action, &mut next_state, &mut commands, &mut player_query);
-            }
-            Interaction::Hovered => {
-                *color = Color::rgb(0.35, 0.35, 0.35).into();
-            }
-            Interaction::None => {
-                *color = Color::rgb(0.15, 0.15, 0.15).into();
-            }
-        }
+    egui::CentralPanel::default().frame(egui::Frame {
+        fill: egui::Color32::from_rgba_unmultiplied(0, 0, 0, 200), // Set background to transparent
+
+        ..Default::default() // Use default settings for other frame properties
+    })
+        .show(contexts.ctx_mut(), |ui| {
+            let screen_size = ui.available_size();
+            let button_height = screen_size.y * 0.15;
+            let button_width = screen_size.x * 0.5;
+
+
+            ui.vertical_centered(|ui| {
+                ui.add_space(100.0);
+                for choice in choices.iter() {
+                    let mut ability = abilities.get_mut(choice.entity_to_level).unwrap();
+                    if ui.add(egui::Button::new(format!("{}", ability.description))//.fill(egui::Color32::from_rgba_premultiplied(0, 0, 0, 255))
+                        // .image(egui::TextureId::User(i), [20.0, 20.0]) // Dummy image, replace with actual TextureId
+                        .min_size(emath::Vec2::new(button_width, button_height)))
+                        .clicked() {
+                        // Handle button click
+                        println!("Option {} clicked", ability.description);
+                        ability.level += 1;
+                        next_state.set(AppState::InGame);
+
+                        break;
+                    }
+                }
+            });
+
+
+        });
+}
+
+#[derive(Component, Debug, Serialize, Deserialize)]
+pub struct LevelUpChoice {
+    // pub description: String,
+    pub entity_to_level: Entity,
+}
+
+pub fn prepare_level_up(mut abilities: Query<(Entity, &AbilityLevel, &Name)>,
+                        mut commands: Commands,
+) {
+    //randomly choose abilities to level
+    //player may or may not have them already
+    // commands.entity(player_query.single_mut()).
+    for (entity, ability, name) in abilities.iter() {
+        commands.spawn(LevelUpChoice {entity_to_level: entity });
     }
 }
 
-fn button_clicked(action: &ButtonAction,
-                  next_state: &mut ResMut<NextState<AppState>>,
-                  commands: &mut Commands,
-                  player_query: &mut Query<(&Player, Entity)>) {
-    println!("Option {:?} clicked", *action as u8);
-
-    let (_player, player_entity) = player_query.single_mut();
-    next_state.set(AppState::InGame);
-
-
-    let mut gun_spawn = commands.spawn((load_gun(*action as usize), SpatialBundle { ..default() }));
-
-    gun_spawn.set_parent(player_entity);
-}
-
-pub fn toggle_level_ui_system(
-    mut query: Query<&mut Visibility, With<LevelUpUiRoot>>,
+pub fn cleanup_level_up(
+    mut commands: Commands,
+    mut choices: Query<(Entity, &LevelUpChoice)>,
 ) {
-    for mut visibility in query.iter_mut() {
-        if *visibility == Visibility::Hidden {
-            *visibility = Visibility::Inherited;
-        } else if *visibility == Visibility::Inherited {
-            *visibility = Visibility::Hidden;
-        }
+    for (entity, choice) in choices.iter() {
+        commands.entity(entity).despawn();
     }
 }
 
