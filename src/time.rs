@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use bevy::diagnostic::{RegisterDiagnostic, Diagnostic, Diagnostics};
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 

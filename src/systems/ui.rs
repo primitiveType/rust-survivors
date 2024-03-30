@@ -4,11 +4,8 @@ use bevy_egui::{egui, EguiContexts};
 use bevy_egui::egui::emath;
 
 use crate::AppState;
-use crate::components::{AbilityLevel, FireBallGun, Flask, Health, HealthUi, Player, XP};
-use crate::initialization::load_prefabs::load_gun;
-use bevy_egui::{EguiPlugin};
+use crate::components::{AbilityLevel, Health, HealthUi, Player, XP};
 use serde::{Deserialize, Serialize};
-use crate::bundles::AbilityBundle;
 
 #[derive(Component)]
 pub struct LevelUpUiRoot;
@@ -85,10 +82,10 @@ fn button_text(_asset_server: &Res<AssetServer>, text: &str) -> TextBundle {
 }
 
 pub fn button_system(
-    mut player_query: Query<(&Player, Entity)>,
+    player_query: Query<(&Player, Entity)>,
     mut next_state: ResMut<NextState<AppState>>,
-    mut commands: Commands,
-    mut choices: Query<&LevelUpChoice>,
+    commands: Commands,
+    choices: Query<&LevelUpChoice>,
     mut abilities: Query<&mut AbilityLevel>,
     mut contexts: EguiContexts,
 ) {
@@ -107,7 +104,7 @@ pub fn button_system(
                 ui.add_space(100.0);
                 for choice in choices.iter() {
                     let mut ability = abilities.get_mut(choice.entity_to_level).unwrap();
-                    if ui.add(egui::Button::new(format!("{}", ability.description))//.fill(egui::Color32::from_rgba_premultiplied(0, 0, 0, 255))
+                    if ui.add(egui::Button::new(ability.description.to_string())//.fill(egui::Color32::from_rgba_premultiplied(0, 0, 0, 255))
                         // .image(egui::TextureId::User(i), [20.0, 20.0]) // Dummy image, replace with actual TextureId
                         .min_size(emath::Vec2::new(button_width, button_height)))
                         .clicked() {
@@ -131,7 +128,7 @@ pub struct LevelUpChoice {
     pub entity_to_level: Entity,
 }
 
-pub fn prepare_level_up(mut abilities: Query<(Entity, &AbilityLevel, &Name)>,
+pub fn prepare_level_up(abilities: Query<(Entity, &AbilityLevel, &Name)>,
                         mut commands: Commands,
 ) {
     //randomly choose abilities to level
@@ -144,7 +141,7 @@ pub fn prepare_level_up(mut abilities: Query<(Entity, &AbilityLevel, &Name)>,
 
 pub fn cleanup_level_up(
     mut commands: Commands,
-    mut choices: Query<(Entity, &LevelUpChoice)>,
+    choices: Query<(Entity, &LevelUpChoice)>,
 ) {
     for (entity, choice) in choices.iter() {
         commands.entity(entity).despawn();

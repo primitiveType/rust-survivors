@@ -25,7 +25,7 @@ pub fn set_follower_velocity(
 
 pub fn apply_move_speed_multiplier(
     mut parent_query: Query<(&mut MoveSpeed, &BaseMoveSpeed, &Children)>,
-    modifier_query: Query<(&ParentMoveSpeedMultiplier)>,
+    modifier_query: Query<&ParentMoveSpeedMultiplier>,
 ) {
     for (mut move_speed, base_move, children) in &mut parent_query {
         let mut multiplier = 1.0;

@@ -1,8 +1,7 @@
 use bevy_rapier2d::geometry::{ActiveEvents, Collider, Restitution, Sensor};
-use bevy_rapier2d::prelude::{CollisionGroups, Velocity};
+use bevy_rapier2d::prelude::{CollisionGroups};
 use crate::*;
-use crate::bundles::AbilityBundle;
-use crate::components::{Cooldown, AttackSpeed, FireBallGun, XPVacuum, Flask, FollowPlayer, MoveSpeed, AbilityLevel, BaseMoveSpeed, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier};
+use crate::components::{Cooldown, AttackSpeed, FireBallGun, XPVacuum, Flask, AbilityLevel, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier};
 use crate::constants::{SCORE_COLOR, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, TEXT_COLOR};
 use crate::physics::layers::game_layer;
 
@@ -13,7 +12,7 @@ pub fn setup(
     atlases: ResMut<Atlases>,
 ) {
     // Camera
-    let mut camera = commands.spawn(Camera2dBundle::default());
+    let camera = commands.spawn(Camera2dBundle::default());
 
 
     // Sound

@@ -1,7 +1,6 @@
 use std::time::Duration;
 use bevy::prelude::*;
 use bevy::prelude::Component;
-use bevy::prelude::Event;
 use bevy::prelude::Reflect;
 use bevy::prelude::TimerMode::Once;
 use bevy::time::TimerMode::Repeating;
@@ -84,6 +83,7 @@ impl Cooldown {
 }
 
 #[derive(Component)]
+#[derive(Default)]
 pub struct Bullet {
     pub hits: u8,
     pub pierce: u8,
@@ -105,14 +105,6 @@ impl Lifetime {
 #[derive(Component)]
 pub struct Expired {}
 
-impl Default for Bullet {
-    fn default() -> Self {
-        Bullet {
-            hits: 0,
-            pierce: 0,
-        }
-    }
-}
 
 #[derive(Component, Serialize, Deserialize, Clone)]
 pub struct Health {
