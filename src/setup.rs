@@ -1,7 +1,8 @@
 use bevy_rapier2d::geometry::{ActiveEvents, Collider, Restitution, Sensor};
 use bevy_rapier2d::prelude::{CollisionGroups, Velocity};
 use crate::*;
-use crate::components::{Cooldown, AttackSpeed, FireBallGun, XPVacuum, Flask, FollowPlayer, MoveSpeed};
+use crate::bundles::AbilityBundle;
+use crate::components::{Cooldown, AttackSpeed, FireBallGun, XPVacuum, Flask, FollowPlayer, MoveSpeed, AbilityLevel, BaseMoveSpeed, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier};
 use crate::constants::{SCORE_COLOR, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, TEXT_COLOR};
 use crate::physics::layers::game_layer;
 
@@ -13,7 +14,6 @@ pub fn setup(
 ) {
     // Camera
     let mut camera = commands.spawn(Camera2dBundle::default());
-
 
 
     // Sound
@@ -82,18 +82,23 @@ fn spawn_player(commands: &mut Commands,
         .with_children(|parent| {
             //fireball gun
             parent.spawn((Cooldown::with_cooldown(1000),
-                          FireBallGun {
-                              bullet_size: 50000_f32,
-                              pierce: 0,
-                              bullet_speed: 380_f32,
-                          },
+                          FireBallGun {},
+                          Name::new("Fireball"),
+                          AbilityLevel { level: 0, ..default() },
                           SpatialBundle { ..default() }));
             // flask gun
             parent.spawn((Cooldown::with_cooldown(5000),
-                          Flask {
-                              bullet_size: 50.0,
-                          },
+                          Flask {},
+                          Name::new("Molotov"),
+                          AbilityLevel { level: 0, ..default() },
                           SpatialBundle { ..default() }));
+            //move speed ability
+            parent.spawn((PassiveMoveSpeedMultiplier {..default()},
+                            Name::new("Move Speed"),
+                          ParentMoveSpeedMultiplier { value: 0.0 },
+                          AbilityLevel { level: 0, ..default() },
+                          SpatialBundle { ..default() }));
+            //xp gatherer
             parent.spawn((XPVacuum {},
                           Collider::ball(50.0),
                           // Friction::ZERO,

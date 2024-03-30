@@ -4,10 +4,12 @@ use bevy::asset::{Assets, Handle};
 use bevy::ecs::query::QueryEntityError;
 use bevy::math::{Vec3, Vec3Swizzles};
 use bevy::prelude::{Commands, default, Entity, EventReader, EventWriter, GlobalTransform, In, Mut, Query, Res, ResMut, SpriteSheetBundle, Time, Transform, Vec2, With};
+use bevy::time::Timer;
 use bevy_asepritesheet::animator::{AnimatedSpriteBundle, AnimFinishEvent, SpriteAnimator};
 use bevy_asepritesheet::prelude::{AnimEventSender, AnimHandle, Spritesheet};
 use bevy_rapier2d::dynamics::RigidBody;
 use bevy_rapier2d::geometry::{Collider, CollisionGroups, Restitution};
+use bevy_rapier2d::na::clamp;
 use bevy_rapier2d::parry::transformation::utils::transform;
 use bevy_rapier2d::pipeline::CollisionEvent;
 use bevy_rapier2d::plugin::RapierContext;
@@ -16,7 +18,7 @@ use rand::Rng;
 use spew::prelude::SpawnEvent;
 
 use crate::bundles::{Object, PhysicalBundle};
-use crate::components::{Cooldown, Bullet, BulletBundle, DamageOnTouch, Enemy, FireBallGun, Health, AttackSpeed, Flask, FlaskProjectileBundle, Lifetime, Expired};
+use crate::components::{Cooldown, Bullet, BulletBundle, DamageOnTouch, Enemy, FireBallGun, Health, AttackSpeed, Flask, FlaskProjectileBundle, Lifetime, Expired, AbilityLevel};
 use crate::extensions::spew_extensions::{Spawn, Spawner};
 use crate::extensions::vectors::to_vec2;
 use crate::initialization::load_prefabs::Atlases;
@@ -35,14 +37,10 @@ pub fn advance_cooldowns(
         }
 
         let multiplier = total_cdr * 0.01f32;//convert percentage to multiplier
-        println!("{}", multiplier);
         let delta_seconds = time.delta().as_secs_f32();
-        println!("Delta seconds: {}", delta_seconds);
         let multiplied_delta = (delta_seconds * multiplier);
-        println!("Delta seconds times multiplier: {}", multiplied_delta);
 
         let duration = Duration::from_secs_f32(multiplied_delta);
-        println!("{:?}", duration.as_millis());
         //this idea of advancing the timer will make less sense if we
         //display the timer for the user. If that happens, we will have to
         //track the timer duration and update it based on stats when they change.
@@ -51,10 +49,13 @@ pub fn advance_cooldowns(
 }
 
 pub fn flask_weapon(
-    mut query: Query<(&mut Cooldown, &GlobalTransform, &Flask)>,
+    mut query: Query<(&mut Cooldown, &GlobalTransform, &Flask, &AbilityLevel)>,
     mut spawner: Spawner<FlaskSpawnData>,
 ) {
-    for (mut ability, transform, flask) in query.iter_mut() {
+    for (mut ability, transform, flask, level) in query.iter_mut() {
+        if level.level == 0 {
+            continue;
+        }
         if ability.timer.just_finished() {
             let translation = transform.translation();
 
@@ -68,8 +69,9 @@ pub fn flask_weapon(
             let distance = Vec2::splat(rng.gen_range(50.0..400.0));
             direction = direction * distance;
 
-            
-            spawner.spawn(Object::Flask, FlaskSpawnData { gun: flask.clone(), position: translation.xy() + direction });
+            let mut spawn_data = FlaskSpawnData::get_data_for_level(level.level);
+            spawn_data.position = translation.xy() + direction;
+            spawner.spawn(Object::Flask, spawn_data);
             // spawn_flask_projectile(&mut commands, flask, direction, &atlases);
         }
     }
@@ -77,11 +79,14 @@ pub fn flask_weapon(
 
 
 pub fn fireball_gun(
-    mut query: Query<(&mut Cooldown, &GlobalTransform, &FireBallGun)>,
+    mut query: Query<(&mut Cooldown, &GlobalTransform, &FireBallGun, &AbilityLevel)>,
     mut spawner: Spawner<FireballSpawnData>,
     rapier_context: Res<RapierContext>,
 ) {
-    for (ability, transform, gun) in query.iter_mut() {
+    for (ability, transform, gun, level) in query.iter_mut() {
+        if level.level == 0 {
+            continue;
+        }
         if ability.timer.just_finished() {
             let translation = transform.translation();
             if let Some((entity, projection)) = rapier_context.project_point(
@@ -102,7 +107,10 @@ pub fn fireball_gun(
                 let mut delta = projection.point - to_vec2(translation);
                 delta = delta.normalize();
 
-                spawner.spawn(Object::Fireball, FireballSpawnData { gun: gun.clone(), position: translation, direction: delta });
+                let mut spawn_data = FireballSpawnData::get_data_for_level(level.level);
+                spawn_data.position = translation;
+                spawn_data.direction = delta;
+                spawner.spawn(Object::Fireball, spawn_data);
                 // spawn_fireball(&mut commands, &gun, translation, delta, &atlases);
             }
         }
@@ -243,6 +251,21 @@ pub fn destroy_explosions(
 pub struct FlaskSpawnData {
     gun: Flask,
     position: Vec2,
+    pub scale: f32,
+    pub cooldown : Cooldown,
+}
+impl LevelableData for FlaskSpawnData{
+    fn get_data_for_level(level : u8) -> Self {
+        Self{
+            gun: Flask {},
+            position: Default::default(),
+            scale: 1.0 * level as f32,
+            cooldown: Cooldown::from_seconds(clamp(10.0 - (0.5 * level as f32), 0.5, 100.0)),
+        }
+    }
+}
+pub trait LevelableData{
+    fn get_data_for_level(level : u8) -> Self;
 }
 
 pub const BACKGROUND_PROJECTILE_LAYER: f32 = -1.0;
@@ -252,13 +275,12 @@ pub fn spawn_flask_projectile(
     mut commands: Commands,
     atlases: Res<Atlases>,
 ) {
-    let size = data.gun.bullet_size;
     let bundle = FlaskProjectileBundle {
         sprite_sheet: AnimatedSpriteBundle {
             animator: SpriteAnimator::from_anim(AnimHandle::from_index(0)),
             spritesheet: atlases.sprite_sheets.get("bullet").expect("failed to find asset for bullet!").clone(),
             sprite_bundle: SpriteSheetBundle {
-                transform: Transform::from_translation(data.position.extend(BACKGROUND_PROJECTILE_LAYER)).with_scale(Vec2::splat(10.0).extend(1.0)),
+                transform: Transform::from_translation(data.position.extend(BACKGROUND_PROJECTILE_LAYER)).with_scale(Vec2::splat(data.scale).extend(1.0)),
                 ..default()
             },
 
@@ -286,6 +308,22 @@ pub struct FireballSpawnData {
     gun: FireBallGun,
     position: Vec3,
     direction: Vec2,
+    pub bullet_size: f32,
+    pub pierce: u8,
+    pub bullet_speed: f32,
+}
+
+impl LevelableData for FireballSpawnData{
+    fn get_data_for_level(level: u8) -> Self {
+        Self{
+            gun: FireBallGun {},
+            position: Default::default(),
+            direction: Default::default(),
+            bullet_size: 50_000.0 + (level as f32 * 1_000_f32),
+            pierce: 0,
+            bullet_speed: 400.0 + (level as f32 * 10.0),
+        }
+    }
 }
 
 pub fn spawn_fireball(
@@ -293,7 +331,7 @@ pub fn spawn_fireball(
     atlases: ResMut<Atlases>,
     mut commands: Commands,
 ) {
-    let speed = data.gun.bullet_speed;
+    let speed = data.bullet_speed;
     let bundle = BulletBundle {
         sprite_sheet: AnimatedSpriteBundle {
             animator: SpriteAnimator::from_anim(AnimHandle::from_index(0)),
@@ -316,7 +354,7 @@ pub fn spawn_fireball(
             ..default()
         },
         bullet: Bullet
-        { pierce: data.gun.pierce, ..default() },
+        { pierce: data.pierce, ..default() },
 
         name: Name::new("bullet"),
         sensor: Default::default(),

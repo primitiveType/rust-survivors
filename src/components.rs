@@ -10,6 +10,7 @@ use bevy_rapier2d::geometry::Sensor;
 use serde::Deserialize;
 use serde::Serialize;
 use crate::bundles::PhysicalBundle;
+use crate::systems::guns::LevelableData;
 
 #[derive(Component, Default)]
 pub struct Player {
@@ -23,16 +24,41 @@ pub struct Cooldown {
     pub timer: Timer,
 }
 
-#[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
-pub struct Flask {
-    pub bullet_size: f32,
+impl Cooldown {
+    pub fn from_seconds(seconds: f32) -> Self {
+        Self {
+            timer: Timer::new(Duration::from_secs_f32(seconds), Repeating),
+        }
+    }
+
+    pub fn display_seconds(&self) -> String {
+        self.timer.duration().as_secs_f32().to_string()
+    }
 }
 
 #[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
-pub struct FireBallGun {
-    pub bullet_size: f32,
-    pub pierce: u8,
-    pub bullet_speed: f32,
+pub struct Flask {}
+
+#[derive(Component, Copy, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct PassiveMoveSpeedMultiplier {
+    pub value : f32,
+}
+
+impl LevelableData for PassiveMoveSpeedMultiplier{
+    fn get_data_for_level(level: u8) -> Self {
+        Self{
+            value: 0.10 * level as f32,
+        }
+    }
+}
+
+#[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct FireBallGun {}
+
+#[derive(Component, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct AbilityLevel {
+    pub level: u8,
+    pub description: String,
 }
 
 #[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
@@ -100,6 +126,16 @@ pub struct FollowPlayer;
 
 #[derive(Component, Reflect, Serialize, Deserialize, Clone)]
 pub struct MoveSpeed {
+    pub value: f32,
+}
+
+#[derive(Component, Reflect, Serialize, Deserialize, Clone)]
+pub struct BaseMoveSpeed {
+    pub value: f32,
+}
+
+#[derive(Component, Reflect, Serialize, Deserialize, Clone)]
+pub struct ParentMoveSpeedMultiplier {
     pub value: f32,
 }
 
