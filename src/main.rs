@@ -8,6 +8,8 @@ use std::hash::Hash;
 use bevy::prelude::*;
 use bevy_asepritesheet::core::SpriteAnimController;
 use bevy_asepritesheet::prelude::AsepritesheetPlugin;
+use bevy_editor_pls::egui;
+use bevy_egui::{EguiContexts, EguiPlugin};
 use bevy_prng::WyRand;
 use bevy_rand::prelude::EntropyPlugin;
 use bevy_rapier2d::pipeline::CollisionEvent;
@@ -63,7 +65,7 @@ fn main() {
     // whip
     // laser?
     // - 3 passives
-        //move speed
+    //move speed
     // xp gain
     // damage
     // show gun info on level up choice
@@ -84,29 +86,27 @@ fn main() {
             // },
             ..default()
         })
-        .insert_resource(SpriteAnimController::default())
-        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))// prevents blurry sprites
-        .add_plugins(SpewPlugin::<Object, EnemySpawnData>::default())
-        .add_plugins(SpewPlugin::<Object, FireballSpawnData>::default())
-        .add_plugins(SpewPlugin::<Object, FlaskSpawnData>::default())
-        .add_plugins(DefaultTweenPlugins)
-        .init_asset::<bevy_asepritesheet::aseprite_data::SpritesheetData>()
-        .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0).with_default_system_setup(true).in_schedule(time::PhysicsSchedule))
-        .add_plugins(time::TimePlugin)
-        // .add_plugins(RapierDebugRenderPlugin::default())
-        .add_plugins(
-            AsepritesheetPlugin::new(&["sprite.json"]),
-        )
-        .add_plugins(
-            stepping::SteppingPlugin::default()
-                .add_schedule(Update)
-                .add_schedule(FixedUpdate)
+        .add_plugins((DefaultPlugins.set(ImagePlugin::default_nearest()),// prevents blurry sprites
+                      SpewPlugin::<Object, EnemySpawnData>::default(),
+                      SpewPlugin::<Object, FireballSpawnData>::default(),
+                      SpewPlugin::<Object, FlaskSpawnData>::default(),
+                      DefaultTweenPlugins,
+                      RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0).with_default_system_setup(true).in_schedule(time::PhysicsSchedule),
+                      time::TimePlugin,
+                      // (RapierDebugRenderPlugin::default()),
+                      AsepritesheetPlugin::new(&["sprite.json"]),
+                      stepping::SteppingPlugin::default()
+                          .add_schedule(Update)
+                          .add_schedule(FixedUpdate)
 
-                .at(Val::Percent(35.0), Val::Percent(50.0)),
-        )
-        .add_plugins(EntropyPlugin::<WyRand>::default())
+                          .at(Val::Percent(35.0), Val::Percent(50.0)),
+                      EntropyPlugin::<WyRand>::default(),
+                      // EguiPlugin,//not needed if editor-egui is imported
+        ))
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .insert_resource(Atlases { sprite_sheets: HashMap::new() })
+        .insert_resource(SpriteAnimController::default())
+        .init_asset::<bevy_asepritesheet::aseprite_data::SpritesheetData>()
         .add_event::<CollisionEvent>()
         .add_spawner((Object::Enemy, bundles::spawn_enemy))
         .add_spawner((Object::Fireball, guns::spawn_fireball))
@@ -153,7 +153,7 @@ fn main() {
             //InGame update loop
             Update,
             (movement::move_player,
-                movement::camera_follow,
+             movement::camera_follow,
              movement::set_follower_velocity,
              ui::update_player_health_ui,
              // movement::_debug_collisions,
@@ -161,6 +161,7 @@ fn main() {
              stats::pick_up_xp_on_touch,
              stats::vacuum_xp_on_touch,
              stats::level_up,
+             ui_example_system,
             ).run_if(in_state(AppState::InGame)))
         .add_systems(Update,
                      (//Always update loop
@@ -195,5 +196,11 @@ fn main() {
     let app: &mut App = register_types(app);
 
     app.run();
+}
+
+fn ui_example_system(mut contexts: EguiContexts) {
+    egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
+        ui.label("world");
+    });
 }
 
