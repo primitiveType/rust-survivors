@@ -28,6 +28,9 @@ pub fn set_spritesheet_from_animation_info(
             // Attempt to get the spritesheet asset so we can get animations by name
             if let Some(asset) = sprite_assets.get(&spritesheet.clone()) {
                 anim_handle = asset.get_anim_handle(&animator_controller.state.to_string());
+                if anim_handle == AnimHandle::invalid(){
+                    println!("Invalid animation : {} for sheet {}",&animator_controller.state, &animator_controller.name )
+                }
             } else {
                 // The asset is not loaded yet, you might handle this case accordingly
                 println!("Animation not loaded yet : {}", animator_controller.state);
@@ -79,6 +82,7 @@ pub struct AnimatorController {
 pub enum AnimationState {
     Walk,
     Idle,
+    Dead,
 }
 
 impl fmt::Display for AnimationState {

@@ -134,7 +134,7 @@ pub struct ParentMoveSpeedMultiplier {
 
 #[derive(Component, Serialize, Deserialize, Clone)]
 pub struct Enemy {
-    pub xp: u16,
+    pub xp: u32,
 }
 
 #[derive(Component, Serialize, Deserialize, Clone)]
@@ -156,12 +156,12 @@ impl Default for DamageOnTouch {
 
 #[derive(Component)]
 pub struct GainXPOnTouch {
-    pub value: u16,
+    pub value: u32,
 }
 
 #[derive(Component)]
 pub struct XP {
-    pub amount: u16,
+    pub amount: u32,
 }
 
 #[derive(Component)]

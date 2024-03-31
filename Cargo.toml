@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 #bevy = { version = "0.13.0" }
 bevy = { version = "0.13.0", features = ["dynamic_linking", "serialize", "trace_tracy"] }
-bevy-inspector-egui = "0.23.2"
+bevy-inspector-egui = "0.23.4"
 bevy_editor_pls = "0.8.0"
 #bevy_xpbd_2d = "0.4"
 bevy_rapier2d = { version = "0.25.0", features = ["parallel"] }
@@ -24,7 +24,7 @@ bevycheck = "0.5.2"
 tracing-tracy = "0.11.0"
 bevy_tween = "0.2.0"
 spew = "0.5.1"
-bevy_egui = "0.26.0"
+bevy_egui = "0.25.0"
 #bevy_ecs_tilemap = { git = "https://github.com/StarArawn/bevy_ecs_tilemap" }
 #bevy_ecs_ldtk = {git = "https://github.com/theshortcut/bevy_ecs_ldtk", branch = "bevy-0.13"}
 #bevy_proto = { version = "0.11.0", features = ["default", "yaml"] }//doesn't support bevy 13

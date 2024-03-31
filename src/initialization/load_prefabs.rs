@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 use std::fs;
-use std::fs::DirEntry;
+use std::fs::{DirEntry, FileType};
 use std::path::PathBuf;
 
 use bevy::asset::{AssetServer, Handle};
 use bevy::prelude::{Bundle, Commands, Res, ResMut, Resource, SpatialBundle};
-use bevy_asepritesheet::core::load_spritesheet;
-use bevy_asepritesheet::prelude::Spritesheet;
+use bevy_asepritesheet::core::{load_spritesheet, load_spritesheet_then};
+use bevy_asepritesheet::prelude::{AnimEndAction, Spritesheet};
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -49,66 +49,50 @@ pub struct AtlasLayout {
 
 const GUNS_PATH: &str = "E:\\Unity Projects\\rust-survivors\\assets\\prefabs\\guns\\";
 const ENEMIES_PATH: &str = "E:\\Unity Projects\\rust-survivors\\assets\\prefabs\\enemies\\";
+const SPRITES_PATH: &str = "E:\\Unity Projects\\rust-survivors\\assets\\";//has to be root of assets for now due to bug in spritesheet package
 
 
 pub fn load_sprites(mut commands: Commands, asset_server: Res<AssetServer>, mut atlases: ResMut<Atlases>) {
     //todo: cache this and store in what is currently called atlases.
-    let sheet_handle = load_spritesheet(
+
+    let paths: Vec<DirEntry> = fs::read_dir(SPRITES_PATH).unwrap().filter_map(|entry| entry.ok()).collect();
+    let json_file_names: Vec<String> = paths.iter()
+        .filter_map(|entry| {
+            let path = entry.path();
+            if path.is_file() && path.extension().and_then(|ext| ext.to_str()) == Some("json") {
+                path.file_stem().and_then(|stem| stem.to_str()).map(|s| s.to_owned())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    for name in json_file_names {
+        load_spritesheet_and_add(name, &mut commands, &asset_server, &mut atlases);
+    }
+}
+
+fn load_spritesheet_and_add(path: String, mut commands: &mut Commands, asset_server: &Res<AssetServer>, atlases: &mut ResMut<Atlases>) {
+    let name = path.clone();
+    let sheet_handle = load_spritesheet_then(
         &mut commands,
         &asset_server,
-        "bullets.json",
+        path + ".json",
         bevy::sprite::Anchor::Center,
+        |sheet| {
+            let dead_handle = sheet.get_anim_handle("Dead");
+            if let Ok(dead) = sheet.get_anim_mut(&dead_handle) {
+                dead.end_action = AnimEndAction::Pause;
+            }
+
+        }
     );
 
-    atlases.sprite_sheets.insert("bullet".to_string(), sheet_handle);
-
-    let sheet_handle = load_spritesheet(
-        &mut commands,
-        &asset_server,
-        "prototype_char.json",
-        bevy::sprite::Anchor::Center,
-    );
-
-    atlases.sprite_sheets.insert("player".to_string(), sheet_handle);
-
-    let sheet_handle = load_spritesheet(
-        &mut commands,
-        &asset_server,
-        "Skeleton.json",
-        bevy::sprite::Anchor::Center,
-    );
-
-
-    atlases.sprite_sheets.insert("skeleton".to_string(), sheet_handle);
-
-    let sheet_handle = load_spritesheet(
-        &mut commands,
-        &asset_server,
-        "bat-all.json",
-        bevy::sprite::Anchor::Center,
-    );
-
-    atlases.sprite_sheets.insert("bat".to_string(), sheet_handle);
-
-    // let sheet_handle = load_spritesheet_then(
-    //     commands,
-    //     asset_server,
-    //     sprite_sheet,
-    //     bevy::sprite::Anchor::Center,
-    //     |sheet| {
-    //         let explode = sheet.get_anim_handle(crate::systems::guns::FIREBALL_EXPLODE_ANIMATION);//TODO: i guess its not possible to pass a satring to spawn_particle for the animation. consider using the same animation name
-    //         let mut explode_mut = sheet.get_anim_mut(&explode);
-    //         explode_mut.unwrap().end_action = AnimEndAction::Stop;
-    //     },
-    // );
-    //
-    // atlases.sprite_sheets.insert(FIREBALL_EXPLODE_ANIMATION, sheet_handle);
+    atlases.sprite_sheets.insert(name, sheet_handle);
 }
 
 
 pub fn load_enemy_prefabs(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
     mut enemies: ResMut<Enemies>,
     atlases: ResMut<Atlases>,
 ) {
@@ -138,13 +122,6 @@ pub fn _save_enemy(bundle: EnemyData) {
     fs::write(ENEMIES_PATH, enemy_yaml).expect("Unable to write file!");
 }
 
-// pub fn load_enemy(
-//     enemy: usize,
-//     atlases: ResMut<Atlases>,
-// ) -> EnemyBundle {
-//     let file_path = get_enemy_path(enemy);
-//     EnemyBundle::from_path(file_path.to_str().unwrap(), atlases)
-// }
 
 
 fn get_enemy_path(index: usize) -> PathBuf {
