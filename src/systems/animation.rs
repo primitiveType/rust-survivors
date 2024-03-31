@@ -69,13 +69,13 @@ pub fn flip_sprite(
 }
 
 
-#[derive(Component, Reflect)]
+#[derive(Component, Reflect, Clone)]
 pub struct AnimatorController {
     pub state: AnimationState,
     pub name: String,
 }
 
-#[derive(Debug, Reflect, PartialEq)]
+#[derive(Debug, Reflect, PartialEq, Clone)]
 pub enum AnimationState {
     Walk,
     Idle,

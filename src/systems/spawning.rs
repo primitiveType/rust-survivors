@@ -19,7 +19,9 @@ pub fn enemy_spawn_cycle(
     
     if count < 200 {
         // spawn_enemy(1, _commands, atlases, rng);
-        spawner.spawn(Object::Enemy, EnemySpawnData { enemy_num: 1, player_position: transform.translation.xy() });
+        spawner.spawn(Object::Enemy, EnemySpawnData { enemy_id: "bat".to_string(), player_position: transform.translation.xy() });
+        spawner.spawn(Object::Enemy, EnemySpawnData { enemy_id: "skeleton".to_string(), player_position: transform.translation.xy() });
+
         // spawner.send(SpawnEvent::with_data();
     }
 }

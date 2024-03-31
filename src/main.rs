@@ -23,7 +23,7 @@ use crate::{
     systems::*,
 };
 use crate::bundles::{EnemySpawnData, Object};
-use crate::initialization::load_prefabs::Atlases;
+use crate::initialization::load_prefabs::{Atlases, Enemies};
 use crate::systems::guns::{FireballSpawnData, FlaskSpawnData};
 
 mod components;
@@ -101,6 +101,7 @@ fn main() {
         ))
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .insert_resource(Atlases { sprite_sheets: HashMap::new() })
+        .insert_resource(Enemies { datas: HashMap::new() })
         .insert_resource(SpriteAnimController::default())
         .init_asset::<bevy_asepritesheet::aseprite_data::SpritesheetData>()
         .add_event::<CollisionEvent>()
@@ -114,6 +115,7 @@ fn main() {
             Startup,
             (
                 initialization::load_prefabs::load_sprites,
+                initialization::load_prefabs::load_enemy_prefabs,
                 setup::setup,
                 ui::setup,
                 initialization::load_prefabs::load_gun_test,

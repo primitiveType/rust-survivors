@@ -11,13 +11,6 @@ use serde::{Deserialize, Serialize};
 pub struct LevelUpUiRoot;
 
 
-#[derive(Component, Copy, Clone)]
-pub enum ButtonAction {
-    OptionOne = 0,
-    OptionTwo = 1,
-    OptionThree = 2,
-}
-
 
 pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // commands.spawn_bundle(UiCameraBundle::default());
