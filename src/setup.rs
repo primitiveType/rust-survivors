@@ -83,7 +83,7 @@ fn spawn_player(commands: &mut Commands,
             parent.spawn((Cooldown::with_cooldown(1000),
                           FireBallGun {},
                           Name::new("Fireball"),
-                          AbilityLevel { level: 0, ..default() },
+                          AbilityLevel { level: 1, ..default() },
                           SpatialBundle { ..default() }));
             // flask gun
             parent.spawn((Cooldown::with_cooldown(5000),

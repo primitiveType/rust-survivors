@@ -22,9 +22,10 @@ use crate::{
     initialization::register_types::register_types,
     systems::*,
 };
-use crate::bundles::{EnemySpawnData, Object};
+use crate::bundles::{CorpseSpawnData, EnemySpawnData, Object, XPSpawnData};
+use crate::initialization::inspector::add_inspector;
 use crate::initialization::load_prefabs::{Atlases, Enemies};
-use crate::systems::guns::{FireballSpawnData, FlaskSpawnData};
+use crate::systems::guns::{DamageTextSpawnData, FireballSpawnData, FlaskSpawnData};
 
 mod components;
 
@@ -86,6 +87,9 @@ fn main() {
                       SpewPlugin::<Object, EnemySpawnData>::default(),
                       SpewPlugin::<Object, FireballSpawnData>::default(),
                       SpewPlugin::<Object, FlaskSpawnData>::default(),
+                      SpewPlugin::<Object, DamageTextSpawnData>::default(),
+                      SpewPlugin::<Object, CorpseSpawnData>::default(),
+                      SpewPlugin::<Object, XPSpawnData>::default(),
                       DefaultTweenPlugins,
                       RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0).with_default_system_setup(true).in_schedule(time::PhysicsSchedule),
                       time::TimePlugin,
@@ -108,6 +112,9 @@ fn main() {
         .add_spawner((Object::Enemy, bundles::spawn_enemy))
         .add_spawner((Object::Fireball, guns::spawn_fireball))
         .add_spawner((Object::Flask, guns::spawn_flask_projectile))
+        .add_spawner((Object::DamageNumber, guns::spawn_damage_text))
+        .add_spawner((Object::Corpse, bundles::spawn_corpse))
+        .add_spawner((Object::XP, bundles::spawn_xp))
         //physics stuff, so that we can pause physics
         .add_systems(PostUpdate, time::run_physics_schedule)
         //startup systems, spawn player etc
@@ -167,6 +174,7 @@ fn main() {
                 stats::update_level_descriptions_flask,
                 stats::update_level_descriptions_fireball,
                 stats::update_level_descriptions_move_speed,
+                ui::fade_text,
             ).run_if(in_state(AppState::InGame)))
         .add_systems(Update,
                      (//Always update loop
@@ -196,8 +204,8 @@ fn main() {
             physics::time::pause,
         )
         ;
-
-    // let app: &mut App = add_inspector(app);
+    println!("{}", app.is_plugin_added::<EguiPlugin>());
+    let app: &mut App = add_inspector(app);
     let app: &mut App = register_types(app);
 
     app.run();

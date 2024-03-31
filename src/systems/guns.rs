@@ -3,7 +3,7 @@ use std::time::Duration;
 use bevy::asset::{Assets, Handle};
 use bevy::ecs::query::QueryEntityError;
 use bevy::math::{Vec3, Vec3Swizzles};
-use bevy::prelude::{Commands, default, Entity, EventReader, GlobalTransform, In, Mut, Query, Res, ResMut, SpriteSheetBundle, Time, Transform, Vec2, With};
+use bevy::prelude::{Color, Commands, Component, default, Entity, EventReader, GlobalTransform, In, Mut, Query, Res, ResMut, SpriteSheetBundle, Text, Text2dBundle, TextStyle, Time, Transform, Vec2, With};
 use bevy_asepritesheet::animator::{AnimatedSpriteBundle, AnimFinishEvent, SpriteAnimator};
 use bevy_asepritesheet::prelude::{AnimEventSender, AnimHandle, Spritesheet};
 use bevy_rapier2d::dynamics::RigidBody;
@@ -21,6 +21,8 @@ use crate::extensions::vectors::to_vec2;
 use crate::initialization::load_prefabs::Atlases;
 use crate::Name;
 use crate::physics::layers::game_layer;
+use crate::systems::ui::FadeTextWithLifetime;
+
 //adding a new ability
 //1.. add system that does the ability thing. It should require an AbilityLevel component
 //2.. add level 0 bundle on player in spawn_player
@@ -120,9 +122,10 @@ pub fn fireball_gun(
 
 pub fn deal_damage_on_collide(
     mut collision_events: EventReader<CollisionEvent>,
-    mut health_query: Query<(Entity, &mut Health)>,
+    mut health_query: Query<(Entity, &mut Health, &Transform)>,
     enemy_query: Query<(Entity, &Enemy)>,//HACK do something smarter.
     mut damage_query: Query<(Entity, &mut DamageOnTouch)>,
+    mut spawner: Spawner<DamageTextSpawnData>,
 ) {
     for collision_event in collision_events.read() {
         match collision_event {
@@ -136,12 +139,12 @@ pub fn deal_damage_on_collide(
                     if enemy1.is_ok() && enemy2.is_ok() {
                         continue;
                     }
-                    try_deal_damage(entity2_damage, entity1_health);
+                    try_deal_damage(entity2_damage, entity1_health, &mut spawner);
                 }
                 {//entity 1 damages entity 2 if it can
                     let entity2_health = health_query.get_mut(*entity2);
                     let entity1_damage = damage_query.get_mut(*entity1);
-                    try_deal_damage(entity1_damage, entity2_health);
+                    try_deal_damage(entity1_damage, entity2_health, &mut spawner);
                 }
             }
             _ => {}
@@ -149,11 +152,12 @@ pub fn deal_damage_on_collide(
     }
 }
 
-fn try_deal_damage(entity1_damage: Result<(Entity, Mut<DamageOnTouch>), QueryEntityError>, entity2_health: Result<(Entity, Mut<Health>), QueryEntityError>) {
+fn try_deal_damage(entity1_damage: Result<(Entity, Mut<DamageOnTouch>), QueryEntityError>, entity2_health: Result<(Entity, Mut<Health>, &Transform), QueryEntityError>, spawner: &mut Spawner<DamageTextSpawnData>) {
     match (entity1_damage, entity2_health) {
-        (Ok((_, mut damage)), Ok((_, mut health))) => {
+        (Ok((_, mut damage)), Ok((_, mut health, transform))) => {
             health.value -= damage.value;
             damage.count_triggers += 1;
+            spawner.spawn(Object::DamageNumber, DamageTextSpawnData { position: transform.translation.xy(), amount: damage.value as u32 })
         }
         _ => {}
     }
@@ -176,7 +180,7 @@ pub fn expired_bullets_explode(mut bullets: Query<(Entity, &Bullet, &Transform),
                                atlases: Res<Atlases>,
                                sprite_assets: Res<Assets<Spritesheet>>, ) {
     for (bullet, entity, transform) in bullets.iter_mut() {
-        spawn_particle(transform.translation, &mut commands, "bullet".to_string(), FIREBALL_EXPLODE_ANIMATION, &atlases, &sprite_assets);
+        spawn_particle(transform.translation, &mut commands, "bullets".to_string(), FIREBALL_EXPLODE_ANIMATION, &atlases, &sprite_assets);
     }
 }
 
@@ -249,15 +253,22 @@ pub fn destroy_explosions(
     }
 }
 
+pub struct DamageTextSpawnData {
+    position: Vec2,
+    amount: u32,
+    //type
+}
+
 pub struct FlaskSpawnData {
     gun: Flask,
     position: Vec2,
     pub scale: f32,
-    pub cooldown : Cooldown,
+    pub cooldown: Cooldown,
 }
-impl LevelableData for FlaskSpawnData{
-    fn get_data_for_level(level : u8) -> Self {
-        Self{
+
+impl LevelableData for FlaskSpawnData {
+    fn get_data_for_level(level: u8) -> Self {
+        Self {
             gun: Flask {},
             position: Default::default(),
             scale: 1.0 * level as f32,
@@ -265,11 +276,35 @@ impl LevelableData for FlaskSpawnData{
         }
     }
 }
-pub trait LevelableData{
-    fn get_data_for_level(level : u8) -> Self;
+
+pub trait LevelableData {
+    fn get_data_for_level(level: u8) -> Self;
 }
 
 pub const BACKGROUND_PROJECTILE_LAYER: f32 = -1.0;
+pub const DAMAGE_TEXT_LAYER: f32 = 10.0;
+
+
+
+pub fn spawn_damage_text(In(data): In<DamageTextSpawnData>,
+                         mut commands: Commands, ) {
+    commands.spawn((Text2dBundle {
+        text: Text::from_section(
+            data.amount.to_string(),
+            TextStyle {
+                font: Default::default(),
+                /* Load or reference your font here */
+                font_size: 40.0,
+                color: Color::WHITE,
+            },
+        ),
+        transform: Transform::from_translation((data.position + Vec2::new(0.0, 50.0)).extend(DAMAGE_TEXT_LAYER)), // Offset above the enemy
+        ..Default::default()
+    },
+                    Lifetime::from_seconds(1.0),
+                    FadeTextWithLifetime {},
+    ));
+}
 
 pub fn spawn_flask_projectile(
     In(data): In<FlaskSpawnData>,
@@ -279,7 +314,7 @@ pub fn spawn_flask_projectile(
     let bundle = FlaskProjectileBundle {
         sprite_sheet: AnimatedSpriteBundle {
             animator: SpriteAnimator::from_anim(AnimHandle::from_index(0)),
-            spritesheet: atlases.sprite_sheets.get("bullet").expect("failed to find asset for bullet!").clone(),
+            spritesheet: atlases.sprite_sheets.get("bullets").expect("failed to find asset for bullet!").clone(),
             sprite_bundle: SpriteSheetBundle {
                 transform: Transform::from_translation(data.position.extend(BACKGROUND_PROJECTILE_LAYER)).with_scale(Vec2::splat(data.scale).extend(1.0)),
                 ..default()
@@ -314,9 +349,9 @@ pub struct FireballSpawnData {
     pub bullet_speed: f32,
 }
 
-impl LevelableData for FireballSpawnData{
+impl LevelableData for FireballSpawnData {
     fn get_data_for_level(level: u8) -> Self {
-        Self{
+        Self {
             gun: FireBallGun {},
             position: Default::default(),
             direction: Default::default(),
@@ -336,7 +371,7 @@ pub fn spawn_fireball(
     let bundle = BulletBundle {
         sprite_sheet: AnimatedSpriteBundle {
             animator: SpriteAnimator::from_anim(AnimHandle::from_index(0)),
-            spritesheet: atlases.sprite_sheets.get("bullet").expect("failed to find asset for bullet!").clone(),
+            spritesheet: atlases.sprite_sheets.get("bullets").expect("failed to find asset for bullet!").clone(),
             sprite_bundle: SpriteSheetBundle {
                 transform: Transform::from_translation(data.position).with_scale(Vec3::new(2.0, 2.0, 0.0)),
                 ..default()
@@ -357,7 +392,7 @@ pub fn spawn_fireball(
         bullet: Bullet
         { pierce: data.pierce, ..default() },
 
-        name: Name::new("bullet"),
+        name: Name::new("bullets"),
         sensor: Default::default(),
         damage: DamageOnTouch { value: 5.0, ..default() },
         lifetime: Lifetime::from_seconds(2.0),

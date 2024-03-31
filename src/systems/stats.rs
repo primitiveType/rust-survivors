@@ -2,25 +2,32 @@ use std::fmt::Display;
 use std::string::String;
 
 use bevy::asset::Assets;
-use bevy::math::Vec3Swizzles;
-use bevy::prelude::{Changed, ColorMaterial, Commands, Entity, EventReader, Mesh, NextState, Query, ResMut, Transform};
+use bevy::core::Name;
+use bevy::math::{Vec2, Vec3, Vec3Swizzles};
+use bevy::prelude::{Changed, ColorMaterial, Commands, default, Entity, EventReader, Mesh, NextState, Query, ResMut, SpriteSheetBundle, Transform};
+use bevy_asepritesheet::animator::AnimatedSpriteBundle;
 use bevy_rapier2d::pipeline::CollisionEvent;
 
 use crate::AppState;
-use crate::bundles::spawn_xp;
+use crate::bundles::{CorpseBundle, CorpseSpawnData, Object, spawn_xp, XPSpawnData};
 use crate::components::{AbilityLevel, Enemy, FireBallGun, Flask, FollowPlayer, GainXPOnTouch, Health, MoveSpeed, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier, Player, XP, XPVacuum};
+use crate::extensions::spew_extensions::{Spawn, Spawner};
 use crate::systems::guns::{FireballSpawnData, FlaskSpawnData, LevelableData};
 
-pub fn die_at_zero_health(query: Query<(Entity, &Enemy, &Health, &Transform)>,
+pub fn die_at_zero_health(query: Query<(Entity, &Enemy, &Health, &Transform, &Name)>,
                           mut commands: Commands,
                           mut meshes: ResMut<Assets<Mesh>>,
                           mut materials: ResMut<Assets<ColorMaterial>>,
+                          mut spawner: Spawner<CorpseSpawnData>,
+                          mut xp_spawner: Spawner<XPSpawnData>,
 ) {
-    for (entity, enemy, health, transform) in query.iter() {
+    for (entity, enemy, health, transform, name) in query.iter() {
         if health.value <= 0.0
         {
+            let position = transform.translation.xy();
+            spawner.spawn(Object::Corpse, CorpseSpawnData{ name: name.to_string(), position });
             commands.entity(entity).despawn();
-            spawn_xp(&mut commands, &mut meshes, &mut materials, enemy.xp, transform.translation.xy());
+            xp_spawner.spawn(Object::XP, XPSpawnData{amount : enemy.xp, position})
         }
     }
 }
@@ -72,6 +79,7 @@ pub fn update_level_descriptions_move_speed(mut abilities: Query<(&mut AbilityLe
         ability.description = description;
     }
 }
+
 pub fn update_level_descriptions_flask(mut abilities: Query<(&mut AbilityLevel, &Flask), Changed<AbilityLevel>>,
 ) {
     for (mut ability, _flask) in abilities.iter_mut() {
@@ -193,7 +201,7 @@ pub fn level_up(
     mut query: Query<(Entity, &mut Player, &XP)>,
     mut next_state: ResMut<NextState<AppState>>) {
     for (_, mut player, xp) in query.iter_mut() {
-        if xp.amount / 2 > player.level {
+        if xp.amount / 2 > player.level as u32 {
             next_state.set(AppState::LevelUp);
             player.level += 1;
         }

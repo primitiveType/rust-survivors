@@ -4,13 +4,21 @@ use bevy_egui::{egui, EguiContexts};
 use bevy_egui::egui::emath;
 
 use crate::AppState;
-use crate::components::{AbilityLevel, Health, HealthUi, Player, XP};
+use crate::components::{AbilityLevel, Health, HealthUi, Lifetime, Player, XP};
 use serde::{Deserialize, Serialize};
 
 #[derive(Component)]
 pub struct LevelUpUiRoot;
 
+#[derive(Component)]
+pub struct FadeTextWithLifetime {}
 
+pub fn fade_text(mut query: Query<(&mut Text, &Lifetime), With<FadeTextWithLifetime>> ){
+    for (mut text, lifetime) in query.iter_mut() {
+        let alpha = 1.0 - lifetime.timer.fraction();
+        text.sections[0].style.color.set_a(alpha);
+    }
+}
 
 pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // commands.spawn_bundle(UiCameraBundle::default());

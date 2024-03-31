@@ -1,7 +1,7 @@
 use bevy::asset::Assets;
 use bevy::core::Name;
 use bevy::math::{Vec2, Vec3};
-use bevy::prelude::{Bundle, Circle, Color, ColorMaterial, Commands, default, In, Mesh, ResMut, SpatialBundle, Transform};
+use bevy::prelude::{Bundle, Circle, Color, ColorMaterial, Commands, default, In, Mesh, Res, ResMut, SpatialBundle, Transform};
 use bevy::sprite::{MaterialMesh2dBundle, SpriteSheetBundle};
 use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
 use bevy_prng::WyRand;
@@ -14,11 +14,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::animation::{AnimationState, AnimatorController, SpritePath};
 use crate::animation::AnimationState::Walk;
-use crate::components::{AbilityLevel, BaseMoveSpeed, DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health, MoveSpeed, Player, XP};
+use crate::bundles::Object::Corpse;
+use crate::components::{AbilityLevel, BaseMoveSpeed, DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health, Lifetime, MoveSpeed, Player, XP};
 use crate::constants::{PLAYER_SPEED, XP_DIAMETER};
 use crate::initialization::load_prefabs::{Atlases, Enemies, load_enemy_data_from_path};
 use crate::physics::layers::game_layer;
-use crate::systems::animation::AnimationState::Idle;
+use crate::systems::animation::AnimationState::{Dead, Idle};
+use crate::systems::ui::FadeTextWithLifetime;
 
 const XP_COLOR: Color = Color::rgb(0.0, 1.0, 0.1);
 
@@ -29,6 +31,9 @@ pub enum Object {
     Enemy,
     Fireball,
     Flask,
+    DamageNumber,
+    Corpse,
+    XP,
 }
 
 #[derive(Bundle)]
@@ -99,7 +104,7 @@ impl PlayerBundle {
             health: Health { value: 100.0 },
             animator: AnimatorController { state: Idle, name: "player".to_string() },
 
-            xp: XP { amount: 2 },
+            xp: XP { amount: 0 },
             move_speed: MoveSpeed { value: 0.0 },
             base_speed: BaseMoveSpeed { value: PLAYER_SPEED },
         }
@@ -137,6 +142,16 @@ impl Default for PhysicalBundle {
     }
 }
 
+#[derive(Bundle)]
+pub struct XPBundle {
+    animation_bundle: AnimatedSpriteBundle,
+    physical: PhysicalBundle,
+    animator: AnimatorController,
+    sensor: Sensor,
+    gain_xp : GainXPOnTouch,
+    name: Name,
+}
+
 #[derive(Bundle, Clone)]
 pub struct EnemyBundle {
     animation_bundle: AnimatedSpriteBundle,
@@ -144,6 +159,17 @@ pub struct EnemyBundle {
     // sensor: Sensor,
     enemy_data: EnemyData,
     animator: AnimatorController,
+}
+
+#[derive(Bundle)]
+pub struct CorpseBundle {
+    animation_bundle: AnimatedSpriteBundle,
+    animator: AnimatorController,
+}
+
+pub struct CorpseSpawnData {
+    pub name: String,
+    pub position: Vec2,
 }
 
 #[derive(Deserialize, Serialize, Bundle, Clone)]
@@ -225,6 +251,39 @@ pub struct EnemySpawnData {
     pub player_position: Vec2,
 }
 
+pub struct XPSpawnData {
+    pub amount: u32,
+    pub position: Vec2,
+}
+
+pub const CORPSE_LAYER: f32 = -2.0;
+
+pub fn spawn_corpse(
+    In(corpse): In<CorpseSpawnData>,
+    atlases: Res<Atlases>,
+    mut commands: Commands,
+) {
+    let mut bundle = CorpseBundle {
+        animation_bundle: AnimatedSpriteBundle {
+            spritesheet: atlases.sprite_sheets.get(&corpse.name).expect(&format!("{} not found!", corpse.name).to_string()).clone(),
+            sprite_bundle: SpriteSheetBundle {
+                transform: Transform {
+                    translation: corpse.position.extend(CORPSE_LAYER),
+                    scale: Vec2::splat(4.0).extend(1.0),
+
+                    ..default()
+                },
+
+                ..default()
+            },
+            ..default()
+        },
+        animator: AnimatorController { state: Dead, name: corpse.name.clone() },
+    };
+
+    commands.spawn((bundle, Lifetime::from_seconds(10.0)));
+}
+
 pub fn spawn_enemy(
     In(enemy_spawn_data): In<EnemySpawnData>,
     enemies: ResMut<Enemies>,
@@ -244,33 +303,45 @@ pub fn spawn_enemy(
     bundle.animation_bundle.sprite_bundle.transform.translation = (direction + enemy_spawn_data.player_position).extend(0.0);
     // bundle.animation_bundle.sprite_bundle.transform.translation = (direction + enemy_spawn_data.player_position).extend(0.0);
     let mut enemy = commands.spawn(bundle);
-
 }
 
+pub const XP_LAYER: f32 = 1.0;
 pub fn spawn_xp(
-    commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<ColorMaterial>>,
-    _amount: u16,
-    position: Vec2,
+    In(data): In<XPSpawnData>,
+    mut commands: Commands,
+    atlases: Res<Atlases>
 ) {
-    let mut spawned = commands.spawn((
-        MaterialMesh2dBundle {
-            mesh: meshes.add(Circle::default()).into(),
-            material: materials.add(XP_COLOR),
-            transform: Transform::from_translation(position.extend(0.0))
-                .with_scale(Vec2::splat(XP_DIAMETER).extend(1.0)),
+    let name = "food";
+    let mut spawned = commands.spawn(XPBundle {
+        animation_bundle: AnimatedSpriteBundle {
+            spritesheet: atlases.sprite_sheets.get(&name.to_string()).expect(&format!("{} not found!", &name).to_string()).clone(),
+            sprite_bundle: SpriteSheetBundle {
+                transform: Transform {
+                    translation: data.position.extend(XP_LAYER),
+                    scale: Vec2::splat(2.0).extend(1.0),
+
+                    ..default()
+                },
+                ..default()
+            },
             ..default()
         },
-    ));
+        physical: PhysicalBundle{
+            collider: Collider::ball(0.5),
+            restitution: Default::default(),
+            velocity: Default::default(),
+            collision_layers: CollisionGroups::new(game_layer::XP, game_layer::XP | game_layer::PLAYER),
+            rigid_body: RigidBody::Dynamic,
+            locked_axes: Default::default(),
+            active_events: Default::default(),
+        },
+        animator: AnimatorController { state: Idle, name: name.to_string() },
+        sensor: Default::default(),
+        gain_xp: GainXPOnTouch { value: data.amount },
+        name: Name::new(name),
+
+    });
 
 
-    spawned.insert(Velocity { linvel: Vec2::ZERO, angvel: 0.0 });
-    spawned.insert(Collider::ball(0.5));
-    spawned.insert(RigidBody::Dynamic);
-    spawned.insert(CollisionGroups::new(game_layer::XP, game_layer::XP | game_layer::PLAYER));
-    spawned.insert(GainXPOnTouch { value: 1u16 });
 
-    spawned.insert(Sensor);
-    spawned.insert(Name::new("xp"));
 }
