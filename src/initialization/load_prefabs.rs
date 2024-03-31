@@ -33,6 +33,11 @@ pub struct Atlases {
     pub sprite_sheets: HashMap<String, Handle<Spritesheet>>,
 }
 
+#[derive(Resource)]
+pub struct Enemies {
+    pub datas: HashMap<String, EnemyBundle>,
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 pub struct AtlasLayout {
     pub cols: usize,
@@ -40,7 +45,6 @@ pub struct AtlasLayout {
     pub height_px: u16,
     pub width_px: u16,
 }
-
 
 
 const GUNS_PATH: &str = "E:\\Unity Projects\\rust-survivors\\assets\\prefabs\\guns\\";
@@ -74,7 +78,18 @@ pub fn load_sprites(mut commands: Commands, asset_server: Res<AssetServer>, mut 
         bevy::sprite::Anchor::Center,
     );
 
+
     atlases.sprite_sheets.insert("skeleton".to_string(), sheet_handle);
+
+    let sheet_handle = load_spritesheet(
+        &mut commands,
+        &asset_server,
+        "bat-all.json",
+        bevy::sprite::Anchor::Center,
+    );
+
+    atlases.sprite_sheets.insert("bat".to_string(), sheet_handle);
+
     // let sheet_handle = load_spritesheet_then(
     //     commands,
     //     asset_server,
@@ -89,6 +104,22 @@ pub fn load_sprites(mut commands: Commands, asset_server: Res<AssetServer>, mut 
     //
     // atlases.sprite_sheets.insert(FIREBALL_EXPLODE_ANIMATION, sheet_handle);
 }
+
+
+pub fn load_enemy_prefabs(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut enemies: ResMut<Enemies>,
+    atlases: ResMut<Atlases>,
+) {
+    let paths: Vec<DirEntry> = fs::read_dir(ENEMIES_PATH).unwrap().filter_map(|entry| entry.ok()).collect();
+    for dir in paths.iter() {
+        let enemy_name = dir.path().with_extension("").file_name().unwrap().to_str().unwrap().to_string();//are you serious
+        enemies.datas.insert(enemy_name, EnemyBundle::from_path(dir.path().to_str().unwrap(), &atlases));
+    }
+}
+
+
 pub fn load_gun(gun: usize) -> Cooldown {
     let paths: Vec<DirEntry> = fs::read_dir(GUNS_PATH).unwrap().filter_map(|entry| entry.ok()).collect();
 
@@ -107,13 +138,13 @@ pub fn _save_enemy(bundle: EnemyData) {
     fs::write(ENEMIES_PATH, enemy_yaml).expect("Unable to write file!");
 }
 
-pub fn load_enemy(
-    enemy: usize,
-    atlases: ResMut<Atlases>,
-) -> EnemyBundle {
-    let file_path = get_enemy_path(enemy);
-    EnemyBundle::from_path(file_path.to_str().unwrap(), atlases)
-}
+// pub fn load_enemy(
+//     enemy: usize,
+//     atlases: ResMut<Atlases>,
+// ) -> EnemyBundle {
+//     let file_path = get_enemy_path(enemy);
+//     EnemyBundle::from_path(file_path.to_str().unwrap(), atlases)
+// }
 
 
 fn get_enemy_path(index: usize) -> PathBuf {

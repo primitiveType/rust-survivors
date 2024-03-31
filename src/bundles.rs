@@ -8,6 +8,7 @@ use bevy_prng::WyRand;
 use bevy_rand::prelude::GlobalEntropy;
 use bevy_rapier2d::dynamics::{LockedAxes, RigidBody, Velocity};
 use bevy_rapier2d::geometry::{ActiveEvents, Collider, CollisionGroups, Restitution, Sensor};
+use bevy_rapier2d::parry::transformation::utils::transform;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +16,7 @@ use crate::animation::{AnimationState, AnimatorController, SpritePath};
 use crate::animation::AnimationState::Walk;
 use crate::components::{AbilityLevel, BaseMoveSpeed, DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health, MoveSpeed, Player, XP};
 use crate::constants::{PLAYER_SPEED, XP_DIAMETER};
-use crate::initialization::load_prefabs::{Atlases, load_enemy, load_enemy_data_from_path};
+use crate::initialization::load_prefabs::{Atlases, Enemies, load_enemy_data_from_path};
 use crate::physics::layers::game_layer;
 use crate::systems::animation::AnimationState::Idle;
 
@@ -97,7 +98,7 @@ impl PlayerBundle {
             player: Default::default(),
             health: Health { value: 100.0 },
             animator: AnimatorController { state: Idle, name: "player".to_string() },
-            
+
             xp: XP { amount: 2 },
             move_speed: MoveSpeed { value: 0.0 },
             base_speed: BaseMoveSpeed { value: PLAYER_SPEED },
@@ -106,7 +107,7 @@ impl PlayerBundle {
 }
 
 
-#[derive(Bundle)]
+#[derive(Bundle, Clone)]
 pub struct PhysicalBundle {
     // pub mass: Mass,
     pub collider: Collider,
@@ -136,7 +137,7 @@ impl Default for PhysicalBundle {
     }
 }
 
-#[derive(Bundle)]
+#[derive(Bundle, Clone)]
 pub struct EnemyBundle {
     animation_bundle: AnimatedSpriteBundle,
     physical: PhysicalBundle,
@@ -165,7 +166,7 @@ pub struct AbilityBundle {
 impl EnemyBundle {
     pub fn from_path(
         path: &str,
-        atlases: ResMut<Atlases>,
+        atlases: &ResMut<Atlases>,
     ) -> Self {
         let enemy_data = load_enemy_data_from_path(path);
 
@@ -176,7 +177,7 @@ impl EnemyBundle {
                 name: enemy_data.name.to_string(),
             },
             animation_bundle: AnimatedSpriteBundle {
-                spritesheet: atlases.sprite_sheets.get("skeleton").unwrap().clone(),
+                spritesheet: atlases.sprite_sheets.get(&enemy_data.name.to_string()).expect(&format!("{} not found!", &enemy_data.name).to_string()).clone(),
                 sprite_bundle: SpriteSheetBundle {
                     transform: Transform {
                         translation: Vec3::new(0.0, -250.0, 0.0),
@@ -220,17 +221,18 @@ impl Default for EnemyBundle {
 }
 
 pub struct EnemySpawnData {
-    pub enemy_num: usize,
+    pub enemy_id: String,
     pub player_position: Vec2,
 }
 
 pub fn spawn_enemy(
     In(enemy_spawn_data): In<EnemySpawnData>,
-    atlases: ResMut<Atlases>,
+    enemies: ResMut<Enemies>,
     _rng: ResMut<GlobalEntropy<WyRand>>,
     mut commands: Commands,
 ) {
-    let mut bundle = load_enemy(enemy_spawn_data.enemy_num, atlases);
+    let mut bundle: EnemyBundle = enemies.datas.get(&enemy_spawn_data.enemy_id).unwrap().clone();
+
     //get random position outside screen
     let mut rng = rand::thread_rng();
     let value = rng.gen_range(0.0..1.0);
@@ -240,7 +242,9 @@ pub fn spawn_enemy(
     let distance = Vec2::splat(600.0);
     direction *= distance;
     bundle.animation_bundle.sprite_bundle.transform.translation = (direction + enemy_spawn_data.player_position).extend(0.0);
-    commands.spawn(bundle);
+    // bundle.animation_bundle.sprite_bundle.transform.translation = (direction + enemy_spawn_data.player_position).extend(0.0);
+    let mut enemy = commands.spawn(bundle);
+
 }
 
 pub fn spawn_xp(

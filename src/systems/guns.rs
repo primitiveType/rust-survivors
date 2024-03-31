@@ -21,7 +21,11 @@ use crate::extensions::vectors::to_vec2;
 use crate::initialization::load_prefabs::Atlases;
 use crate::Name;
 use crate::physics::layers::game_layer;
-
+//adding a new ability
+//1.. add system that does the ability thing. It should require an AbilityLevel component
+//2.. add level 0 bundle on player in spawn_player
+//3.. add system for updating the description of the ability when its level changes
+//4.. add all 4 systems to update loop.
 pub fn advance_cooldowns(
     mut query: Query<&mut Cooldown>,
     mut cdr_query: Query<&mut AttackSpeed>,
