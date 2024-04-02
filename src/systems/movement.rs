@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use bevy_rapier2d::dynamics::Velocity;
 use bevy_rapier2d::prelude::*;
 
-use crate::components::{BaseMoveSpeed, FollowPlayer, MoveSpeed, ParentMoveSpeedMultiplier, Player};
+use crate::components::{BaseMoveSpeed, Cold, FollowPlayer, MoveSpeed, ParentMoveSpeedMultiplier, Player};
 use crate::extensions::vectors::to_vec2;
 
 pub fn set_follower_velocity(
@@ -24,13 +24,26 @@ pub fn set_follower_velocity(
 }
 
 pub fn apply_move_speed_multiplier(
-    mut parent_query: Query<(&mut MoveSpeed, &BaseMoveSpeed, &Children)>,
+    mut parent_query: Query<(Entity, &mut MoveSpeed, &BaseMoveSpeed, Option<&Children>, Option<&mut Cold>)>,
     modifier_query: Query<&ParentMoveSpeedMultiplier>,
+    mut commands: Commands,
+    time: Res<Time>,
 ) {
-    for (mut move_speed, base_move, children) in &mut parent_query {
+    for (entity, mut move_speed, base_move, children_maybe, cold_maybe) in &mut parent_query {
         let mut multiplier = 1.0;
-        for modifier in modifier_query.iter_many(children) {
-            multiplier += modifier.value;
+
+        if let Some(children) = children_maybe {
+            for modifier in modifier_query.iter_many(children) {
+                multiplier += modifier.value;
+            }
+        }
+
+        if let Some(mut cold) = cold_maybe{
+            cold.timer.tick(time.delta());
+            if cold.timer.finished(){
+                commands.entity(entity).remove::<Cold>();
+            }
+            multiplier -= cold.multiplier;
         }
         move_speed.value = base_move.value * multiplier;
     }

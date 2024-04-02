@@ -1,7 +1,7 @@
 use bevy_rapier2d::geometry::{ActiveEvents, Collider, Restitution, Sensor};
 use bevy_rapier2d::prelude::{CollisionGroups};
 use crate::*;
-use crate::components::{Cooldown, AttackSpeed, FireBallGun, XPVacuum, Flask, AbilityLevel, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier};
+use crate::components::{Cooldown, AttackSpeed, FireBallGun, XPVacuum, Flask, AbilityLevel, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier, IceBallGun};
 use crate::constants::{SCORE_COLOR, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, TEXT_COLOR};
 use crate::physics::layers::game_layer;
 
@@ -83,6 +83,12 @@ fn spawn_player(commands: &mut Commands,
             parent.spawn((Cooldown::with_cooldown(1000),
                           FireBallGun {},
                           Name::new("Fireball"),
+                          AbilityLevel { level: 0, ..default() },
+                          SpatialBundle { ..default() }));
+            //iceball gun
+            parent.spawn((Cooldown::with_cooldown(1000),
+                          IceBallGun {},
+                          Name::new("Iceball"),
                           AbilityLevel { level: 1, ..default() },
                           SpatialBundle { ..default() }));
             // flask gun
@@ -96,7 +102,8 @@ fn spawn_player(commands: &mut Commands,
                             Name::new("Move Speed"),
                           ParentMoveSpeedMultiplier { value: 0.0 },
                           AbilityLevel { level: 0, ..default() },
-                          SpatialBundle { ..default() }));
+                          // SpatialBundle { ..default() },
+                          ));
             //xp gatherer
             parent.spawn((XPVacuum {},
                           Collider::ball(50.0),

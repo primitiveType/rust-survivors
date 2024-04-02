@@ -1,3 +1,4 @@
+use bevy_rapier2d::prelude::PhysicsSet;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -9,6 +10,7 @@ use bevy_egui::{EguiContexts, EguiPlugin};
 use bevy_prng::WyRand;
 use bevy_rand::prelude::EntropyPlugin;
 use bevy_rapier2d::pipeline::CollisionEvent;
+use bevy_rapier2d::plugin::PhysicsSet::Writeback;
 use bevy_rapier2d::plugin::RapierConfiguration;
 use bevy_rapier2d::prelude::NoUserData;
 use bevy_rapier2d::prelude::RapierPhysicsPlugin;
@@ -25,7 +27,7 @@ use crate::{
 use crate::bundles::{CorpseSpawnData, EnemySpawnData, Object, XPSpawnData};
 use crate::initialization::inspector::add_inspector;
 use crate::initialization::load_prefabs::{Atlases, Enemies};
-use crate::systems::guns::{DamageTextSpawnData, FireballSpawnData, FlaskSpawnData};
+use crate::systems::guns::{DamageTextSpawnData, FireballSpawnData, FlaskSpawnData, IceballSpawnData};
 
 mod components;
 
@@ -67,9 +69,7 @@ fn main() {
     // damage
     // show gun info on level up choice
     // display enemy health (maybe)
-    // camera moves with player
     // add background
-    // get rid of walls
 //PATH=C:\Users\Arthu\.rustup\toolchains\nightly-x86_64-pc-windows-msvc\bin\;E:\Unity Projects\rust-survivors\target\debug\deps
     let mut app_binding = App::new();
     let app: &mut App = app_binding
@@ -86,6 +86,7 @@ fn main() {
         .add_plugins((DefaultPlugins.set(ImagePlugin::default_nearest()),// prevents blurry sprites
                       SpewPlugin::<Object, EnemySpawnData>::default(),
                       SpewPlugin::<Object, FireballSpawnData>::default(),
+                      SpewPlugin::<Object, IceballSpawnData>::default(),
                       SpewPlugin::<Object, FlaskSpawnData>::default(),
                       SpewPlugin::<Object, DamageTextSpawnData>::default(),
                       SpewPlugin::<Object, CorpseSpawnData>::default(),
@@ -111,6 +112,7 @@ fn main() {
         .add_event::<CollisionEvent>()
         .add_spawner((Object::Enemy, bundles::spawn_enemy))
         .add_spawner((Object::Fireball, guns::spawn_fireball))
+        .add_spawner((Object::Iceball, guns::spawn_iceball))
         .add_spawner((Object::Flask, guns::spawn_flask_projectile))
         .add_spawner((Object::DamageNumber, guns::spawn_damage_text))
         .add_spawner((Object::Corpse, bundles::spawn_corpse))
@@ -140,6 +142,7 @@ fn main() {
                 //abilities
                 guns::advance_cooldowns,
                 guns::fireball_gun,
+                guns::iceball_gun,
                 guns::flask_weapon,
                 // audio::play_collision_sound,
                 //stats
@@ -148,7 +151,7 @@ fn main() {
                 animation::set_spritesheet_from_animation_info,
                 animation::flip_sprite,
                 animation::update_animation_state,
-                guns::destroy_explosions,
+                guns::destroy_after_death_anim,
                 guns::destroy_expired_entities,
             ).run_if(in_state(AppState::InGame))
                 // `chain`ing systems together runs them in order
@@ -162,11 +165,11 @@ fn main() {
                 (stats::update_move_speed_from_passive,
                 movement::apply_move_speed_multiplier,
                 movement::move_player,
-                movement::camera_follow,
                 movement::set_follower_velocity).chain(),
                 ui::update_player_health_ui,
                 // movement::_debug_collisions,
                 guns::deal_damage_on_collide,
+                guns::apply_cold_on_collide,
                 stats::pick_up_xp_on_touch,
                 stats::vacuum_xp_on_touch,
                 stats::level_up,
@@ -175,6 +178,7 @@ fn main() {
                 stats::update_level_descriptions_fireball,
                 stats::update_level_descriptions_move_speed,
                 ui::fade_text,
+                (movement::camera_follow).after(PhysicsSet::Writeback),
             ).run_if(in_state(AppState::InGame)))
         .add_systems(Update,
                      (//Always update loop

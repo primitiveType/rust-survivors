@@ -54,6 +54,9 @@ impl LevelableData for PassiveMoveSpeedMultiplier{
 #[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct FireBallGun {}
 
+#[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct IceBallGun {}
+
 #[derive(Component, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct AbilityLevel {
     pub level: u8,
@@ -116,9 +119,14 @@ pub struct Health {
 pub struct FollowPlayer;
 
 
-#[derive(Component, Reflect, Serialize, Deserialize, Clone)]
+#[derive(Component, Reflect, Serialize, Deserialize, Clone, Default)]
 pub struct MoveSpeed {
     pub value: f32,
+}
+#[derive(Component, Reflect, Serialize, Deserialize, Clone, Default)]
+pub struct Cold {
+    pub multiplier: f32,
+    pub timer : Timer,
 }
 
 #[derive(Component, Reflect, Serialize, Deserialize, Clone)]
@@ -143,6 +151,14 @@ pub struct DamageOnTouch {
     #[serde(skip)]
 
     pub count_triggers: u32,
+}
+
+
+
+#[derive(Component, Serialize, Deserialize, Clone)]
+pub struct ApplyColdOnTouch {
+    pub multiplier: f32,
+    pub seconds : f32,
 }
 
 impl Default for DamageOnTouch {
