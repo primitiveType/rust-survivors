@@ -1,7 +1,7 @@
 use bevy::asset::Assets;
 use bevy::core::Name;
 use bevy::math::{Vec2, Vec3};
-use bevy::prelude::{Bundle, Circle, Color, ColorMaterial, Commands, default, In, Mesh, Res, ResMut, SpatialBundle, Transform};
+use bevy::prelude::{Bundle, Circle, Color, ColorMaterial, Commands, Component, default, In, Mesh, Res, ResMut, SpatialBundle, Transform};
 use bevy::sprite::{MaterialMesh2dBundle, SpriteSheetBundle};
 use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
 use bevy_prng::WyRand;
@@ -30,12 +30,16 @@ pub enum Object {
     Player,
     Enemy,
     Fireball,
+    Iceball,
     Flask,
     DamageNumber,
     Corpse,
     XP,
 }
+#[derive(Component)]
+pub struct DestroyAfterDeathAnimation{
 
+}
 #[derive(Bundle)]
 pub struct PlayerBundle {
     pub sprite: AnimatedSpriteBundle,
@@ -178,7 +182,10 @@ pub struct EnemyData {
     enemy: Enemy,
     pub name: Name,
     follow_player: FollowPlayer,
+    #[serde(skip)]
     move_speed: MoveSpeed,
+    #[serde(alias = "move_speed")]
+    base_move_speed: BaseMoveSpeed,
     health: Health,
     touch_damage: DamageOnTouch,
 }
@@ -235,6 +242,7 @@ impl Default for EnemyBundle {
                 enemy: Enemy { xp: 1 },
                 follow_player: FollowPlayer,
                 move_speed: MoveSpeed { value: 0.1 },
+                base_move_speed: BaseMoveSpeed {value : 0.1},
                 health: Health { value: 5.0 },
                 touch_damage: DamageOnTouch { value: 1.0, ..default() },
             },
