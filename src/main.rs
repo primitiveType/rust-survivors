@@ -27,7 +27,7 @@ use crate::{
 use crate::bundles::{CorpseSpawnData, EnemySpawnData, Object, XPSpawnData};
 use crate::initialization::inspector::add_inspector;
 use crate::initialization::load_prefabs::{Atlases, Enemies};
-use crate::systems::guns::{DamageTextSpawnData, FireballSpawnData, FlaskSpawnData, IceballSpawnData};
+use crate::systems::guns::{DamageTextSpawnData, FireballSpawnData, FlaskSpawnData, IceballSpawnData, ParticleSpawnData};
 
 mod components;
 
@@ -55,21 +55,17 @@ pub enum AppState {
 
 fn main() {
     //TODO:
+    //replace ice spike sprite
+    //add background
     //1 minute timer
     //make spawn rate more interesting
     //scale difficulty
     //level ups offer real choices
-    // - 3 weapons
-    // santa water
-    // whip
-    // laser?
     // - 3 passives
-    //move speed
+    // --move speed
     // xp gain
     // damage
-    // show gun info on level up choice
     // display enemy health (maybe)
-    // add background
 //PATH=C:\Users\Arthu\.rustup\toolchains\nightly-x86_64-pc-windows-msvc\bin\;E:\Unity Projects\rust-survivors\target\debug\deps
     let mut app_binding = App::new();
     let app: &mut App = app_binding
@@ -84,13 +80,6 @@ fn main() {
             ..default()
         })
         .add_plugins((DefaultPlugins.set(ImagePlugin::default_nearest()),// prevents blurry sprites
-                      SpewPlugin::<Object, EnemySpawnData>::default(),
-                      SpewPlugin::<Object, FireballSpawnData>::default(),
-                      SpewPlugin::<Object, IceballSpawnData>::default(),
-                      SpewPlugin::<Object, FlaskSpawnData>::default(),
-                      SpewPlugin::<Object, DamageTextSpawnData>::default(),
-                      SpewPlugin::<Object, CorpseSpawnData>::default(),
-                      SpewPlugin::<Object, XPSpawnData>::default(),
                       DefaultTweenPlugins,
                       RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0).with_default_system_setup(true).in_schedule(time::PhysicsSchedule),
                       time::TimePlugin,
@@ -103,6 +92,15 @@ fn main() {
                           .at(Val::Percent(35.0), Val::Percent(50.0)),
                       EntropyPlugin::<WyRand>::default(),
                       EguiPlugin,//not needed if editor-egui is imported
+        ))
+        .add_plugins((SpewPlugin::<Object, EnemySpawnData>::default(),
+                      SpewPlugin::<Object, FireballSpawnData>::default(),
+                      SpewPlugin::<Object, IceballSpawnData>::default(),
+                      SpewPlugin::<Object, FlaskSpawnData>::default(),
+                      SpewPlugin::<Object, DamageTextSpawnData>::default(),
+                      SpewPlugin::<Object, CorpseSpawnData>::default(),
+                      SpewPlugin::<Object, XPSpawnData>::default(),
+                      SpewPlugin::<Object, ParticleSpawnData>::default(),
         ))
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .insert_resource(Atlases { sprite_sheets: HashMap::new() })
@@ -117,6 +115,7 @@ fn main() {
         .add_spawner((Object::DamageNumber, guns::spawn_damage_text))
         .add_spawner((Object::Corpse, bundles::spawn_corpse))
         .add_spawner((Object::XP, bundles::spawn_xp))
+        .add_spawner((Object::Particle, guns::spawn_particle))
         //physics stuff, so that we can pause physics
         .add_systems(PostUpdate, time::run_physics_schedule)
         //startup systems, spawn player etc
@@ -153,6 +152,7 @@ fn main() {
                 animation::update_animation_state,
                 guns::destroy_after_death_anim,
                 guns::destroy_expired_entities,
+                stats::cold_enemies_spawn_particles
             ).run_if(in_state(AppState::InGame))
                 // `chain`ing systems together runs them in order
                 .chain(),
@@ -163,9 +163,11 @@ fn main() {
             Update,
             (
                 (stats::update_move_speed_from_passive,
-                movement::apply_move_speed_multiplier,
-                movement::move_player,
-                movement::set_follower_velocity).chain(),
+                 movement::apply_move_speed_multiplier,
+                 movement::move_player,
+                 movement::set_follower_velocity,
+                 stats::move_speed_mod_affects_animation_speed
+                ).chain(),
                 ui::update_player_health_ui,
                 // movement::_debug_collisions,
                 guns::deal_damage_on_collide,
@@ -177,7 +179,11 @@ fn main() {
                 stats::update_level_descriptions_flask,
                 stats::update_level_descriptions_fireball,
                 stats::update_level_descriptions_move_speed,
+                stats::update_level_descriptions_iceball,
                 ui::fade_text,
+                (stats::reset_enemy_color,
+                 stats::cold_objects_are_blue,
+                ).chain(),
                 (movement::camera_follow).after(PhysicsSet::Writeback),
             ).run_if(in_state(AppState::InGame)))
         .add_systems(Update,

@@ -1,33 +1,37 @@
+use std::default;
 use std::fmt::Display;
 use std::string::String;
 
 use bevy::asset::Assets;
 use bevy::core::Name;
+use bevy::hierarchy::Parent;
 use bevy::math::{Vec2, Vec3, Vec3Swizzles};
-use bevy::prelude::{Changed, ColorMaterial, Commands, default, Entity, EventReader, Mesh, NextState, Query, ResMut, SpriteSheetBundle, Transform};
-use bevy_asepritesheet::animator::AnimatedSpriteBundle;
+use bevy::prelude::{Changed, Color, ColorMaterial, Commands, default, Entity, EventReader, Mesh, NextState, Query, ResMut, Sprite, SpriteSheetBundle, Transform, With, Without};
+use bevy_asepritesheet::animator::{AnimatedSpriteBundle, SpriteAnimator};
+use bevy_asepritesheet::sprite::Spritesheet;
+use bevy_egui::egui::debug_text::print;
+use bevy_rapier2d::parry::transformation::utils::transform;
 use bevy_rapier2d::pipeline::CollisionEvent;
+use rand::Rng;
 
 use crate::AppState;
 use crate::bundles::{CorpseBundle, CorpseSpawnData, Object, spawn_xp, XPSpawnData};
-use crate::components::{AbilityLevel, Enemy, FireBallGun, Flask, FollowPlayer, GainXPOnTouch, Health, MoveSpeed, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier, Player, XP, XPVacuum};
+use crate::components::{AbilityLevel, BaseMoveSpeed, Cold, Enemy, FireBallGun, Flask, FollowPlayer, GainXPOnTouch, Health, IceBallGun, Lifetime, MoveSpeed, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier, Player, XP, XPVacuum};
 use crate::extensions::spew_extensions::{Spawn, Spawner};
-use crate::systems::guns::{FireballSpawnData, FlaskSpawnData, LevelableData};
+use crate::systems::guns::{FireballSpawnData, FlaskSpawnData, IceballSpawnData, LevelableData, ParticleSpawnData};
 
-pub fn die_at_zero_health(query: Query<(Entity, &Enemy, &Health, &Transform, &Name)>,
+pub fn die_at_zero_health(query: Query<(Entity, &Enemy, &Health, &Transform, &Name, &Sprite)>,
                           mut commands: Commands,
-                          mut meshes: ResMut<Assets<Mesh>>,
-                          mut materials: ResMut<Assets<ColorMaterial>>,
                           mut spawner: Spawner<CorpseSpawnData>,
                           mut xp_spawner: Spawner<XPSpawnData>,
 ) {
-    for (entity, enemy, health, transform, name) in query.iter() {
+    for (entity, enemy, health, transform, name, sprite) in query.iter() {
         if health.value <= 0.0
         {
             let position = transform.translation.xy();
-            spawner.spawn(Object::Corpse, CorpseSpawnData{ name: name.to_string(), position });
+            spawner.spawn(Object::Corpse, CorpseSpawnData { name: name.to_string(), position, flip: sprite.flip_x });
             commands.entity(entity).despawn();
-            xp_spawner.spawn(Object::XP, XPSpawnData{amount : enemy.xp, position})
+            xp_spawner.spawn(Object::XP, XPSpawnData { amount: enemy.xp, position })
         }
     }
 }
@@ -38,6 +42,56 @@ pub fn update_move_speed_from_passive(mut abilities: Query<(&AbilityLevel, &Pass
         parent_move_speed.value = 0.10 * ability.level as f32;
     }
 }
+
+
+pub fn cold_objects_are_blue(mut sprites: Query<&mut Sprite, With<Cold>>,
+) {
+    for mut sprite in sprites.iter_mut() {
+        sprite.color = Color::rgba(0.5, 0.5, 1.0, 1.0);
+    }
+}
+
+pub fn cold_enemies_spawn_particles(mut sprites: Query<(Entity, &Enemy), With<Cold>>, mut spawner: Spawner<ParticleSpawnData>,
+) {
+    for (entity, enemy) in sprites.iter() {
+        let mut rng = rand::thread_rng();
+        let value = rng.gen_range(0.0..1.0);
+        let angle = value * 2.0 * std::f32::consts::PI;
+        // Calculate the direction vector from the angle
+        let mut direction = Vec2::new(angle.cos(), angle.sin());
+
+
+        let distance = Vec2::splat(rng.gen_range(1.0..30.0));
+        direction *= distance;
+        spawner.spawn(
+            Object::Particle,
+            ParticleSpawnData {
+                parent: Some(entity),
+                sprite_sheet: "ice_particle".to_string(),
+                color: Color::rgb(0.4, 0.5, 1.0),
+                animation: "Idle".to_string(),
+                lifetime: Lifetime::from_seconds(0.5),
+                position: direction,
+                scale: Vec2::new(0.3, 0.3),
+            },
+        )
+    }
+}
+
+pub fn reset_enemy_color(mut sprites: Query<&mut Sprite, With<Enemy>>,
+) {
+    for mut sprite in sprites.iter_mut() {
+        sprite.color = Color::default();
+    }
+}
+
+pub fn move_speed_mod_affects_animation_speed(mut sprites: Query<(&mut SpriteAnimator, &MoveSpeed, &BaseMoveSpeed)>,
+) {
+    for (mut animator, move_speed, base_move) in sprites.iter_mut() {
+        animator.time_scale = move_speed.value / base_move.value;
+    }
+}
+
 /*
 --level up--
 Choices should be trackable, and it should be possible to view what choices were made in ui
@@ -103,6 +157,27 @@ pub fn update_level_descriptions_fireball(mut abilities: Query<(&mut AbilityLeve
         let next_level = FireballSpawnData::get_data_for_level(ability.level + 1);
         let mut description = "Fireball".to_string();
         // ability.description = format!("Molotov Cocktail\r\nSize:\r\n{} -> {}\r\n Cooldown:\r\n{} -> {}", current_level.scale, next_level.scale, current_level.cooldown.display_seconds(), next_level.cooldown.timer.display_seconds()).to_string();
+        push_stat_block(&mut description, "Damage", current_level.damage, next_level.damage);
+        push_stat_block(&mut description, "Bullet Speed", current_level.bullet_speed, next_level.bullet_speed);
+        push_stat_block(&mut description, "Size", current_level.bullet_size, next_level.bullet_size);
+        push_stat_block(&mut description, "Pierce", current_level.pierce, next_level.pierce);
+
+        ability.description = description;
+    }
+}
+
+pub fn update_level_descriptions_iceball(mut abilities: Query<(&mut AbilityLevel, &IceBallGun), Changed<AbilityLevel>>,
+) {
+    for (mut ability, _) in abilities.iter_mut() {
+        println!("Updating iceball description.");
+        let current_level = IceballSpawnData::get_data_for_level(ability.level);
+        let next_level = IceballSpawnData::get_data_for_level(ability.level + 1);
+        let mut description = "Ice Spike".to_string();
+        // ability.description = format!("Molotov Cocktail\r\nSize:\r\n{} -> {}\r\n Cooldown:\r\n{} -> {}", current_level.scale, next_level.scale, current_level.cooldown.display_seconds(), next_level.cooldown.timer.display_seconds()).to_string();
+        push_stat_block(&mut description, "Slow duration", current_level.slow_seconds, next_level.slow_seconds);
+        push_stat_block(&mut description, "Bullet Lifetime", current_level.bullet_lifetime_seconds, next_level.bullet_lifetime_seconds);
+        push_stat_block(&mut description, "Damage", current_level.damage, next_level.damage);
+
         push_stat_block(&mut description, "Bullet Speed", current_level.bullet_speed, next_level.bullet_speed);
         push_stat_block(&mut description, "Size", current_level.bullet_size, next_level.bullet_size);
         push_stat_block(&mut description, "Pierce", current_level.pierce, next_level.pierce);

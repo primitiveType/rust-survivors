@@ -1,7 +1,7 @@
 use bevy::asset::Assets;
 use bevy::core::Name;
 use bevy::math::{Vec2, Vec3};
-use bevy::prelude::{Bundle, Circle, Color, ColorMaterial, Commands, Component, default, In, Mesh, Res, ResMut, SpatialBundle, Transform};
+use bevy::prelude::{Bundle, Circle, Color, ColorMaterial, Commands, Component, default, In, Mesh, Res, ResMut, SpatialBundle, Sprite, Transform};
 use bevy::sprite::{MaterialMesh2dBundle, SpriteSheetBundle};
 use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
 use bevy_prng::WyRand;
@@ -35,6 +35,7 @@ pub enum Object {
     DamageNumber,
     Corpse,
     XP,
+    Particle,
 }
 #[derive(Component)]
 pub struct DestroyAfterDeathAnimation{
@@ -81,6 +82,8 @@ impl Default for PlayerBundle {
     }
 }
 
+const PLAYER_SCALE: f32 = 4.0;
+
 impl PlayerBundle {
     pub fn with_sprite(atlases: ResMut<Atlases>) -> Self {
         Self {
@@ -93,9 +96,12 @@ impl PlayerBundle {
             sprite: AnimatedSpriteBundle {
                 spritesheet: atlases.sprite_sheets.get("player").unwrap().clone(),
                 sprite_bundle: SpriteSheetBundle {
+                    sprite: Sprite{
+                        ..default()
+                    },
                     transform: Transform {
                         translation: Vec3::new(0.0, -250.0, 0.0),
-                        scale: Vec2::splat(4.0).extend(1.0),
+                        scale: Vec2::splat(PLAYER_SCALE).extend(1.0),
 
                         ..default()
                     },
@@ -174,11 +180,11 @@ pub struct CorpseBundle {
 pub struct CorpseSpawnData {
     pub name: String,
     pub position: Vec2,
+    pub flip : bool,
 }
 
 #[derive(Deserialize, Serialize, Bundle, Clone)]
 pub struct EnemyData {
-    pub sprite_path: SpritePath,
     enemy: Enemy,
     pub name: Name,
     follow_player: FollowPlayer,
@@ -195,6 +201,8 @@ pub struct AbilityBundle {
     pub name: Name,
     pub ability: AbilityLevel,
 }
+
+const ENEMY_SCALE: f32 = 2.0;
 
 impl EnemyBundle {
     pub fn from_path(
@@ -214,7 +222,7 @@ impl EnemyBundle {
                 sprite_bundle: SpriteSheetBundle {
                     transform: Transform {
                         translation: Vec3::new(0.0, -250.0, 0.0),
-                        scale: Vec2::splat(4.0).extend(1.0),
+                        scale: Vec2::splat(ENEMY_SCALE).extend(1.0),
 
                         ..default()
                     },
@@ -237,7 +245,6 @@ impl Default for EnemyBundle {
                 ..default()
             },
             enemy_data: EnemyData {
-                sprite_path: SpritePath("".to_string()),
                 name: Name::new("Enemy"),
                 enemy: Enemy { xp: 1 },
                 follow_player: FollowPlayer,
@@ -277,11 +284,15 @@ pub fn spawn_corpse(
             sprite_bundle: SpriteSheetBundle {
                 transform: Transform {
                     translation: corpse.position.extend(CORPSE_LAYER),
-                    scale: Vec2::splat(4.0).extend(1.0),
+                    scale: Vec2::splat(ENEMY_SCALE).extend(1.0),
 
                     ..default()
                 },
 
+                sprite : Sprite{
+                    flip_x: corpse.flip,
+                    ..default()
+                },
                 ..default()
             },
             ..default()
