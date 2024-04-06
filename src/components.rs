@@ -92,7 +92,7 @@ pub struct Bullet {
     pub pierce: u8,
 }
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct Lifetime {
     pub timer: Timer,
 }

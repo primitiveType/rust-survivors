@@ -3,7 +3,7 @@ use std::time::Duration;
 use bevy::asset::{Assets, Handle};
 use bevy::ecs::query::QueryEntityError;
 use bevy::math::{Vec3, Vec3Swizzles};
-use bevy::prelude::{BuildChildren, Color, Commands, Component, default, Entity, EventReader, GlobalTransform, In, Mut, Query, Res, ResMut, SpriteSheetBundle, Text, Text2dBundle, TextStyle, Time, Transform, Vec2, With, Without};
+use bevy::prelude::{BuildChildren, Color, Commands, Component, default, Entity, EventReader, GlobalTransform, In, Mut, Query, Res, ResMut, Sprite, SpriteSheetBundle, Text, Text2dBundle, TextStyle, Time, Transform, Vec2, With, Without};
 use bevy::time::{Timer, TimerMode};
 use bevy_asepritesheet::animator::{AnimatedSpriteBundle, AnimFinishEvent, SpriteAnimator};
 use bevy_asepritesheet::prelude::{AnimEventSender, AnimHandle, Spritesheet};
@@ -236,7 +236,7 @@ fn try_slow(entity1_damage: Result<&ApplyColdOnTouch, QueryEntityError>, entity2
             // let mut child = commands.spawn((ParentMoveSpeedMultiplier { value: -slow.multiplier }, Lifetime::from_seconds(slow.seconds)));
             // child.insert(Name ::new("slow effect"));
             // child.set_parent(entity);
-            commands.entity(entity).insert(Cold{ multiplier: slow.multiplier, timer: Timer::from_seconds(slow.seconds, TimerMode::Once) });
+            commands.entity(entity).insert(Cold { multiplier: slow.multiplier, timer: Timer::from_seconds(slow.seconds, TimerMode::Once) });
         }
         _ => {}
     }
@@ -257,9 +257,19 @@ pub fn expire_bullets_on_hit(mut bullets: Query<(&mut Bullet, Entity, &Transform
 pub fn expired_bullets_explode(mut bullets: Query<(Entity, &Bullet, &Transform, &Name), With<Expired>>,
                                mut commands: Commands,
                                atlases: Res<Atlases>,
-                               sprite_assets: Res<Assets<Spritesheet>>, ) {
+                               sprite_assets: Res<Assets<Spritesheet>>,
+                               mut spawner: Spawner<ParticleSpawnData>) {
     for (bullet, entity, transform, name) in bullets.iter_mut() {
-        spawn_particle(transform.translation, &mut commands, name.to_string(), "Dead", &atlases, &sprite_assets);
+        spawner.spawn(Object::Particle, ParticleSpawnData {
+            position: transform.translation.xy(),
+            scale: Vec2::splat(1.0),
+            sprite_sheet: name.to_string(),
+            color: Color::rgb(0.9, 0.3, 0.0),
+            animation: "Dead".to_string(),
+            parent: None,
+            lifetime: Lifetime::from_seconds(1.0),
+        });
+        // spawn_particle(transform.translation, &mut commands, name.to_string(), "Dead", &atlases, &sprite_assets);
     }
 }
 
@@ -282,32 +292,54 @@ pub fn destroy_expired_entities(mut lifetimes: Query<(Entity, &Expired)>,
     }
 }
 
+#[derive(Default)]
+pub struct ParticleSpawnData {
+    pub scale: Vec2,
+    pub position: Vec2,
+    pub sprite_sheet: String,
+    pub color: Color,
+    pub animation: String,
+    pub parent: Option<Entity>,
+    pub lifetime: Lifetime,
+}
 
-fn spawn_particle(position: Vec3, commands: &mut Commands, sprite_sheet: String, animation: &str, atlases: &Res<Atlases>, sprite_assets: &Res<Assets<Spritesheet>>) {
-    let spritesheet = atlases.sprite_sheets.get(&sprite_sheet).expect("failed to find particle animation!").clone();
+pub const PARTILE_STATUS_LAYER: f32 = 4.0;
+
+pub fn spawn_particle(In(data): In<ParticleSpawnData>, mut commands: Commands, atlases: Res<Atlases>, sprite_assets: Res<Assets<Spritesheet>>) {
+    let spritesheet = atlases.sprite_sheets.get(&data.sprite_sheet).expect("failed to find particle animation!").clone();
     let mut anim_handle = AnimHandle::from_index(0);
     // Attempt to get the asset using the handle
     if let Some(asset) = sprite_assets.get(&spritesheet) {
         // Now you have access to the asset (`T`) here
         // Do something with the asset
-        anim_handle = asset.get_anim_handle(animation);
+        anim_handle = asset.get_anim_handle(data.animation);
     } else {
         // The asset is not loaded yet, you might handle this case accordingly
         println!("Asset not loaded yet");
     }
-    commands.spawn((
+    let parent_exists = data.parent.is_some() && commands.get_entity(data.parent.unwrap()).is_some();
+    let mut spawned = commands.spawn((
+        data.lifetime,
         AnimEventSender,
+        // Cold{ multiplier: 0.0, timer: Timer::from_seconds(100.0, TimerMode::Repeating) },
         AnimatedSpriteBundle {
             animator: SpriteAnimator::from_anim(anim_handle),
             spritesheet,
             sprite_bundle: SpriteSheetBundle
             {
-                transform: Transform::from_translation(position),
+                transform: Transform::from_translation(data.position.extend(PARTILE_STATUS_LAYER)).with_scale(data.scale.extend(1.0)),
+                sprite: Sprite{
+                    color: data.color,
+                    ..default()
+                },
                 ..default()
             },
 
             ..Default::default()
         }));
+    if parent_exists {
+        spawned.set_parent(data.parent.unwrap());
+    }
 }
 
 pub fn destroy_after_death_anim(
@@ -418,7 +450,7 @@ pub fn spawn_flask_projectile(
 }
 
 pub struct FireballSpawnData {
-    damage: f32,
+    pub damage: f32,
     position: Vec3,
     direction: Vec2,
     pub bullet_size: f32,
@@ -427,7 +459,10 @@ pub struct FireballSpawnData {
 }
 
 pub struct IceballSpawnData {
-    damage: f32,
+    pub damage: f32,
+    pub slow_amount: f32,
+    pub slow_seconds: f32,
+    pub bullet_lifetime_seconds: f32,
     position: Vec3,
     direction: Vec2,
     pub bullet_size: f32,
@@ -439,6 +474,9 @@ impl LevelableData for IceballSpawnData {
     fn get_data_for_level(level: u8) -> Self {
         Self {
             damage: 0.0,
+            slow_amount: 0.4,
+            slow_seconds: 1.0,
+            bullet_lifetime_seconds: 2.0,
             position: Default::default(),
             direction: Default::default(),
             bullet_size: 50_000.0 + (level as f32 * 1_000_f32),
@@ -494,12 +532,12 @@ pub fn spawn_iceball(
         name: Name::new("fireball"),
         sensor: Default::default(),
         damage: DamageOnTouch { value: data.damage, ..default() },
-        lifetime: Lifetime::from_seconds(2.0),
+        lifetime: Lifetime::from_seconds(data.bullet_lifetime_seconds),
     };
     let mut bullet = commands.spawn(bundle);
 
 
-    bullet.insert(ApplyColdOnTouch { multiplier: 1.0, seconds: 1.0 });
+    bullet.insert(ApplyColdOnTouch { multiplier: data.slow_amount, seconds: data.slow_seconds });
 }
 
 pub fn spawn_fireball(

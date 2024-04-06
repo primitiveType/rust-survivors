@@ -17,10 +17,10 @@ pub fn enemy_spawn_cycle(
     let (player, transform) = player_query.single();
 
     
-    if count < 10 {
+    if count < 2 {
         // spawn_enemy(1, _commands, atlases, rng);
         spawner.spawn(Object::Enemy, EnemySpawnData { enemy_id: "bat".to_string(), player_position: transform.translation.xy() });
-        // spawner.spawn(Object::Enemy, EnemySpawnData { enemy_id: "skeleton".to_string(), player_position: transform.translation.xy() });
+        spawner.spawn(Object::Enemy, EnemySpawnData { enemy_id: "zombie".to_string(), player_position: transform.translation.xy() });
 
         // spawner.send(SpawnEvent::with_data();
     }
