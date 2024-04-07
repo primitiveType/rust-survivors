@@ -11,10 +11,18 @@ use serde::Serialize;
 use crate::bundles::PhysicalBundle;
 use crate::systems::guns::LevelableData;
 
-#[derive(Component, Default)]
+#[derive(Component)]
 pub struct Player {
     // pub xp: u16,
-    pub level: u16,
+    pub level: u32,
+}
+
+impl Default for Player {
+    fn default() -> Self {
+        Self {
+            level: 1,
+        }
+    }
 }
 
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
@@ -40,12 +48,39 @@ pub struct Flask {}
 
 #[derive(Component, Copy, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct PassiveMoveSpeedMultiplier {
-    pub value : f32,
+    pub value: f32,
 }
 
-impl LevelableData for PassiveMoveSpeedMultiplier{
+#[derive(Component, Copy, Clone, Debug, Serialize, Deserialize, Default, Reflect)]
+pub struct PassiveXPMultiplier {}
+
+#[derive(Component, Copy, Clone, Debug, Serialize, Deserialize, Default, Reflect)]
+pub struct XPMultiplier {
+    pub value: f32,
+}
+
+#[derive(Component, Copy, Clone, Debug, Serialize, Deserialize, Default, Reflect)]
+pub struct XPPickupRadius {
+    pub radius: f32,
+}
+impl LevelableData for XPPickupRadius {
     fn get_data_for_level(level: u8) -> Self {
-        Self{
+        Self {
+            radius : 25.0 + (level as f32  * 10.0)
+        }
+    }
+}
+impl LevelableData for XPMultiplier {
+    fn get_data_for_level(level: u8) -> Self {
+        Self {
+            value: level as f32 * (0.1)
+        }
+    }
+}
+
+impl LevelableData for PassiveMoveSpeedMultiplier {
+    fn get_data_for_level(level: u8) -> Self {
+        Self {
             value: 0.10 * level as f32,
         }
     }
@@ -123,10 +158,11 @@ pub struct FollowPlayer;
 pub struct MoveSpeed {
     pub value: f32,
 }
+
 #[derive(Component, Reflect, Serialize, Deserialize, Clone, Default)]
 pub struct Cold {
     pub multiplier: f32,
-    pub timer : Timer,
+    pub timer: Timer,
 }
 
 #[derive(Component, Reflect, Serialize, Deserialize, Clone)]
@@ -154,11 +190,10 @@ pub struct DamageOnTouch {
 }
 
 
-
 #[derive(Component, Serialize, Deserialize, Clone)]
 pub struct ApplyColdOnTouch {
     pub multiplier: f32,
-    pub seconds : f32,
+    pub seconds: f32,
 }
 
 impl Default for DamageOnTouch {
@@ -175,9 +210,9 @@ pub struct GainXPOnTouch {
     pub value: u32,
 }
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct XP {
-    pub amount: u32,
+    pub amount: f32,
 }
 
 #[derive(Component)]

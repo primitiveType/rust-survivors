@@ -1,12 +1,14 @@
 use bevy::input::ButtonInput;
+use bevy::log::tracing_subscriber::fmt::time;
 use bevy::math::Vec2;
 use bevy::prelude::{EventReader, KeyCode, Query, Res, Time, Transform, With, Without};
 use bevy::prelude::*;
 use bevy_rapier2d::dynamics::Velocity;
 use bevy_rapier2d::prelude::*;
 
-use crate::components::{BaseMoveSpeed, Cold, FollowPlayer, MoveSpeed, ParentMoveSpeedMultiplier, Player};
+use crate::components::{AbilityLevel, BaseMoveSpeed, Cold, FollowPlayer, MoveSpeed, ParentMoveSpeedMultiplier, PassiveXPMultiplier, Player, XP, XPMultiplier, XPPickupRadius, XPVacuum};
 use crate::extensions::vectors::to_vec2;
+use crate::systems::guns::LevelableData;
 
 pub fn set_follower_velocity(
     mut query: Query<(&mut Velocity, &MoveSpeed, &Transform), (With<FollowPlayer>, Without<Player>)>,
@@ -20,6 +22,25 @@ pub fn set_follower_velocity(
         let new_velocity = direction * move_speed.value;
 
         velocity.linvel = to_vec2(new_velocity);
+    }
+}
+
+pub fn apply_xp_radius(
+    mut modifier_query: Query<(Entity, &XPVacuum, &AbilityLevel, &mut Collider), Changed<AbilityLevel>>,
+    mut commands: Commands,
+) {
+    for (entity, vacuum, ability, mut collider) in modifier_query.iter_mut() {
+        commands.entity(entity).insert(Collider::ball(XPPickupRadius::get_data_for_level(ability.level).radius));
+    }
+}
+
+pub fn apply_xp_multiplier(
+    mut modifier_query: Query<(&PassiveXPMultiplier, &AbilityLevel), Changed<AbilityLevel>>,
+    mut player_query: Query<(&mut XPMultiplier, &Player)>,
+) {
+    let (mut xp_multi, player) = player_query.single_mut();
+    for (_, ability) in modifier_query.iter_mut() {
+        xp_multi.value = XPMultiplier::get_data_for_level(ability.level).value;
     }
 }
 
@@ -38,9 +59,9 @@ pub fn apply_move_speed_multiplier(
             }
         }
 
-        if let Some(mut cold) = cold_maybe{
+        if let Some(mut cold) = cold_maybe {
             cold.timer.tick(time.delta());
-            if cold.timer.finished(){
+            if cold.timer.finished() {
                 commands.entity(entity).remove::<Cold>();
             }
             multiplier -= cold.multiplier;

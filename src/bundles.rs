@@ -1,26 +1,27 @@
-use bevy::asset::Assets;
+use std::ops::Bound;
 use bevy::core::Name;
-use bevy::math::{Vec2, Vec3};
-use bevy::prelude::{Bundle, Circle, Color, ColorMaterial, Commands, Component, default, In, Mesh, Res, ResMut, SpatialBundle, Sprite, Transform};
-use bevy::sprite::{MaterialMesh2dBundle, SpriteSheetBundle};
+use bevy::math::{Vec2, Vec3, Vec3Swizzles};
+use bevy::math::bounding::{Aabb2d, Bounded2d};
+use bevy::prelude::{Bundle, Color, Commands, Component, default, In, Res, ResMut, SpatialBundle, Sprite, SpriteBundle, Transform};
+use bevy::sprite::SpriteSheetBundle;
 use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
+use bevy_ecs_ldtk::{GridCoords, LdtkEntity, Worldly};
 use bevy_prng::WyRand;
 use bevy_rand::prelude::GlobalEntropy;
 use bevy_rapier2d::dynamics::{LockedAxes, RigidBody, Velocity};
 use bevy_rapier2d::geometry::{ActiveEvents, Collider, CollisionGroups, Restitution, Sensor};
-use bevy_rapier2d::parry::transformation::utils::transform;
+use bevy_rapier2d::na::clamp;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-use crate::animation::{AnimationState, AnimatorController, SpritePath};
+use crate::animation::{AnimationState, AnimatorController};
 use crate::animation::AnimationState::Walk;
-use crate::bundles::Object::Corpse;
-use crate::components::{AbilityLevel, BaseMoveSpeed, DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health, Lifetime, MoveSpeed, Player, XP};
-use crate::constants::{PLAYER_SPEED, XP_DIAMETER};
+use crate::components::{AbilityLevel, BaseMoveSpeed, DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health, Lifetime, MoveSpeed, PassiveXPMultiplier, Player, XP, XPMultiplier};
+use crate::constants::{CORPSE_LAYER, ENEMY_LAYER, PLAYER_LAYER, PLAYER_SPEED, XP_LAYER};
 use crate::initialization::load_prefabs::{Atlases, Enemies, load_enemy_data_from_path};
 use crate::physics::layers::game_layer;
 use crate::systems::animation::AnimationState::{Dead, Idle};
-use crate::systems::ui::FadeTextWithLifetime;
+use crate::systems::spawning::LevelBounds;
 
 const XP_COLOR: Color = Color::rgb(0.0, 1.0, 0.1);
 
@@ -37,11 +38,11 @@ pub enum Object {
     XP,
     Particle,
 }
-#[derive(Component)]
-pub struct DestroyAfterDeathAnimation{
 
-}
-#[derive(Bundle)]
+#[derive(Component)]
+pub struct DestroyAfterDeathAnimation {}
+
+#[derive(Bundle, LdtkEntity)]
 pub struct PlayerBundle {
     pub sprite: AnimatedSpriteBundle,
     pub name: Name,
@@ -52,7 +53,13 @@ pub struct PlayerBundle {
     pub xp: XP,
     move_speed: MoveSpeed,
     pub base_speed: BaseMoveSpeed,
+    pub worldly: Worldly,
+    pub xp_mult: XPMultiplier,
 }
+
+#[derive(LdtkEntity, Component)]
+#[derive(Default)]
+pub struct PlayerSpawn {}
 
 impl Default for PlayerBundle {
     fn default() -> Self {
@@ -75,9 +82,11 @@ impl Default for PlayerBundle {
             player: Default::default(),
             health: Health { value: 100.0 },
             animator: AnimatorController { state: AnimationState::Walk, name: "default".to_string() },
-            xp: XP { amount: 0 },
+            xp: XP { amount: 0.0 },
             move_speed: MoveSpeed { value: 0.0 },
             base_speed: BaseMoveSpeed { value: PLAYER_SPEED },
+            worldly: Default::default(),
+            xp_mult: Default::default(),
         }
     }
 }
@@ -85,7 +94,9 @@ impl Default for PlayerBundle {
 const PLAYER_SCALE: f32 = 4.0;
 
 impl PlayerBundle {
-    pub fn with_sprite(atlases: ResMut<Atlases>) -> Self {
+    pub fn with_sprite(atlases: ResMut<Atlases>,
+                       position: Vec2,
+    ) -> Self {
         Self {
             physical: PhysicalBundle {
                 collider: Collider::ball(2.0),
@@ -96,11 +107,11 @@ impl PlayerBundle {
             sprite: AnimatedSpriteBundle {
                 spritesheet: atlases.sprite_sheets.get("player").unwrap().clone(),
                 sprite_bundle: SpriteSheetBundle {
-                    sprite: Sprite{
+                    sprite: Sprite {
                         ..default()
                     },
                     transform: Transform {
-                        translation: Vec3::new(0.0, -250.0, 0.0),
+                        translation: position.extend(PLAYER_LAYER),
                         scale: Vec2::splat(PLAYER_SCALE).extend(1.0),
 
                         ..default()
@@ -114,9 +125,11 @@ impl PlayerBundle {
             health: Health { value: 100.0 },
             animator: AnimatorController { state: Idle, name: "player".to_string() },
 
-            xp: XP { amount: 0 },
+            xp: XP { amount: 0.0 },
             move_speed: MoveSpeed { value: 0.0 },
             base_speed: BaseMoveSpeed { value: PLAYER_SPEED },
+            worldly: Default::default(),
+            xp_mult: Default::default(),
         }
     }
 }
@@ -158,7 +171,7 @@ pub struct XPBundle {
     physical: PhysicalBundle,
     animator: AnimatorController,
     sensor: Sensor,
-    gain_xp : GainXPOnTouch,
+    gain_xp: GainXPOnTouch,
     name: Name,
 }
 
@@ -180,7 +193,7 @@ pub struct CorpseBundle {
 pub struct CorpseSpawnData {
     pub name: String,
     pub position: Vec2,
-    pub flip : bool,
+    pub flip: bool,
 }
 
 #[derive(Deserialize, Serialize, Bundle, Clone)]
@@ -230,6 +243,10 @@ impl EnemyBundle {
                 },
                 ..default()
             },
+            physical: PhysicalBundle{
+                collider: Collider::ball(8.0),
+                ..default()
+            },
             ..default()
         }
     }
@@ -249,7 +266,7 @@ impl Default for EnemyBundle {
                 enemy: Enemy { xp: 1 },
                 follow_player: FollowPlayer,
                 move_speed: MoveSpeed { value: 0.1 },
-                base_move_speed: BaseMoveSpeed {value : 0.1},
+                base_move_speed: BaseMoveSpeed { value: 0.1 },
                 health: Health { value: 5.0 },
                 touch_damage: DamageOnTouch { value: 1.0, ..default() },
             },
@@ -264,14 +281,15 @@ impl Default for EnemyBundle {
 pub struct EnemySpawnData {
     pub enemy_id: String,
     pub player_position: Vec2,
+    pub bounds: LevelBounds,
 }
+
+
 
 pub struct XPSpawnData {
     pub amount: u32,
     pub position: Vec2,
 }
-
-pub const CORPSE_LAYER: f32 = -2.0;
 
 pub fn spawn_corpse(
     In(corpse): In<CorpseSpawnData>,
@@ -289,7 +307,7 @@ pub fn spawn_corpse(
                     ..default()
                 },
 
-                sprite : Sprite{
+                sprite: Sprite {
                     flip_x: corpse.flip,
                     ..default()
                 },
@@ -319,16 +337,15 @@ pub fn spawn_enemy(
     let mut direction = Vec2::new(angle.cos(), angle.sin());
     let distance = Vec2::splat(600.0);
     direction *= distance;
-    bundle.animation_bundle.sprite_bundle.transform.translation = (direction + enemy_spawn_data.player_position).extend(0.0);
+    bundle.animation_bundle.sprite_bundle.transform.translation = Vec2::clamp(direction + enemy_spawn_data.player_position, enemy_spawn_data.bounds.min, enemy_spawn_data.bounds.max).extend(ENEMY_LAYER);
     // bundle.animation_bundle.sprite_bundle.transform.translation = (direction + enemy_spawn_data.player_position).extend(0.0);
     let mut enemy = commands.spawn(bundle);
 }
 
-pub const XP_LAYER: f32 = 1.0;
 pub fn spawn_xp(
     In(data): In<XPSpawnData>,
     mut commands: Commands,
-    atlases: Res<Atlases>
+    atlases: Res<Atlases>,
 ) {
     let name = "food";
     let mut spawned = commands.spawn(XPBundle {
@@ -345,7 +362,7 @@ pub fn spawn_xp(
             },
             ..default()
         },
-        physical: PhysicalBundle{
+        physical: PhysicalBundle {
             collider: Collider::ball(0.5),
             restitution: Default::default(),
             velocity: Default::default(),
@@ -360,7 +377,4 @@ pub fn spawn_xp(
         name: Name::new(name),
 
     });
-
-
-
 }
