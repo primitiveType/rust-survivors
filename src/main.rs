@@ -1,11 +1,20 @@
-use bevy_rapier2d::prelude::PhysicsSet;
+#![feature(duration_constructors)]
+
+use crate::physics::walls::WallBundle;
+use bevy_rapier2d::prelude::{PhysicsSet, RapierDebugRenderPlugin};
 use std::collections::HashMap;
+use std::env;
 use std::fmt::Debug;
 use std::hash::Hash;
+use std::time::Duration;
 
 use bevy::prelude::*;
+use bevy::window::{PresentMode, WindowTheme};
 use bevy_asepritesheet::core::SpriteAnimController;
 use bevy_asepritesheet::prelude::AsepritesheetPlugin;
+use bevy_ecs_ldtk::{LdtkPlugin, LevelSelection};
+use bevy_ecs_ldtk::app::LdtkEntityAppExt;
+use bevy_ecs_ldtk::prelude::LdtkIntCellAppExt;
 use bevy_egui::{EguiContexts, EguiPlugin};
 use bevy_prng::WyRand;
 use bevy_rand::prelude::EntropyPlugin;
@@ -24,9 +33,10 @@ use crate::{
     initialization::register_types::register_types,
     systems::*,
 };
-use crate::bundles::{CorpseSpawnData, EnemySpawnData, Object, XPSpawnData};
+use crate::bundles::{CorpseSpawnData, EnemySpawnData, Object, PlayerBundle, PlayerSpawn, XPSpawnData};
 use crate::initialization::inspector::add_inspector;
 use crate::initialization::load_prefabs::{Atlases, Enemies};
+use crate::physics::walls::Wall;
 use crate::systems::guns::{DamageTextSpawnData, FireballSpawnData, FlaskSpawnData, IceballSpawnData, ParticleSpawnData};
 
 mod components;
@@ -54,9 +64,11 @@ pub enum AppState {
 
 
 fn main() {
+    // this method needs to be inside main() method
+    env::set_var("RUST_BACKTRACE", "full");
     //TODO:
     //replace ice spike sprite
-    //add background
+    //replace molotov sprite
     //1 minute timer
     //make spawn rate more interesting
     //scale difficulty
@@ -65,7 +77,7 @@ fn main() {
     // --move speed
     // xp gain
     // damage
-    // display enemy health (maybe)
+
 //PATH=C:\Users\Arthu\.rustup\toolchains\nightly-x86_64-pc-windows-msvc\bin\;E:\Unity Projects\rust-survivors\target\debug\deps
     let mut app_binding = App::new();
     let app: &mut App = app_binding
@@ -79,9 +91,16 @@ fn main() {
             // },
             ..default()
         })
-        .add_plugins((DefaultPlugins.set(ImagePlugin::default_nearest()),// prevents blurry sprites
+        .add_plugins((DefaultPlugins.set(ImagePlugin::default_nearest()).set(WindowPlugin {
+            primary_window: Some(Window {
+                title: "Survive!".into(),
+                name: Some("Survive!".into()),
+                ..default()
+            }),
+            ..default()
+        }),// prevents blurry sprites
                       DefaultTweenPlugins,
-                      RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0).with_default_system_setup(true).in_schedule(time::PhysicsSchedule),
+                      RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(50.0).with_default_system_setup(true).in_schedule(time::PhysicsSchedule),
                       time::TimePlugin,
                       // (RapierDebugRenderPlugin::default()),
                       AsepritesheetPlugin::new(&["sprite.json"]),
@@ -91,7 +110,8 @@ fn main() {
 
                           .at(Val::Percent(35.0), Val::Percent(50.0)),
                       EntropyPlugin::<WyRand>::default(),
-                      EguiPlugin,//not needed if editor-egui is imported
+                      EguiPlugin,
+                      LdtkPlugin,
         ))
         .add_plugins((SpewPlugin::<Object, EnemySpawnData>::default(),
                       SpewPlugin::<Object, FireballSpawnData>::default(),
@@ -102,12 +122,16 @@ fn main() {
                       SpewPlugin::<Object, XPSpawnData>::default(),
                       SpewPlugin::<Object, ParticleSpawnData>::default(),
         ))
+        .register_ldtk_entity::<PlayerSpawn>("Player_spawn")
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .insert_resource(Atlases { sprite_sheets: HashMap::new() })
         .insert_resource(Enemies { datas: HashMap::new() })
         .insert_resource(SpriteAnimController::default())
+        .insert_resource(LevelSelection::index(1))
+        .insert_resource(spawning::RoundTimer { timer: Timer::new(Duration::from_mins(5), TimerMode::Once) })
         .init_asset::<bevy_asepritesheet::aseprite_data::SpritesheetData>()
         .add_event::<CollisionEvent>()
+        .register_ldtk_int_cell_for_layer::<WallBundle>("Walls", 1)
         .add_spawner((Object::Enemy, bundles::spawn_enemy))
         .add_spawner((Object::Fireball, guns::spawn_fireball))
         .add_spawner((Object::Iceball, guns::spawn_iceball))
@@ -125,7 +149,6 @@ fn main() {
                 initialization::load_prefabs::load_sprites,
                 initialization::load_prefabs::load_enemy_prefabs,
                 setup::setup,
-                ui::setup,
                 initialization::load_prefabs::load_gun_test,
             ).chain(),
         )
@@ -162,6 +185,10 @@ fn main() {
             //InGame update loop
             Update,
             (
+                // spawning::draw_level_bounds,
+                spawning::set_level_bounds,
+                physics::walls::spawn_wall_collision,
+                spawning::move_player_to_spawn_point,
                 (stats::update_move_speed_from_passive,
                  movement::apply_move_speed_multiplier,
                  movement::move_player,
@@ -172,20 +199,25 @@ fn main() {
                 // movement::_debug_collisions,
                 guns::deal_damage_on_collide,
                 guns::apply_cold_on_collide,
+                movement::apply_xp_radius,
+                movement::apply_xp_multiplier,
                 stats::pick_up_xp_on_touch,
                 stats::vacuum_xp_on_touch,
                 stats::level_up,
                 ui_example_system,
-                stats::update_level_descriptions_flask,
-                stats::update_level_descriptions_fireball,
-                stats::update_level_descriptions_move_speed,
-                stats::update_level_descriptions_iceball,
                 ui::fade_text,
                 (stats::reset_enemy_color,
                  stats::cold_objects_are_blue,
                 ).chain(),
                 (movement::camera_follow).after(PhysicsSet::Writeback),
             ).run_if(in_state(AppState::InGame)))
+        .add_systems(Update,
+                     (stats::update_level_descriptions_xp_multiplier,
+                      stats::update_level_descriptions_xp_radius,
+                      stats::update_level_descriptions_flask,
+                      stats::update_level_descriptions_fireball,
+                      stats::update_level_descriptions_move_speed,
+                      stats::update_level_descriptions_iceball, ))
         .add_systems(Update,
                      (//Always update loop
                       bevy::window::close_on_esc,
@@ -215,7 +247,7 @@ fn main() {
         )
         ;
     println!("{}", app.is_plugin_added::<EguiPlugin>());
-    let app: &mut App = add_inspector(app);
+    // let app: &mut App = add_inspector(app);
     let app: &mut App = register_types(app);
 
     app.run();

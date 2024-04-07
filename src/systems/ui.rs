@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_asepritesheet::core::SpriteAnimController;
 use bevy_egui::{egui, EguiContexts};
 use bevy_egui::egui::emath;
+use rand::seq::IteratorRandom;
 
 use crate::AppState;
 use crate::components::{AbilityLevel, Health, HealthUi, Lifetime, Player, XP};
@@ -13,44 +14,13 @@ pub struct LevelUpUiRoot;
 #[derive(Component)]
 pub struct FadeTextWithLifetime {}
 
-pub fn fade_text(mut query: Query<(&mut Text, &Lifetime), With<FadeTextWithLifetime>> ){
+pub fn fade_text(mut query: Query<(&mut Text, &Lifetime), With<FadeTextWithLifetime>>) {
     for (mut text, lifetime) in query.iter_mut() {
         let alpha = 1.0 - lifetime.timer.fraction();
         text.sections[0].style.color.set_a(alpha);
     }
 }
 
-pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // commands.spawn_bundle(UiCameraBundle::default());
-
-    // UI root node
-    commands.spawn(NodeBundle {
-        style: Style {
-            // size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
-
-            ..default()
-        },
-        visibility: Visibility::Hidden, // Start with the UI hidden
-        ..default()
-    }).insert(LevelUpUiRoot)
-        .with_children(|parent| {
-
-            // Button one
-            // let mut binding = parent.spawn(button());
-            // let button1 = binding.insert(ButtonAction::OptionOne);
-            // button1.with_children(|button| { button.spawn(button_text(&asset_server, "Option 1")); });
-            // // Button two
-            // let mut binding = parent.spawn(button());
-            // let button1 = binding.insert(ButtonAction::OptionTwo);
-            // button1.with_children(|parent| { parent.spawn(button_text(&asset_server, "Option 2")); });
-            // // Button three
-            // let mut binding = parent.spawn(button());
-            // let button1 = binding.insert(ButtonAction::OptionThree);
-            // button1.with_children(|parent| { parent.spawn(button_text(&asset_server, "Option 3")); });
-        });
-}
 
 fn button() -> ButtonBundle {
     ButtonBundle {
@@ -118,8 +88,6 @@ pub fn button_system(
                     }
                 }
             });
-
-
         });
 }
 
@@ -132,11 +100,14 @@ pub struct LevelUpChoice {
 pub fn prepare_level_up(abilities: Query<(Entity, &AbilityLevel, &Name)>,
                         mut commands: Commands,
 ) {
+    let num_choices = 3;
     //randomly choose abilities to level
     //player may or may not have them already
     // commands.entity(player_query.single_mut()).
-    for (entity, ability, name) in abilities.iter() {
-        commands.spawn(LevelUpChoice {entity_to_level: entity });
+    let mut rng = rand::thread_rng();
+
+    for (entity, ability, name) in abilities.iter().choose_multiple(&mut rng, num_choices) {
+        commands.spawn(LevelUpChoice { entity_to_level: entity });
     }
 }
 

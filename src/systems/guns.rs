@@ -3,7 +3,7 @@ use std::time::Duration;
 use bevy::asset::{Assets, Handle};
 use bevy::ecs::query::QueryEntityError;
 use bevy::math::{Vec3, Vec3Swizzles};
-use bevy::prelude::{BuildChildren, Color, Commands, Component, default, Entity, EventReader, GlobalTransform, In, Mut, Query, Res, ResMut, Sprite, SpriteSheetBundle, Text, Text2dBundle, TextStyle, Time, Transform, Vec2, With, Without};
+use bevy::prelude::{BuildChildren, Color, Commands, default, Entity, EventReader, GlobalTransform, In, Mut, Query, Res, ResMut, Sprite, SpriteSheetBundle, Text, Text2dBundle, TextStyle, Time, Transform, Vec2, With};
 use bevy::time::{Timer, TimerMode};
 use bevy_asepritesheet::animator::{AnimatedSpriteBundle, AnimFinishEvent, SpriteAnimator};
 use bevy_asepritesheet::prelude::{AnimEventSender, AnimHandle, Spritesheet};
@@ -16,7 +16,8 @@ use bevy_rapier2d::prelude::{QueryFilter, Velocity};
 use rand::Rng;
 
 use crate::bundles::{DestroyAfterDeathAnimation, Object, PhysicalBundle};
-use crate::components::{Cooldown, Bullet, BulletBundle, DamageOnTouch, Enemy, FireBallGun, Health, AttackSpeed, Flask, FlaskProjectileBundle, Lifetime, Expired, AbilityLevel, IceBallGun, ApplyColdOnTouch, MoveSpeed, ParentMoveSpeedMultiplier, Cold};
+use crate::components::{AbilityLevel, ApplyColdOnTouch, AttackSpeed, Bullet, BulletBundle, Cold, Cooldown, DamageOnTouch, Enemy, Expired, FireBallGun, Flask, FlaskProjectileBundle, Health, IceBallGun, Lifetime, MoveSpeed};
+use crate::constants::{BACKGROUND_PROJECTILE_LAYER, DAMAGE_TEXT_LAYER, PIXEL_SCALE};
 use crate::extensions::spew_extensions::{Spawn, Spawner};
 use crate::extensions::vectors::to_vec2;
 use crate::initialization::load_prefabs::Atlases;
@@ -328,7 +329,7 @@ pub fn spawn_particle(In(data): In<ParticleSpawnData>, mut commands: Commands, a
             sprite_bundle: SpriteSheetBundle
             {
                 transform: Transform::from_translation(data.position.extend(PARTILE_STATUS_LAYER)).with_scale(data.scale.extend(1.0)),
-                sprite: Sprite{
+                sprite: Sprite {
                     color: data.color,
                     ..default()
                 },
@@ -373,7 +374,7 @@ pub struct FlaskSpawnData {
     gun: Flask,
     position: Vec2,
     pub scale: f32,
-    pub cooldown: Cooldown,
+    pub cooldown: f32,
 }
 
 impl LevelableData for FlaskSpawnData {
@@ -381,8 +382,8 @@ impl LevelableData for FlaskSpawnData {
         Self {
             gun: Flask {},
             position: Default::default(),
-            scale: 1.0 * level as f32,
-            cooldown: Cooldown::from_seconds(clamp(10.0 - (0.5 * level as f32), 0.5, 100.0)),
+            scale:  5.0 + (level as f32),
+            cooldown: clamp(10.0 - (1.25 * level as f32), 0.5, 100.0),
         }
     }
 }
@@ -390,9 +391,6 @@ impl LevelableData for FlaskSpawnData {
 pub trait LevelableData {
     fn get_data_for_level(level: u8) -> Self;
 }
-
-pub const BACKGROUND_PROJECTILE_LAYER: f32 = -1.0;
-pub const DAMAGE_TEXT_LAYER: f32 = 10.0;
 
 
 pub fn spawn_damage_text(In(data): In<DamageTextSpawnData>,
@@ -479,21 +477,22 @@ impl LevelableData for IceballSpawnData {
             bullet_lifetime_seconds: 2.0,
             position: Default::default(),
             direction: Default::default(),
-            bullet_size: 50_000.0 + (level as f32 * 1_000_f32),
-            pierce: 0,
+            bullet_size: 1.0,
+            pierce: level.clamp(1,255) - 1,
             bullet_speed: 400.0 + (level as f32 * 10.0),
         }
     }
 }
 
 impl LevelableData for FireballSpawnData {
-    fn get_data_for_level(level: u8) -> Self {
+    fn get_data_for_level(mut level: u8) -> Self {
+        level = level - 1;
         Self {
-            damage: level as f32,
+            damage: 1.0 + (level as f32 ).floor(),
             position: Default::default(),
             direction: Default::default(),
-            bullet_size: 50_000.0 + (level as f32 * 1_000_f32),
-            pierce: 0,
+            bullet_size: 1.0 + (level as f32 * 0.1_f32),
+            pierce: (level as f32 * 0.25).floor() as u8,
             bullet_speed: 400.0 + (level as f32 * 10.0),
         }
     }
@@ -505,12 +504,14 @@ pub fn spawn_iceball(
     mut commands: Commands,
 ) {
     let speed = data.bullet_speed;
+    let base_size = 2.0;
+
     let bundle = BulletBundle {
         sprite_sheet: AnimatedSpriteBundle {
             animator: SpriteAnimator::from_anim(AnimHandle::from_index(0)),
-            spritesheet: atlases.sprite_sheets.get("fireball").expect("failed to find asset for bullet!").clone(),
+            spritesheet: atlases.sprite_sheets.get("snowball").expect("failed to find asset for bullet!").clone(),
             sprite_bundle: SpriteSheetBundle {
-                transform: Transform::from_translation(data.position).with_scale(Vec3::new(5.0, 0.5, 0.0)),
+                transform: Transform::from_translation(data.position).with_scale(Vec3::new(base_size * data.bullet_size, base_size * data.bullet_size, 0.0)),
                 ..default()
             },
 
@@ -518,7 +519,7 @@ pub fn spawn_iceball(
         },
         physical: PhysicalBundle {
             collider: Collider::ball(
-                0.5),
+                data.bullet_size),
             restitution: Restitution::new(1.0),
             velocity: Velocity { linvel: data.direction * speed, angvel: 0.0 },
             collision_layers: CollisionGroups::new(game_layer::PLAYER, game_layer::GROUND | game_layer::ENEMY),
@@ -545,13 +546,15 @@ pub fn spawn_fireball(
     atlases: ResMut<Atlases>,
     mut commands: Commands,
 ) {
+    let base_size = 2.0;
+    let sprite = atlases.sprite_sheets.get("fireball").expect("failed to find asset for bullet!").clone();
     let speed = data.bullet_speed;
     let bundle = BulletBundle {
         sprite_sheet: AnimatedSpriteBundle {
             animator: SpriteAnimator::from_anim(AnimHandle::from_index(0)),
-            spritesheet: atlases.sprite_sheets.get("fireball").expect("failed to find asset for bullet!").clone(),
+            spritesheet: sprite,
             sprite_bundle: SpriteSheetBundle {
-                transform: Transform::from_translation(data.position).with_scale(Vec3::new(2.0, 2.0, 0.0)),
+                transform: Transform::from_translation(data.position).with_scale(Vec3::new(base_size * data.bullet_size, base_size * data.bullet_size, 1.0)),
                 ..default()
             },
 
@@ -559,7 +562,7 @@ pub fn spawn_fireball(
         },
         physical: PhysicalBundle {
             collider: Collider::ball(
-                0.5),
+                PIXEL_SCALE * data.bullet_size),
             restitution: Restitution::new(1.0),
             velocity: Velocity { linvel: data.direction * speed, angvel: 0.0 },
             collision_layers: CollisionGroups::new(game_layer::PLAYER, game_layer::GROUND | game_layer::ENEMY),

@@ -7,6 +7,7 @@ use bevy::core::Name;
 use bevy::hierarchy::Parent;
 use bevy::math::{Vec2, Vec3, Vec3Swizzles};
 use bevy::prelude::{Changed, Color, ColorMaterial, Commands, default, Entity, EventReader, Mesh, NextState, Query, ResMut, Sprite, SpriteSheetBundle, Transform, With, Without};
+use bevy::time::{Timer, TimerMode};
 use bevy_asepritesheet::animator::{AnimatedSpriteBundle, SpriteAnimator};
 use bevy_asepritesheet::sprite::Spritesheet;
 use bevy_egui::egui::debug_text::print;
@@ -16,7 +17,7 @@ use rand::Rng;
 
 use crate::AppState;
 use crate::bundles::{CorpseBundle, CorpseSpawnData, Object, spawn_xp, XPSpawnData};
-use crate::components::{AbilityLevel, BaseMoveSpeed, Cold, Enemy, FireBallGun, Flask, FollowPlayer, GainXPOnTouch, Health, IceBallGun, Lifetime, MoveSpeed, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier, Player, XP, XPVacuum};
+use crate::components::{AbilityLevel, BaseMoveSpeed, Cold, Cooldown, Enemy, FireBallGun, Flask, FollowPlayer, GainXPOnTouch, Health, IceBallGun, Lifetime, MoveSpeed, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier, PassiveXPMultiplier, Player, XP, XPMultiplier, XPPickupRadius, XPVacuum};
 use crate::extensions::spew_extensions::{Spawn, Spawner};
 use crate::systems::guns::{FireballSpawnData, FlaskSpawnData, IceballSpawnData, LevelableData, ParticleSpawnData};
 
@@ -133,16 +134,46 @@ pub fn update_level_descriptions_move_speed(mut abilities: Query<(&mut AbilityLe
         ability.description = description;
     }
 }
-
-pub fn update_level_descriptions_flask(mut abilities: Query<(&mut AbilityLevel, &Flask), Changed<AbilityLevel>>,
+pub fn update_level_descriptions_xp_radius(mut abilities: Query<(&mut AbilityLevel, &XPPickupRadius), Changed<AbilityLevel>>,
 ) {
     for (mut ability, _flask) in abilities.iter_mut() {
         println!("Updating flask description.");
+        let current_level = XPPickupRadius::get_data_for_level(ability.level);
+        let next_level = XPPickupRadius::get_data_for_level(ability.level + 1);
+        let mut description = "XP Pickup Radius".to_string();
+        // ability.description = format!("Molotov Cocktail\r\nSize:\r\n{} -> {}\r\n Cooldown:\r\n{} -> {}", current_level.scale, next_level.scale, current_level.cooldown.display_seconds(), next_level.cooldown.timer.display_seconds()).to_string();
+        push_stat_block(&mut description, "Radius", current_level.radius, next_level.radius);
+
+        ability.description = description;
+    }
+}
+
+pub fn update_level_descriptions_xp_multiplier(mut abilities: Query<(&mut AbilityLevel, &PassiveXPMultiplier), Changed<AbilityLevel>>,
+) {
+    for (mut ability, _flask) in abilities.iter_mut() {
+        println!("Updating xp mult description.");
+        let current_level = XPMultiplier::get_data_for_level(ability.level);
+        let next_level = XPMultiplier::get_data_for_level(ability.level + 1);
+        let mut description = "XP Multiplier".to_string();
+        push_stat_block(&mut description, "Multiplier Bonus", current_level.value, next_level.value);
+        ability.description = description;
+    }
+}
+
+pub fn update_level_descriptions_flask(mut abilities: Query<(&mut AbilityLevel, &Flask, &mut Cooldown), Changed<AbilityLevel>>,
+) {
+    for (mut ability, _flask, mut cooldown) in abilities.iter_mut() {
+        println!("Updating flask description.");
+        if(ability.level == 0){
+            ability.description = "Molotov Cocktail \r\n Randomly summon an area of destruction.".to_string();
+            return;
+        }
         let current_level = FlaskSpawnData::get_data_for_level(ability.level);
+        cooldown.timer = Timer::from_seconds(current_level.cooldown, TimerMode::Repeating);
         let next_level = FlaskSpawnData::get_data_for_level(ability.level + 1);
         let mut description = "Molotov Cocktail".to_string();
         // ability.description = format!("Molotov Cocktail\r\nSize:\r\n{} -> {}\r\n Cooldown:\r\n{} -> {}", current_level.scale, next_level.scale, current_level.cooldown.display_seconds(), next_level.cooldown.timer.display_seconds()).to_string();
-        push_stat_block(&mut description, "Cooldown", current_level.cooldown.display_seconds(), next_level.cooldown.display_seconds());
+        push_stat_block(&mut description, "Cooldown", current_level.cooldown, next_level.cooldown);
         push_stat_block(&mut description, "Size", current_level.scale, next_level.scale);
 
         ability.description = description;
@@ -153,6 +184,10 @@ pub fn update_level_descriptions_fireball(mut abilities: Query<(&mut AbilityLeve
 ) {
     for (mut ability, _fireball) in abilities.iter_mut() {
         println!("Updating fireball description.");
+        if(ability.level == 0){
+            ability.description = "Fireball \r\n Throw a fireball that deals damage.".to_string();
+            return;
+        }
         let current_level = FireballSpawnData::get_data_for_level(ability.level);
         let next_level = FireballSpawnData::get_data_for_level(ability.level + 1);
         let mut description = "Fireball".to_string();
@@ -170,9 +205,13 @@ pub fn update_level_descriptions_iceball(mut abilities: Query<(&mut AbilityLevel
 ) {
     for (mut ability, _) in abilities.iter_mut() {
         println!("Updating iceball description.");
+        if(ability.level == 0){
+            ability.description = "Snowball \r\n Throw a snowball that slows enemies.".to_string();
+            return;
+        }
         let current_level = IceballSpawnData::get_data_for_level(ability.level);
         let next_level = IceballSpawnData::get_data_for_level(ability.level + 1);
-        let mut description = "Ice Spike".to_string();
+        let mut description = "Snowball".to_string();
         // ability.description = format!("Molotov Cocktail\r\nSize:\r\n{} -> {}\r\n Cooldown:\r\n{} -> {}", current_level.scale, next_level.scale, current_level.cooldown.display_seconds(), next_level.cooldown.timer.display_seconds()).to_string();
         push_stat_block(&mut description, "Slow duration", current_level.slow_seconds, next_level.slow_seconds);
         push_stat_block(&mut description, "Bullet Lifetime", current_level.bullet_lifetime_seconds, next_level.bullet_lifetime_seconds);
@@ -186,17 +225,21 @@ pub fn update_level_descriptions_iceball(mut abilities: Query<(&mut AbilityLevel
     }
 }
 
-pub fn push_stat_block(desc: &mut String, label: impl Display, value1: impl Display, value2: impl Display) {
+
+pub fn push_stat_block<T: PartialEq + Display>(desc: &mut String, label: impl Display, value1: T, value2: T) {
+    if value1 == value2 {
+        return;
+    }
     desc.push_str("\r\n");
     desc.push_str(format!("{label}:").as_str());
     desc.push_str("\r\n");
-    desc.push_str(format!("{value1} --> {value2}").as_str());
+    desc.push_str(format!("        {value1} --> {value2}").as_str());
 }
 
 pub fn pick_up_xp_on_touch(
     mut commands: Commands,
     mut collision_events: EventReader<CollisionEvent>,
-    mut player_query: Query<(Entity, &Player, &mut XP)>,
+    mut player_query: Query<(Entity, &Player, &mut XP, &XPMultiplier)>,
     xp_query: Query<(Entity, &GainXPOnTouch)>,
 ) {
     for collision_event in collision_events.read() {
@@ -223,8 +266,9 @@ pub fn pick_up_xp_on_touch(
                     continue;
                 }
 
-                let (e_entity, _player, mut player_xp) = player.unwrap();
-                player_xp.amount += xp.unwrap().1.value;
+                let (e_entity, _player, mut player_xp, xp_mult) = player.unwrap();
+                println!("got xp!");
+                player_xp.amount += (xp.unwrap().1.value as f32)  * (xp_mult.value + 1.0);
                 commands.entity(*xp_entity).despawn();
             }
             _ => {}
@@ -276,7 +320,7 @@ pub fn level_up(
     mut query: Query<(Entity, &mut Player, &XP)>,
     mut next_state: ResMut<NextState<AppState>>) {
     for (_, mut player, xp) in query.iter_mut() {
-        if xp.amount / 2 > player.level as u32 {
+        if xp.amount / player.level as f32 * 2.0 > player.level as f32  {
             next_state.set(AppState::LevelUp);
             player.level += 1;
         }
