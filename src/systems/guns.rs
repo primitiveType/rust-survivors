@@ -1,29 +1,36 @@
-use std::time::Duration;
-
 use bevy::asset::{Assets, Handle};
 use bevy::ecs::query::QueryEntityError;
+use bevy::log::tracing_subscriber::fmt::time;
 use bevy::math::{Vec3, Vec3Swizzles};
-use bevy::prelude::{BuildChildren, Color, Commands, default, Entity, EventReader, GlobalTransform, In, Mut, Query, Res, ResMut, Sprite, SpriteSheetBundle, Text, Text2dBundle, TextStyle, Time, Transform, Vec2, With};
+use bevy::prelude::{
+    default, BuildChildren, Color, Commands, Component, Entity, EventReader, GlobalTransform, In,
+    Mut, Query, Res, ResMut, Sprite, SpriteSheetBundle, Text, Text2dBundle, TextStyle, Time,
+    Transform, Vec2, With, Without,
+};
+use bevy::time::TimerMode::Once;
 use bevy::time::{Timer, TimerMode};
-use bevy_asepritesheet::animator::{AnimatedSpriteBundle, AnimFinishEvent, SpriteAnimator};
+use bevy_asepritesheet::animator::{AnimFinishEvent, AnimatedSpriteBundle, SpriteAnimator};
 use bevy_asepritesheet::prelude::{AnimEventSender, AnimHandle, Spritesheet};
 use bevy_rapier2d::dynamics::RigidBody;
 use bevy_rapier2d::geometry::{Collider, CollisionGroups, Restitution};
 use bevy_rapier2d::na::clamp;
+use bevy_rapier2d::parry::math::DEFAULT_EPSILON;
 use bevy_rapier2d::pipeline::CollisionEvent;
 use bevy_rapier2d::plugin::RapierContext;
 use bevy_rapier2d::prelude::{QueryFilter, Velocity};
 use rand::Rng;
+use std::time::Duration;
+use temporary_component_derive::*;
 
 use crate::bundles::{DestroyAfterDeathAnimation, Object, PhysicalBundle};
-use crate::components::{AbilityLevel, ApplyColdOnTouch, AttackSpeed, Bullet, BulletBundle, Cold, Cooldown, DamageOnTouch, Enemy, Expired, FireBallGun, Flask, FlaskProjectileBundle, Health, IceBallGun, Lifetime, MoveSpeed};
+use crate::components::{AbilityLevel, ApplyColdOnTouch, AttackSpeed, Bullet, BulletBundle, Cold, Cooldown, DamageOnTouch, Enemy, Expired, FireBallGun, Flask, FlaskProjectileBundle, Health, IceBallGun, Lifetime, MoveSpeed, TemporaryComponent};
 use crate::constants::{BACKGROUND_PROJECTILE_LAYER, DAMAGE_TEXT_LAYER, PIXEL_SCALE};
 use crate::extensions::spew_extensions::{Spawn, Spawner};
 use crate::extensions::vectors::to_vec2;
 use crate::initialization::load_prefabs::Atlases;
-use crate::Name;
 use crate::physics::layers::game_layer;
 use crate::systems::ui::FadeTextWithLifetime;
+use crate::Name;
 
 //adding a new ability
 //1.. add system that does the ability thing. It should require an AbilityLevel component
@@ -34,14 +41,15 @@ pub fn advance_cooldowns(
     mut query: Query<&mut Cooldown>,
     mut cdr_query: Query<&mut AttackSpeed>,
     time: Res<Time>,
-) {//assumes only player needs concept of abilities and CDR, which might change.
+) {
+    //assumes only player needs concept of abilities and CDR, which might change.
     for mut ability in query.iter_mut() {
         let mut total_cdr = 100.0f32;
         for cdr in cdr_query.iter_mut() {
             total_cdr += cdr.percent;
         }
 
-        let multiplier = total_cdr * 0.01f32;//convert percentage to multiplier
+        let multiplier = total_cdr * 0.01f32; //convert percentage to multiplier
         let delta_seconds = time.delta().as_secs_f32();
         let multiplied_delta = delta_seconds * multiplier;
 
@@ -70,7 +78,6 @@ pub fn flask_weapon(
             // Calculate the direction vector from the angle
             let mut direction = Vec2::new(angle.cos(), angle.sin());
 
-
             let distance = Vec2::splat(rng.gen_range(50.0..400.0));
             direction *= distance;
 
@@ -81,7 +88,6 @@ pub fn flask_weapon(
         }
     }
 }
-
 
 pub fn iceball_gun(
     mut query: Query<(&mut Cooldown, &GlobalTransform, &IceBallGun, &AbilityLevel)>,
@@ -99,7 +105,7 @@ pub fn iceball_gun(
                 true,
                 QueryFilter {
                     flags: Default::default(),
-                    groups: Some(CollisionGroups::new(game_layer::ENEMY, game_layer::ENEMY)),//is this filter correct?
+                    groups: Some(CollisionGroups::new(game_layer::ENEMY, game_layer::ENEMY)), //is this filter correct?
                     exclude_collider: None,
                     exclude_rigid_body: None,
                     predicate: None,
@@ -138,7 +144,7 @@ pub fn fireball_gun(
                 true,
                 QueryFilter {
                     flags: Default::default(),
-                    groups: Some(CollisionGroups::new(game_layer::ENEMY, game_layer::ENEMY)),//is this filter correct?
+                    groups: Some(CollisionGroups::new(game_layer::ENEMY, game_layer::ENEMY)), //is this filter correct?
                     exclude_collider: None,
                     exclude_rigid_body: None,
                     predicate: None,
@@ -161,23 +167,25 @@ pub fn fireball_gun(
     }
 }
 
-pub fn apply_cold_on_collide(mut collision_events: EventReader<CollisionEvent>,
-                             mut enemy_query: Query<(Entity), (With<Enemy>, With<MoveSpeed>)>,
-                             mut damage_query: Query<(&ApplyColdOnTouch)>,
-                             mut commands: Commands,
+pub fn apply_cold_on_collide(
+    mut collision_events: EventReader<CollisionEvent>,
+    mut enemy_query: Query<(Entity), (With<Enemy>, With<MoveSpeed>)>,
+    mut damage_query: Query<(&ApplyColdOnTouch)>,
+    mut commands: Commands,
 ) {
     for collision_event in collision_events.read() {
         //need unique tags for icy, etc. So a given effect only applies once...
         match collision_event {
             CollisionEvent::Started(entity1, entity2, _flags) => {
-                {//entity 2 damages entity 1 if it can
+                {
+                    //entity 2 damages entity 1 if it can
                     let slowed_entity = enemy_query.get_mut(*entity1);
                     let slowing_entity = damage_query.get_mut(*entity2);
 
-
                     try_slow(slowing_entity, slowed_entity, &mut commands);
                 }
-                {//entity 1 damages entity 2 if it can
+                {
+                    //entity 1 damages entity 2 if it can
                     let entity2_health = enemy_query.get_mut(*entity2);
                     let entity1_damage = damage_query.get_mut(*entity1);
                     try_slow(entity1_damage, entity2_health, &mut commands);
@@ -188,17 +196,44 @@ pub fn apply_cold_on_collide(mut collision_events: EventReader<CollisionEvent>,
     }
 }
 
+#[derive(Component, TemporaryComponent)]
+pub struct Damaged {
+    timer: Timer,
+    //consider using trait_queries crate for the common pattern of having a component that needs to be removed
+    //when its timer expires. I think statuses will probably all do this.
+    //may not work due to remove function being generic though...
+}
+
+
+
+pub fn process_temporary_component<T>(
+    mut damaged: Query<(Entity, &mut T)>,
+    time: Res<Time>,
+    mut commands: Commands,
+) where
+    T: TemporaryComponent + Component,
+{
+    for (entity, mut damaged) in damaged.iter_mut() {
+        damaged.advance_timer(time.delta());
+        if (damaged.is_finished()) {
+            commands.entity(entity).remove::<T>();
+        }
+    }
+}
+
 pub fn deal_damage_on_collide(
     mut collision_events: EventReader<CollisionEvent>,
-    mut health_query: Query<(Entity, &mut Health, &Transform)>,
-    enemy_query: Query<(Entity, &Enemy)>,//HACK do something smarter.
+    mut health_query: Query<(Entity, &mut Health, &Transform), Without<Damaged>>,
+    enemy_query: Query<(Entity, &Enemy)>, //HACK do something smarter.
     mut damage_query: Query<(Entity, &mut DamageOnTouch)>,
     mut spawner: Spawner<DamageTextSpawnData>,
+    mut commands: Commands,
 ) {
     for collision_event in collision_events.read() {
         match collision_event {
             CollisionEvent::Started(entity1, entity2, _flags) => {
-                {//entity 2 damages entity 1 if it can
+                {
+                    //entity 2 damages entity 1 if it can
                     let entity1_health = health_query.get_mut(*entity1);
                     let entity2_damage = damage_query.get_mut(*entity2);
 
@@ -207,12 +242,13 @@ pub fn deal_damage_on_collide(
                     if enemy1.is_ok() && enemy2.is_ok() {
                         continue;
                     }
-                    try_deal_damage(entity2_damage, entity1_health, &mut spawner);
+                    try_deal_damage(&mut commands, entity2_damage, entity1_health, &mut spawner);
                 }
-                {//entity 1 damages entity 2 if it can
+                {
+                    //entity 1 damages entity 2 if it can
                     let entity2_health = health_query.get_mut(*entity2);
                     let entity1_damage = damage_query.get_mut(*entity1);
-                    try_deal_damage(entity1_damage, entity2_health, &mut spawner);
+                    try_deal_damage(&mut commands, entity1_damage, entity2_health, &mut spawner);
                 }
             }
             _ => {}
@@ -220,63 +256,92 @@ pub fn deal_damage_on_collide(
     }
 }
 
-fn try_deal_damage(entity1_damage: Result<(Entity, Mut<DamageOnTouch>), QueryEntityError>, entity2_health: Result<(Entity, Mut<Health>, &Transform), QueryEntityError>, spawner: &mut Spawner<DamageTextSpawnData>) {
+pub const DEFAULT_I_FRAMES: f32 = 0.25f32;
+
+fn try_deal_damage(
+    commands: &mut Commands,
+    entity1_damage: Result<(Entity, Mut<DamageOnTouch>), QueryEntityError>,
+    entity2_health: Result<(Entity, Mut<Health>, &Transform), QueryEntityError>,
+    spawner: &mut Spawner<DamageTextSpawnData>,
+) {
     match (entity1_damage, entity2_health) {
-        (Ok((_, mut damage)), Ok((_, mut health, transform))) => {
+        (Ok((_, mut damage)), Ok((health_entity, mut health, transform))) => {
             health.value -= damage.value;
             damage.count_triggers += 1;
-            spawner.spawn(Object::DamageNumber, DamageTextSpawnData { position: transform.translation.xy(), amount: damage.value as u32 })
+            commands.entity(health_entity).insert(Damaged {
+                timer: Timer::from_seconds(DEFAULT_I_FRAMES, Once),
+            });
+            spawner.spawn(
+                Object::DamageNumber,
+                DamageTextSpawnData {
+                    position: transform.translation.xy(),
+                    amount: damage.value as u32,
+                },
+            )
         }
         _ => {}
     }
 }
 
-fn try_slow(entity1_damage: Result<&ApplyColdOnTouch, QueryEntityError>, entity2_health: Result<Entity, QueryEntityError>, mut commands: &mut Commands) {
+fn try_slow(
+    entity1_damage: Result<&ApplyColdOnTouch, QueryEntityError>,
+    entity2_health: Result<Entity, QueryEntityError>,
+    mut commands: &mut Commands,
+) {
     match (entity1_damage, entity2_health) {
         (Ok((slow)), Ok((entity))) => {
             // let mut child = commands.spawn((ParentMoveSpeedMultiplier { value: -slow.multiplier }, Lifetime::from_seconds(slow.seconds)));
             // child.insert(Name ::new("slow effect"));
             // child.set_parent(entity);
-            commands.entity(entity).insert(Cold { multiplier: slow.multiplier, timer: Timer::from_seconds(slow.seconds, TimerMode::Once) });
+            commands.entity(entity).insert(Cold {
+                multiplier: slow.multiplier,
+                timer: Timer::from_seconds(slow.seconds, TimerMode::Once),
+            });
         }
         _ => {}
     }
 }
 
-
-pub fn expire_bullets_on_hit(mut bullets: Query<(&mut Bullet, Entity, &Transform, &DamageOnTouch)>,
-                             mut commands: Commands,
+pub fn expire_bullets_on_hit(
+    mut bullets: Query<(&mut Bullet, Entity, &Transform, &DamageOnTouch)>,
+    mut commands: Commands,
 ) {
     for (bullet, entity, transform, damage) in bullets.iter_mut() {
-        if damage.count_triggers > bullet.pierce.into()
-        {
+        if damage.count_triggers > bullet.pierce.into() {
             commands.entity(entity).insert(Expired {});
         }
     }
 }
 
-pub fn expired_bullets_explode(mut bullets: Query<(Entity, &Bullet, &Transform, &Name), With<Expired>>,
-                               mut commands: Commands,
-                               atlases: Res<Atlases>,
-                               sprite_assets: Res<Assets<Spritesheet>>,
-                               mut spawner: Spawner<ParticleSpawnData>) {
+pub fn expired_bullets_explode(
+    mut bullets: Query<(Entity, &Bullet, &Transform, &Name), With<Expired>>,
+    mut commands: Commands,
+    atlases: Res<Atlases>,
+    sprite_assets: Res<Assets<Spritesheet>>,
+    mut spawner: Spawner<ParticleSpawnData>,
+) {
     for (bullet, entity, transform, name) in bullets.iter_mut() {
-        spawner.spawn(Object::Particle, ParticleSpawnData {
-            position: transform.translation.xy(),
-            scale: Vec2::splat(1.0),
-            sprite_sheet: name.to_string(),
-            color: Color::rgb(0.9, 0.3, 0.0),
-            animation: "Dead".to_string(),
-            parent: None,
-            lifetime: Lifetime::from_seconds(1.0),
-        });
+        spawner.spawn(
+            Object::Particle,
+            ParticleSpawnData {
+                position: transform.translation.xy(),
+                scale: Vec2::splat(1.0),
+                sprite_sheet: name.to_string(),
+                color: Color::rgb(0.9, 0.3, 0.0),
+                animation: "Dead".to_string(),
+                parent: None,
+                lifetime: Lifetime::from_seconds(1.0),
+            },
+        );
         // spawn_particle(transform.translation, &mut commands, name.to_string(), "Dead", &atlases, &sprite_assets);
     }
 }
 
-pub fn expire_entities(mut lifetimes: Query<(Entity, &mut Lifetime)>,
-                       mut commands: Commands,
-                       time: Res<Time>) {
+pub fn expire_entities(
+    mut lifetimes: Query<(Entity, &mut Lifetime)>,
+    mut commands: Commands,
+    time: Res<Time>,
+) {
     for (entity, mut lifetime) in lifetimes.iter_mut() {
         lifetime.timer.tick(time.delta());
         if lifetime.timer.just_finished() {
@@ -285,9 +350,7 @@ pub fn expire_entities(mut lifetimes: Query<(Entity, &mut Lifetime)>,
     }
 }
 
-pub fn destroy_expired_entities(mut lifetimes: Query<(Entity, &Expired)>,
-                                mut commands: Commands,
-) {
+pub fn destroy_expired_entities(mut lifetimes: Query<(Entity, &Expired)>, mut commands: Commands) {
     for (entity, _) in lifetimes.iter_mut() {
         commands.entity(entity).despawn();
     }
@@ -306,8 +369,17 @@ pub struct ParticleSpawnData {
 
 pub const PARTILE_STATUS_LAYER: f32 = 4.0;
 
-pub fn spawn_particle(In(data): In<ParticleSpawnData>, mut commands: Commands, atlases: Res<Atlases>, sprite_assets: Res<Assets<Spritesheet>>) {
-    let spritesheet = atlases.sprite_sheets.get(&data.sprite_sheet).expect("failed to find particle animation!").clone();
+pub fn spawn_particle(
+    In(data): In<ParticleSpawnData>,
+    mut commands: Commands,
+    atlases: Res<Atlases>,
+    sprite_assets: Res<Assets<Spritesheet>>,
+) {
+    let spritesheet = atlases
+        .sprite_sheets
+        .get(&data.sprite_sheet)
+        .expect("failed to find particle animation!")
+        .clone();
     let mut anim_handle = AnimHandle::from_index(0);
     // Attempt to get the asset using the handle
     if let Some(asset) = sprite_assets.get(&spritesheet) {
@@ -318,7 +390,8 @@ pub fn spawn_particle(In(data): In<ParticleSpawnData>, mut commands: Commands, a
         // The asset is not loaded yet, you might handle this case accordingly
         println!("Asset not loaded yet");
     }
-    let parent_exists = data.parent.is_some() && commands.get_entity(data.parent.unwrap()).is_some();
+    let parent_exists =
+        data.parent.is_some() && commands.get_entity(data.parent.unwrap()).is_some();
     let mut spawned = commands.spawn((
         data.lifetime,
         AnimEventSender,
@@ -326,9 +399,9 @@ pub fn spawn_particle(In(data): In<ParticleSpawnData>, mut commands: Commands, a
         AnimatedSpriteBundle {
             animator: SpriteAnimator::from_anim(anim_handle),
             spritesheet,
-            sprite_bundle: SpriteSheetBundle
-            {
-                transform: Transform::from_translation(data.position.extend(PARTILE_STATUS_LAYER)).with_scale(data.scale.extend(1.0)),
+            sprite_bundle: SpriteSheetBundle {
+                transform: Transform::from_translation(data.position.extend(PARTILE_STATUS_LAYER))
+                    .with_scale(data.scale.extend(1.0)),
                 sprite: Sprite {
                     color: data.color,
                     ..default()
@@ -337,7 +410,8 @@ pub fn spawn_particle(In(data): In<ParticleSpawnData>, mut commands: Commands, a
             },
 
             ..Default::default()
-        }));
+        },
+    ));
     if parent_exists {
         spawned.set_parent(data.parent.unwrap());
     }
@@ -347,7 +421,10 @@ pub fn destroy_after_death_anim(
     mut commands: Commands,
     mut events: EventReader<AnimFinishEvent>,
     spritesheet_assets: Res<Assets<Spritesheet>>,
-    animated_sprite_query: Query<&Handle<Spritesheet>, (With<SpriteAnimator>, With<DestroyAfterDeathAnimation>)>,
+    animated_sprite_query: Query<
+        &Handle<Spritesheet>,
+        (With<SpriteAnimator>, With<DestroyAfterDeathAnimation>),
+    >,
 ) {
     for event in events.read() {
         // get the spritesheet handle off the animated sprite entity
@@ -375,6 +452,8 @@ pub struct FlaskSpawnData {
     position: Vec2,
     pub scale: f32,
     pub cooldown: f32,
+    pub damage: f32,
+    duration_seconds: f32,
 }
 
 impl LevelableData for FlaskSpawnData {
@@ -382,8 +461,10 @@ impl LevelableData for FlaskSpawnData {
         Self {
             gun: Flask {},
             position: Default::default(),
-            scale:  5.0 + (level as f32),
+            scale: 5.0 + (level as f32),
             cooldown: clamp(10.0 - (1.25 * level as f32), 0.5, 100.0),
+            damage: 1.0,
+            duration_seconds: 2.0,
         }
     }
 }
@@ -392,24 +473,25 @@ pub trait LevelableData {
     fn get_data_for_level(level: u8) -> Self;
 }
 
-
-pub fn spawn_damage_text(In(data): In<DamageTextSpawnData>,
-                         mut commands: Commands, ) {
-    commands.spawn((Text2dBundle {
-        text: Text::from_section(
-            data.amount.to_string(),
-            TextStyle {
-                font: Default::default(),
-                /* Load or reference your font here */
-                font_size: 40.0,
-                color: Color::WHITE,
-            },
-        ),
-        transform: Transform::from_translation((data.position + Vec2::new(0.0, 50.0)).extend(DAMAGE_TEXT_LAYER)), // Offset above the enemy
-        ..Default::default()
-    },
-                    Lifetime::from_seconds(1.0),
-                    FadeTextWithLifetime {},
+pub fn spawn_damage_text(In(data): In<DamageTextSpawnData>, mut commands: Commands) {
+    commands.spawn((
+        Text2dBundle {
+            text: Text::from_section(
+                data.amount.to_string(),
+                TextStyle {
+                    font: Default::default(),
+                    /* Load or reference your font here */
+                    font_size: 40.0,
+                    color: Color::WHITE,
+                },
+            ),
+            transform: Transform::from_translation(
+                (data.position + Vec2::new(0.0, 50.0)).extend(DAMAGE_TEXT_LAYER),
+            ), // Offset above the enemy
+            ..Default::default()
+        },
+        Lifetime::from_seconds(1.0),
+        FadeTextWithLifetime {},
     ));
 }
 
@@ -421,28 +503,43 @@ pub fn spawn_flask_projectile(
     let bundle = FlaskProjectileBundle {
         sprite_sheet: AnimatedSpriteBundle {
             animator: SpriteAnimator::from_anim(AnimHandle::from_index(0)),
-            spritesheet: atlases.sprite_sheets.get("fireball").expect("failed to find asset for bullet!").clone(),
+            spritesheet: atlases
+                .sprite_sheets
+                .get("fireball")
+                .expect("failed to find asset for bullet!")
+                .clone(),
             sprite_bundle: SpriteSheetBundle {
-                transform: Transform::from_translation(data.position.extend(BACKGROUND_PROJECTILE_LAYER)).with_scale(Vec2::splat(data.scale).extend(1.0)),
+                transform: Transform::from_translation(
+                    data.position.extend(BACKGROUND_PROJECTILE_LAYER),
+                )
+                .with_scale(Vec2::splat(data.scale).extend(1.0)),
                 ..default()
             },
 
             ..Default::default()
         },
         physical: PhysicalBundle {
-            collider: Collider::ball(
-                10.0),
+            collider: Collider::ball(10.0),
             restitution: Restitution::new(1.0),
-            velocity: Velocity { linvel: Vec2::ZERO, angvel: 0.0 },
-            collision_layers: CollisionGroups::new(game_layer::PLAYER, game_layer::GROUND | game_layer::ENEMY),
+            velocity: Velocity {
+                linvel: Vec2::ZERO,
+                angvel: 0.0,
+            },
+            collision_layers: CollisionGroups::new(
+                game_layer::PLAYER,
+                game_layer::GROUND | game_layer::ENEMY,
+            ),
             rigid_body: RigidBody::Dynamic,
 
             ..default()
         },
         name: Name::new("flask"),
         sensor: Default::default(),
-        damage: DamageOnTouch { value: 100.0, ..default() },
-        lifetime: Lifetime::from_seconds(2.0),
+        damage: DamageOnTouch {
+            value: data.damage,
+            ..default()
+        },
+        lifetime: Lifetime::from_seconds(data.duration_seconds),
     };
     commands.spawn(bundle);
 }
@@ -478,7 +575,7 @@ impl LevelableData for IceballSpawnData {
             position: Default::default(),
             direction: Default::default(),
             bullet_size: 1.0,
-            pierce: level.clamp(1,255) - 1,
+            pierce: level.clamp(1, 255) - 1,
             bullet_speed: 400.0 + (level as f32 * 10.0),
         }
     }
@@ -488,7 +585,7 @@ impl LevelableData for FireballSpawnData {
     fn get_data_for_level(mut level: u8) -> Self {
         level = level - 1;
         Self {
-            damage: 1.0 + (level as f32 ).floor(),
+            damage: 1.0 + (level as f32).floor(),
             position: Default::default(),
             direction: Default::default(),
             bullet_size: 1.0 + (level as f32 * 0.1_f32),
@@ -509,36 +606,56 @@ pub fn spawn_iceball(
     let bundle = BulletBundle {
         sprite_sheet: AnimatedSpriteBundle {
             animator: SpriteAnimator::from_anim(AnimHandle::from_index(0)),
-            spritesheet: atlases.sprite_sheets.get("snowball").expect("failed to find asset for bullet!").clone(),
+            spritesheet: atlases
+                .sprite_sheets
+                .get("snowball")
+                .expect("failed to find asset for bullet!")
+                .clone(),
             sprite_bundle: SpriteSheetBundle {
-                transform: Transform::from_translation(data.position).with_scale(Vec3::new(base_size * data.bullet_size, base_size * data.bullet_size, 0.0)),
+                transform: Transform::from_translation(data.position).with_scale(Vec3::new(
+                    base_size * data.bullet_size,
+                    base_size * data.bullet_size,
+                    0.0,
+                )),
                 ..default()
             },
 
             ..Default::default()
         },
         physical: PhysicalBundle {
-            collider: Collider::ball(
-                data.bullet_size),
+            collider: Collider::ball(data.bullet_size),
             restitution: Restitution::new(1.0),
-            velocity: Velocity { linvel: data.direction * speed, angvel: 0.0 },
-            collision_layers: CollisionGroups::new(game_layer::PLAYER, game_layer::GROUND | game_layer::ENEMY),
+            velocity: Velocity {
+                linvel: data.direction * speed,
+                angvel: 0.0,
+            },
+            collision_layers: CollisionGroups::new(
+                game_layer::PLAYER,
+                game_layer::GROUND | game_layer::ENEMY,
+            ),
             rigid_body: RigidBody::Dynamic,
 
             ..default()
         },
-        bullet: Bullet
-        { pierce: data.pierce, ..default() },
+        bullet: Bullet {
+            pierce: data.pierce,
+            ..default()
+        },
 
         name: Name::new("fireball"),
         sensor: Default::default(),
-        damage: DamageOnTouch { value: data.damage, ..default() },
+        damage: DamageOnTouch {
+            value: data.damage,
+            ..default()
+        },
         lifetime: Lifetime::from_seconds(data.bullet_lifetime_seconds),
     };
     let mut bullet = commands.spawn(bundle);
 
-
-    bullet.insert(ApplyColdOnTouch { multiplier: data.slow_amount, seconds: data.slow_seconds });
+    bullet.insert(ApplyColdOnTouch {
+        multiplier: data.slow_amount,
+        seconds: data.slow_seconds,
+    });
 }
 
 pub fn spawn_fireball(
@@ -547,35 +664,53 @@ pub fn spawn_fireball(
     mut commands: Commands,
 ) {
     let base_size = 2.0;
-    let sprite = atlases.sprite_sheets.get("fireball").expect("failed to find asset for bullet!").clone();
+    let sprite = atlases
+        .sprite_sheets
+        .get("fireball")
+        .expect("failed to find asset for bullet!")
+        .clone();
     let speed = data.bullet_speed;
     let bundle = BulletBundle {
         sprite_sheet: AnimatedSpriteBundle {
             animator: SpriteAnimator::from_anim(AnimHandle::from_index(0)),
             spritesheet: sprite,
             sprite_bundle: SpriteSheetBundle {
-                transform: Transform::from_translation(data.position).with_scale(Vec3::new(base_size * data.bullet_size, base_size * data.bullet_size, 1.0)),
+                transform: Transform::from_translation(data.position).with_scale(Vec3::new(
+                    base_size * data.bullet_size,
+                    base_size * data.bullet_size,
+                    1.0,
+                )),
                 ..default()
             },
 
             ..Default::default()
         },
         physical: PhysicalBundle {
-            collider: Collider::ball(
-                PIXEL_SCALE * data.bullet_size),
+            collider: Collider::ball(PIXEL_SCALE * data.bullet_size),
             restitution: Restitution::new(1.0),
-            velocity: Velocity { linvel: data.direction * speed, angvel: 0.0 },
-            collision_layers: CollisionGroups::new(game_layer::PLAYER, game_layer::GROUND | game_layer::ENEMY),
+            velocity: Velocity {
+                linvel: data.direction * speed,
+                angvel: 0.0,
+            },
+            collision_layers: CollisionGroups::new(
+                game_layer::PLAYER,
+                game_layer::GROUND | game_layer::ENEMY,
+            ),
             rigid_body: RigidBody::Dynamic,
 
             ..default()
         },
-        bullet: Bullet
-        { pierce: data.pierce, ..default() },
+        bullet: Bullet {
+            pierce: data.pierce,
+            ..default()
+        },
 
         name: Name::new("fireball"),
         sensor: Default::default(),
-        damage: DamageOnTouch { value: data.damage, ..default() },
+        damage: DamageOnTouch {
+            value: data.damage,
+            ..default()
+        },
         lifetime: Lifetime::from_seconds(2.0),
     };
     commands.spawn(bundle);

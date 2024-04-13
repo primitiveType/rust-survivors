@@ -52,16 +52,16 @@ impl Plugin for SteppingPlugin {
             ui_left: self.left,
             systems: Vec::new(),
         })
-            .add_systems(Startup, build_help)
-            .add_systems(
-                DebugSchedule,
-                (
-                    build_ui.run_if(not(initialized)),
-                    handle_input,
-                    update_ui.run_if(initialized),
-                )
-                    .chain(),
-            );
+        .add_systems(Startup, build_help)
+        .add_systems(
+            DebugSchedule,
+            (
+                build_ui.run_if(not(initialized)),
+                handle_input,
+                update_ui.run_if(initialized),
+            )
+                .chain(),
+        );
     }
 }
 
@@ -189,12 +189,12 @@ fn build_help(mut commands: Commands) {
             color: FONT_COLOR,
         },
     )])
-                        .with_style(Style {
-                            position_type: PositionType::Absolute,
-                            bottom: Val::Px(5.0),
-                            left: Val::Px(5.0),
-                            ..default()
-                        }),));
+    .with_style(Style {
+        position_type: PositionType::Absolute,
+        bottom: Val::Px(5.0),
+        left: Val::Px(5.0),
+        ..default()
+    }),));
 }
 
 fn handle_input(keyboard_input: Res<ButtonInput<KeyCode>>, mut stepping: ResMut<Stepping>) {

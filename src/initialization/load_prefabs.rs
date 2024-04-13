@@ -29,7 +29,6 @@ pub struct GunBundle {
 pub struct Atlases {
     //assettype/assetname
     //eg. enemy/knight
-
     pub sprite_sheets: HashMap<String, Handle<Spritesheet>>,
 }
 
@@ -46,21 +45,29 @@ pub struct AtlasLayout {
     pub width_px: u16,
 }
 
+const GUNS_PATH: &str = "assets\\prefabs\\guns\\";
+const ENEMIES_PATH: &str = "assets\\prefabs\\enemies\\";
+const SPRITES_PATH: &str = "assets\\"; //has to be root of assets for now due to bug in spritesheet package
 
-const GUNS_PATH: &str = "E:\\Unity Projects\\rust-survivors\\assets\\prefabs\\guns\\";
-const ENEMIES_PATH: &str = "E:\\Unity Projects\\rust-survivors\\assets\\prefabs\\enemies\\";
-const SPRITES_PATH: &str = "E:\\Unity Projects\\rust-survivors\\assets\\";//has to be root of assets for now due to bug in spritesheet package
-
-
-pub fn load_sprites(mut commands: Commands, asset_server: Res<AssetServer>, mut atlases: ResMut<Atlases>) {
+pub fn load_sprites(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut atlases: ResMut<Atlases>,
+) {
     //todo: cache this and store in what is currently called atlases.
 
-    let paths: Vec<DirEntry> = fs::read_dir(SPRITES_PATH).unwrap().filter_map(|entry| entry.ok()).collect();
-    let json_file_names: Vec<String> = paths.iter()
+    let paths: Vec<DirEntry> = fs::read_dir(SPRITES_PATH)
+        .unwrap()
+        .filter_map(|entry| entry.ok())
+        .collect();
+    let json_file_names: Vec<String> = paths
+        .iter()
         .filter_map(|entry| {
             let path = entry.path();
             if path.is_file() && path.extension().and_then(|ext| ext.to_str()) == Some("json") {
-                path.file_stem().and_then(|stem| stem.to_str()).map(|s| s.to_owned())
+                path.file_stem()
+                    .and_then(|stem| stem.to_str())
+                    .map(|s| s.to_owned())
             } else {
                 None
             }
@@ -72,7 +79,12 @@ pub fn load_sprites(mut commands: Commands, asset_server: Res<AssetServer>, mut 
     }
 }
 
-fn load_spritesheet_and_add(path: String, mut commands: &mut Commands, asset_server: &Res<AssetServer>, atlases: &mut ResMut<Atlases>) {
+fn load_spritesheet_and_add(
+    path: String,
+    mut commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+    atlases: &mut ResMut<Atlases>,
+) {
     let name = path.clone();
     let sheet_handle = load_spritesheet_then(
         &mut commands,
@@ -84,35 +96,46 @@ fn load_spritesheet_and_add(path: String, mut commands: &mut Commands, asset_ser
             if let Ok(dead) = sheet.get_anim_mut(&dead_handle) {
                 dead.end_action = AnimEndAction::Pause;
             }
-
-        }
+        },
     );
 
     atlases.sprite_sheets.insert(name, sheet_handle);
 }
 
-
-pub fn load_enemy_prefabs(
-    mut enemies: ResMut<Enemies>,
-    atlases: ResMut<Atlases>,
-) {
-    let paths: Vec<DirEntry> = fs::read_dir(ENEMIES_PATH).unwrap().filter_map(|entry| entry.ok()).collect();
+pub fn load_enemy_prefabs(mut enemies: ResMut<Enemies>, atlases: ResMut<Atlases>) {
+    let paths: Vec<DirEntry> = fs::read_dir(ENEMIES_PATH)
+        .unwrap()
+        .filter_map(|entry| entry.ok())
+        .collect();
     for dir in paths.iter() {
-        let enemy_name = dir.path().with_extension("").file_name().unwrap().to_str().unwrap().to_string();//are you serious
-        enemies.datas.insert(enemy_name, EnemyBundle::from_path(dir.path().to_str().unwrap(), &atlases));
+        let enemy_name = dir
+            .path()
+            .with_extension("")
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string(); //are you serious
+        enemies.datas.insert(
+            enemy_name,
+            EnemyBundle::from_path(dir.path().to_str().unwrap(), &atlases),
+        );
     }
 }
 
-
 pub fn load_gun(gun: usize) -> Cooldown {
-    let paths: Vec<DirEntry> = fs::read_dir(GUNS_PATH).unwrap().filter_map(|entry| entry.ok()).collect();
+    let paths: Vec<DirEntry> = fs::read_dir(GUNS_PATH)
+        .unwrap()
+        .filter_map(|entry| entry.ok())
+        .collect();
 
     let paths_count = paths.len();
     let path = &paths[gun % paths_count];
     let file_path = path.path();
     println!("Loaded gun {}", file_path.display());
     let gun_yaml = fs::read_to_string(file_path).expect("failed to load yaml!");
-    let gun = serde_yaml::from_str::<Cooldown>(gun_yaml.as_str()).expect("failed to deserialize gun!");
+    let gun =
+        serde_yaml::from_str::<Cooldown>(gun_yaml.as_str()).expect("failed to deserialize gun!");
 
     gun
 }
@@ -122,10 +145,11 @@ pub fn _save_enemy(bundle: EnemyData) {
     fs::write(ENEMIES_PATH, enemy_yaml).expect("Unable to write file!");
 }
 
-
-
 fn get_enemy_path(index: usize) -> PathBuf {
-    let paths: Vec<DirEntry> = fs::read_dir(ENEMIES_PATH).unwrap().filter_map(|entry| entry.ok()).collect();
+    let paths: Vec<DirEntry> = fs::read_dir(ENEMIES_PATH)
+        .unwrap()
+        .filter_map(|entry| entry.ok())
+        .collect();
     let paths_count = paths.len();
     let path = &paths[index % paths_count];
     path.path()
@@ -143,7 +167,8 @@ pub fn load_enemy_data_from_path(path: &str) -> EnemyData {
 
 pub fn load_data_from_path<T: for<'a> Deserialize<'a>>(path: &str) -> T {
     let enemy_yaml = fs::read_to_string(path).expect("failed to load yaml!");
-    let enemy = serde_yaml::from_str::<T>(enemy_yaml.as_str()).unwrap_or_else(|_| panic!("failed to deserialize data at path {}!", path));
+    let enemy = serde_yaml::from_str::<T>(enemy_yaml.as_str())
+        .unwrap_or_else(|_| panic!("failed to deserialize data at path {}!", path));
     enemy
 }
 

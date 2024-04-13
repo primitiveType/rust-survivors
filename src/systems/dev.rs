@@ -1,6 +1,6 @@
-use bevy::prelude::{EventReader, StateTransitionEvent};
-use bevy::log::info;
 use crate::AppState;
+use bevy::log::info;
+use bevy::prelude::{EventReader, StateTransitionEvent};
 
 /// print when an `AppState` transition happens
 /// also serves as an example of how to use `StateTransitionEvent`

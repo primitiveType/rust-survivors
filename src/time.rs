@@ -3,7 +3,6 @@ use std::time::Duration;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 
-
 pub const DEFAULT_TIMESTEP: Duration = Duration::from_micros(15625);
 pub const MAX_PHYSICS_EXEC_TIME: Duration = Duration::from_micros(15625);
 
@@ -14,8 +13,7 @@ pub struct TimePlugin;
 
 impl Plugin for TimePlugin {
     fn build(&self, app: &mut App) {
-        app
-            .init_schedule(PhysicsSchedule)
+        app.init_schedule(PhysicsSchedule)
             .register_type::<PhysicsTime>()
             .init_resource::<PhysicsTime>()
             .add_systems(PreUpdate, run_physics_schedule);
@@ -49,7 +47,8 @@ impl PhysicsTimeExt for PhysicsTime {
     }
 
     fn run(&mut self, speed: f32) {
-        self.context_mut().set_mode(PhysicsTimeMode::Running { speed });
+        self.context_mut()
+            .set_mode(PhysicsTimeMode::Running { speed });
     }
 }
 
@@ -74,7 +73,7 @@ impl PhysicsTimeInner {
 impl Default for PhysicsTimeInner {
     fn default() -> Self {
         Self {
-            mode:     PhysicsTimeMode::default(),
+            mode: PhysicsTimeMode::default(),
             old_mode: PhysicsTimeMode::default(),
             timestep: DEFAULT_TIMESTEP,
             overstep: Duration::ZERO,
@@ -149,10 +148,10 @@ pub fn run_physics_schedule(world: &mut World) {
     world.schedule_scope(PhysicsSchedule, |world, schedule| {
         while expend_time(&mut world.resource_mut::<PhysicsTime>()) {
             schedule.run(world);
-            if time.elapsed() >= MAX_PHYSICS_EXEC_TIME { break; }
+            if time.elapsed() >= MAX_PHYSICS_EXEC_TIME {
+                break;
+            }
         }
         limit_overstep(&mut world.resource_mut::<PhysicsTime>());
     });
 }
-
-
