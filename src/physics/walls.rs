@@ -1,11 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use crate::physics::layers::game_layer::GROUND;
 use bevy::asset::AssetContainer;
 use bevy::prelude::*;
-use bevy_ecs_ldtk::{GridCoords, LdtkIntCell, LevelIid};
 use bevy_ecs_ldtk::prelude::{LayerInstance, LdtkProject};
+use bevy_ecs_ldtk::{GridCoords, LdtkIntCell, LevelIid};
 use bevy_rapier2d::geometry::{CollisionGroups, Friction};
 use bevy_rapier2d::prelude::{Collider, Group, RigidBody};
-use crate::physics::layers::game_layer::GROUND;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Component)]
 pub struct Wall;

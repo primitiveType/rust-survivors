@@ -1,20 +1,21 @@
+use crate::components::{
+    AbilityLevel, AttackSpeed, Cooldown, FireBallGun, Flask, IceBallGun, ParentMoveSpeedMultiplier,
+    PassiveMoveSpeedMultiplier, PassiveXPMultiplier, Player, XPPickupRadius, XPVacuum,
+};
+use crate::constants::{
+    PIXEL_SCALE, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, SCORE_COLOR, TEXT_COLOR,
+};
+use crate::physics::layers::game_layer;
+use crate::*;
 use bevy::math::vec3;
 use bevy_ecs_ldtk::LdtkWorldBundle;
 use bevy_rapier2d::geometry::{ActiveEvents, Collider, Restitution, Sensor};
 use bevy_rapier2d::parry::transformation::utils::transform;
-use bevy_rapier2d::prelude::{CollisionGroups};
-use crate::*;
-use crate::components::{Cooldown, AttackSpeed, FireBallGun, XPVacuum, Flask, AbilityLevel, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier, IceBallGun, Player, PassiveXPMultiplier, XPPickupRadius};
-use crate::constants::{PIXEL_SCALE, SCORE_COLOR, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, TEXT_COLOR};
-use crate::physics::layers::game_layer;
+use bevy_rapier2d::prelude::CollisionGroups;
 
 // Add the game's entities to our world
 // #[bevycheck::system]
-pub fn setup(
-    mut commands: Commands,
-    atlases: ResMut<Atlases>,
-    asset_server: Res<AssetServer>,
-) {
+pub fn setup(mut commands: Commands, atlases: ResMut<Atlases>, asset_server: Res<AssetServer>) {
     // Camera
     let camera = commands.spawn(Camera2dBundle::default());
 
@@ -27,12 +28,12 @@ pub fn setup(
 
     commands.spawn(LdtkWorldBundle {
         ldtk_handle: asset_server.load("levels/cemetery-0/cemetery-0.ldtk"),
-        transform: Transform::from_translation(Vec3::splat(0.0)).with_scale(Vec2::splat(PIXEL_SCALE).extend(1.0)),
+        transform: Transform::from_translation(Vec3::splat(0.0))
+            .with_scale(Vec2::splat(PIXEL_SCALE).extend(1.0)),
         ..Default::default()
     });
 
     // spawn_balls(&mut commands, &mut meshes, &mut materials, rng);
-
 
     // Scoreboard
     commands.spawn((
@@ -65,12 +66,12 @@ pub fn setup(
                 ..default()
             }),
         ])
-            .with_style(Style {
-                position_type: PositionType::Absolute,
-                top: SCOREBOARD_TEXT_PADDING,
-                left: SCOREBOARD_TEXT_PADDING,
-                ..default()
-            }),
+        .with_style(Style {
+            position_type: PositionType::Absolute,
+            top: SCOREBOARD_TEXT_PADDING,
+            left: SCOREBOARD_TEXT_PADDING,
+            ..default()
+        }),
     ));
 
     // Walls
@@ -80,60 +81,82 @@ pub fn setup(
     // commands.spawn(WallBundle::new(WallLocation::Top));
 }
 
-
-fn spawn_player(commands: &mut Commands,
-                atlases: ResMut<Atlases>,
-                position: Vec2,
-) {
-    commands.spawn(bundles::PlayerBundle::with_sprite(atlases, position))
-
+fn spawn_player(commands: &mut Commands, atlases: ResMut<Atlases>, position: Vec2) {
+    commands
+        .spawn(bundles::PlayerBundle::with_sprite(atlases, position))
         .with_children(|parent| {
             //fireball gun
-            parent.spawn((Cooldown::with_cooldown(500),
-                          FireBallGun {},
-                          Name::new("Fireball"),
-                          AbilityLevel { level: 1, ..default() },
-                          SpatialBundle { ..default() }));
-            //iceball gun
-            parent.spawn((Name::new("Snowball"),
-                          Cooldown::with_cooldown(900),
-                          IceBallGun {},
-                          AbilityLevel { level: 0, ..default() },
-                          SpatialBundle { ..default() }));
-            // flask gun
-            parent.spawn((Name::new("Molotov"),
-                          Cooldown::with_cooldown(0),
-                          Flask {},
-                          AbilityLevel { level: 0, ..default() },
-                          SpatialBundle { ..default() }));
-            //move speed ability
-            parent.spawn((Name::new("Move Speed"),
-                          PassiveMoveSpeedMultiplier { ..default() },
-                          ParentMoveSpeedMultiplier { value: 0.0 },
-                          AbilityLevel { level: 0, ..default() },
-                          // SpatialBundle { ..default() },
+            parent.spawn((
+                Cooldown::with_cooldown(500),
+                FireBallGun {},
+                Name::new("Fireball"),
+                AbilityLevel {
+                    level: 1,
+                    ..default()
+                },
+                SpatialBundle { ..default() },
             ));
-            parent.spawn((Name::new("XP Bonus"),
-                          PassiveXPMultiplier {},
-                          AbilityLevel { level: 0, ..default() },
-                          // SpatialBundle { ..default() },
+            //iceball gun
+            parent.spawn((
+                Name::new("Snowball"),
+                Cooldown::with_cooldown(900),
+                IceBallGun {},
+                AbilityLevel {
+                    level: 0,
+                    ..default()
+                },
+                SpatialBundle { ..default() },
+            ));
+            // flask gun
+            parent.spawn((
+                Name::new("Molotov"),
+                Cooldown::with_cooldown(0),
+                Flask {},
+                AbilityLevel {
+                    level: 0,
+                    ..default()
+                },
+                SpatialBundle { ..default() },
+            ));
+            //move speed ability
+            parent.spawn((
+                Name::new("Move Speed"),
+                PassiveMoveSpeedMultiplier { ..default() },
+                ParentMoveSpeedMultiplier { value: 0.0 },
+                AbilityLevel {
+                    level: 0,
+                    ..default()
+                },
+                // SpatialBundle { ..default() },
+            ));
+            parent.spawn((
+                Name::new("XP Bonus"),
+                PassiveXPMultiplier {},
+                AbilityLevel {
+                    level: 0,
+                    ..default()
+                },
+                // SpatialBundle { ..default() },
             ));
             //xp gatherer
-            parent.spawn((Name::new("XP Pickup Radius"),
-                          XPPickupRadius { radius: 0.0 },
-                          XPVacuum {},
-                          AbilityLevel { level: 0, ..default() },
-                          Collider::ball(50.0),
-                          // Friction::ZERO,
-                          Restitution::new(1.0),
-                          CollisionGroups::new(game_layer::XP, game_layer::XP),
-                          // LockedAxes::ROTATION_LOCKED,
-                          SpatialBundle { ..default() },
-                          Sensor,
-                          ActiveEvents::COLLISION_EVENTS,
+            parent.spawn((
+                Name::new("XP Pickup Radius"),
+                XPPickupRadius { radius: 0.0 },
+                XPVacuum {},
+                AbilityLevel {
+                    level: 0,
+                    ..default()
+                },
+                Collider::ball(50.0),
+                // Friction::ZERO,
+                Restitution::new(1.0),
+                CollisionGroups::new(game_layer::XP_ABSORB, game_layer::XP),
+                // LockedAxes::ROTATION_LOCKED,
+                SpatialBundle { ..default() },
+                Sensor,
+                ActiveEvents::COLLISION_EVENTS,
             ));
-            parent.spawn((AttackSpeed { percent: 0.0 },
-            ));
+            parent.spawn((AttackSpeed { percent: 0.0 },));
         });
 }
 

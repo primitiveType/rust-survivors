@@ -6,7 +6,10 @@ use bevy::asset::Assets;
 use bevy::core::Name;
 use bevy::hierarchy::Parent;
 use bevy::math::{Vec2, Vec3, Vec3Swizzles};
-use bevy::prelude::{Changed, Color, ColorMaterial, Commands, default, Entity, EventReader, Mesh, NextState, Query, ResMut, Sprite, SpriteSheetBundle, Transform, With, Without};
+use bevy::prelude::{
+    default, Changed, Color, ColorMaterial, Commands, Entity, EventReader, Mesh, NextState, Query,
+    ResMut, Sprite, SpriteSheetBundle, Transform, With, Without,
+};
 use bevy::time::{Timer, TimerMode};
 use bevy_asepritesheet::animator::{AnimatedSpriteBundle, SpriteAnimator};
 use bevy_asepritesheet::sprite::Spritesheet;
@@ -15,44 +18,69 @@ use bevy_rapier2d::parry::transformation::utils::transform;
 use bevy_rapier2d::pipeline::CollisionEvent;
 use rand::Rng;
 
-use crate::AppState;
-use crate::bundles::{CorpseBundle, CorpseSpawnData, Object, spawn_xp, XPSpawnData};
-use crate::components::{AbilityLevel, BaseMoveSpeed, Cold, Cooldown, Enemy, FireBallGun, Flask, FollowPlayer, GainXPOnTouch, Health, IceBallGun, Lifetime, MoveSpeed, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier, PassiveXPMultiplier, Player, XP, XPMultiplier, XPPickupRadius, XPVacuum};
+use crate::bundles::{spawn_xp, CorpseBundle, CorpseSpawnData, Object, XPSpawnData};
+use crate::components::{
+    AbilityLevel, BaseMoveSpeed, Cold, Cooldown, Enemy, FireBallGun, Flask, FollowPlayer,
+    GainXPOnTouch, Health, IceBallGun, Lifetime, MoveSpeed, ParentMoveSpeedMultiplier,
+    PassiveMoveSpeedMultiplier, PassiveXPMultiplier, Player, XPMultiplier, XPPickupRadius,
+    XPVacuum, XP,
+};
 use crate::extensions::spew_extensions::{Spawn, Spawner};
-use crate::systems::guns::{FireballSpawnData, FlaskSpawnData, IceballSpawnData, LevelableData, ParticleSpawnData};
+use crate::systems::guns::{
+    FireballSpawnData, FlaskSpawnData, IceballSpawnData, LevelableData, ParticleSpawnData,
+};
+use crate::AppState;
 
-pub fn die_at_zero_health(query: Query<(Entity, &Enemy, &Health, &Transform, &Name, &Sprite)>,
-                          mut commands: Commands,
-                          mut spawner: Spawner<CorpseSpawnData>,
-                          mut xp_spawner: Spawner<XPSpawnData>,
+pub fn die_at_zero_health(
+    query: Query<(Entity, &Enemy, &Health, &Transform, &Name, &Sprite)>,
+    mut commands: Commands,
+    mut spawner: Spawner<CorpseSpawnData>,
+    mut xp_spawner: Spawner<XPSpawnData>,
 ) {
     for (entity, enemy, health, transform, name, sprite) in query.iter() {
-        if health.value <= 0.0
-        {
+        if health.value <= 0.0 {
             let position = transform.translation.xy();
-            spawner.spawn(Object::Corpse, CorpseSpawnData { name: name.to_string(), position, flip: sprite.flip_x });
+            spawner.spawn(
+                Object::Corpse,
+                CorpseSpawnData {
+                    name: name.to_string(),
+                    position,
+                    flip: sprite.flip_x,
+                },
+            );
             commands.entity(entity).despawn();
-            xp_spawner.spawn(Object::XP, XPSpawnData { amount: enemy.xp, position })
+            xp_spawner.spawn(
+                Object::XP,
+                XPSpawnData {
+                    amount: enemy.xp,
+                    position,
+                },
+            )
         }
     }
 }
 
-pub fn update_move_speed_from_passive(mut abilities: Query<(&AbilityLevel, &PassiveMoveSpeedMultiplier, &mut ParentMoveSpeedMultiplier)>,
+pub fn update_move_speed_from_passive(
+    mut abilities: Query<(
+        &AbilityLevel,
+        &PassiveMoveSpeedMultiplier,
+        &mut ParentMoveSpeedMultiplier,
+    )>,
 ) {
     for (ability, _, mut parent_move_speed) in abilities.iter_mut() {
         parent_move_speed.value = 0.10 * ability.level as f32;
     }
 }
 
-
-pub fn cold_objects_are_blue(mut sprites: Query<&mut Sprite, With<Cold>>,
-) {
+pub fn cold_objects_are_blue(mut sprites: Query<&mut Sprite, With<Cold>>) {
     for mut sprite in sprites.iter_mut() {
         sprite.color = Color::rgba(0.5, 0.5, 1.0, 1.0);
     }
 }
 
-pub fn cold_enemies_spawn_particles(mut sprites: Query<(Entity, &Enemy), With<Cold>>, mut spawner: Spawner<ParticleSpawnData>,
+pub fn cold_enemies_spawn_particles(
+    mut sprites: Query<(Entity, &Enemy), With<Cold>>,
+    mut spawner: Spawner<ParticleSpawnData>,
 ) {
     for (entity, enemy) in sprites.iter() {
         let mut rng = rand::thread_rng();
@@ -60,7 +88,6 @@ pub fn cold_enemies_spawn_particles(mut sprites: Query<(Entity, &Enemy), With<Co
         let angle = value * 2.0 * std::f32::consts::PI;
         // Calculate the direction vector from the angle
         let mut direction = Vec2::new(angle.cos(), angle.sin());
-
 
         let distance = Vec2::splat(rng.gen_range(1.0..30.0));
         direction *= distance;
@@ -79,14 +106,14 @@ pub fn cold_enemies_spawn_particles(mut sprites: Query<(Entity, &Enemy), With<Co
     }
 }
 
-pub fn reset_enemy_color(mut sprites: Query<&mut Sprite, With<Enemy>>,
-) {
+pub fn reset_enemy_color(mut sprites: Query<&mut Sprite, With<Enemy>>) {
     for mut sprite in sprites.iter_mut() {
         sprite.color = Color::default();
     }
 }
 
-pub fn move_speed_mod_affects_animation_speed(mut sprites: Query<(&mut SpriteAnimator, &MoveSpeed, &BaseMoveSpeed)>,
+pub fn move_speed_mod_affects_animation_speed(
+    mut sprites: Query<(&mut SpriteAnimator, &MoveSpeed, &BaseMoveSpeed)>,
 ) {
     for (mut animator, move_speed, base_move) in sprites.iter_mut() {
         animator.time_scale = move_speed.value / base_move.value;
@@ -123,18 +150,25 @@ turn ability into new ability
 //         }
 //     }
 // }
-pub fn update_level_descriptions_move_speed(mut abilities: Query<(&mut AbilityLevel, &PassiveMoveSpeedMultiplier), Changed<AbilityLevel>>,
+pub fn update_level_descriptions_move_speed(
+    mut abilities: Query<(&mut AbilityLevel, &PassiveMoveSpeedMultiplier), Changed<AbilityLevel>>,
 ) {
     for (mut ability, _flask) in abilities.iter_mut() {
         let current_level = PassiveMoveSpeedMultiplier::get_data_for_level(ability.level);
         let next_level = PassiveMoveSpeedMultiplier::get_data_for_level(ability.level + 1);
         let mut description = "Upgrade Move Speed".to_string();
 
-        push_stat_block(&mut description, "Move Speed", current_level.value, next_level.value);
+        push_stat_block(
+            &mut description,
+            "Move Speed",
+            current_level.value,
+            next_level.value,
+        );
         ability.description = description;
     }
 }
-pub fn update_level_descriptions_xp_radius(mut abilities: Query<(&mut AbilityLevel, &XPPickupRadius), Changed<AbilityLevel>>,
+pub fn update_level_descriptions_xp_radius(
+    mut abilities: Query<(&mut AbilityLevel, &XPPickupRadius), Changed<AbilityLevel>>,
 ) {
     for (mut ability, _flask) in abilities.iter_mut() {
         println!("Updating flask description.");
@@ -142,30 +176,43 @@ pub fn update_level_descriptions_xp_radius(mut abilities: Query<(&mut AbilityLev
         let next_level = XPPickupRadius::get_data_for_level(ability.level + 1);
         let mut description = "XP Pickup Radius".to_string();
         // ability.description = format!("Molotov Cocktail\r\nSize:\r\n{} -> {}\r\n Cooldown:\r\n{} -> {}", current_level.scale, next_level.scale, current_level.cooldown.display_seconds(), next_level.cooldown.timer.display_seconds()).to_string();
-        push_stat_block(&mut description, "Radius", current_level.radius, next_level.radius);
+        push_stat_block(
+            &mut description,
+            "Radius",
+            current_level.radius,
+            next_level.radius,
+        );
 
         ability.description = description;
     }
 }
 
-pub fn update_level_descriptions_xp_multiplier(mut abilities: Query<(&mut AbilityLevel, &PassiveXPMultiplier), Changed<AbilityLevel>>,
+pub fn update_level_descriptions_xp_multiplier(
+    mut abilities: Query<(&mut AbilityLevel, &PassiveXPMultiplier), Changed<AbilityLevel>>,
 ) {
     for (mut ability, _flask) in abilities.iter_mut() {
         println!("Updating xp mult description.");
         let current_level = XPMultiplier::get_data_for_level(ability.level);
         let next_level = XPMultiplier::get_data_for_level(ability.level + 1);
         let mut description = "XP Multiplier".to_string();
-        push_stat_block(&mut description, "Multiplier Bonus", current_level.value, next_level.value);
+        push_stat_block(
+            &mut description,
+            "Multiplier Bonus",
+            current_level.value,
+            next_level.value,
+        );
         ability.description = description;
     }
 }
 
-pub fn update_level_descriptions_flask(mut abilities: Query<(&mut AbilityLevel, &Flask, &mut Cooldown), Changed<AbilityLevel>>,
+pub fn update_level_descriptions_flask(
+    mut abilities: Query<(&mut AbilityLevel, &Flask, &mut Cooldown), Changed<AbilityLevel>>,
 ) {
     for (mut ability, _flask, mut cooldown) in abilities.iter_mut() {
         println!("Updating flask description.");
-        if(ability.level == 0){
-            ability.description = "Molotov Cocktail \r\n Randomly summon an area of destruction.".to_string();
+        if (ability.level == 0) {
+            ability.description =
+                "Molotov Cocktail \r\n Randomly summon an area of destruction.".to_string();
             return;
         }
         let current_level = FlaskSpawnData::get_data_for_level(ability.level);
@@ -173,18 +220,29 @@ pub fn update_level_descriptions_flask(mut abilities: Query<(&mut AbilityLevel, 
         let next_level = FlaskSpawnData::get_data_for_level(ability.level + 1);
         let mut description = "Molotov Cocktail".to_string();
         // ability.description = format!("Molotov Cocktail\r\nSize:\r\n{} -> {}\r\n Cooldown:\r\n{} -> {}", current_level.scale, next_level.scale, current_level.cooldown.display_seconds(), next_level.cooldown.timer.display_seconds()).to_string();
-        push_stat_block(&mut description, "Cooldown", current_level.cooldown, next_level.cooldown);
-        push_stat_block(&mut description, "Size", current_level.scale, next_level.scale);
+        push_stat_block(
+            &mut description,
+            "Cooldown",
+            current_level.cooldown,
+            next_level.cooldown,
+        );
+        push_stat_block(
+            &mut description,
+            "Size",
+            current_level.scale,
+            next_level.scale,
+        );
 
         ability.description = description;
     }
 }
 
-pub fn update_level_descriptions_fireball(mut abilities: Query<(&mut AbilityLevel, &FireBallGun), Changed<AbilityLevel>>,
+pub fn update_level_descriptions_fireball(
+    mut abilities: Query<(&mut AbilityLevel, &FireBallGun), Changed<AbilityLevel>>,
 ) {
     for (mut ability, _fireball) in abilities.iter_mut() {
         println!("Updating fireball description.");
-        if(ability.level == 0){
+        if (ability.level == 0) {
             ability.description = "Fireball \r\n Throw a fireball that deals damage.".to_string();
             return;
         }
@@ -192,20 +250,41 @@ pub fn update_level_descriptions_fireball(mut abilities: Query<(&mut AbilityLeve
         let next_level = FireballSpawnData::get_data_for_level(ability.level + 1);
         let mut description = "Fireball".to_string();
         // ability.description = format!("Molotov Cocktail\r\nSize:\r\n{} -> {}\r\n Cooldown:\r\n{} -> {}", current_level.scale, next_level.scale, current_level.cooldown.display_seconds(), next_level.cooldown.timer.display_seconds()).to_string();
-        push_stat_block(&mut description, "Damage", current_level.damage, next_level.damage);
-        push_stat_block(&mut description, "Bullet Speed", current_level.bullet_speed, next_level.bullet_speed);
-        push_stat_block(&mut description, "Size", current_level.bullet_size, next_level.bullet_size);
-        push_stat_block(&mut description, "Pierce", current_level.pierce, next_level.pierce);
+        push_stat_block(
+            &mut description,
+            "Damage",
+            current_level.damage,
+            next_level.damage,
+        );
+        push_stat_block(
+            &mut description,
+            "Bullet Speed",
+            current_level.bullet_speed,
+            next_level.bullet_speed,
+        );
+        push_stat_block(
+            &mut description,
+            "Size",
+            current_level.bullet_size,
+            next_level.bullet_size,
+        );
+        push_stat_block(
+            &mut description,
+            "Pierce",
+            current_level.pierce,
+            next_level.pierce,
+        );
 
         ability.description = description;
     }
 }
 
-pub fn update_level_descriptions_iceball(mut abilities: Query<(&mut AbilityLevel, &IceBallGun), Changed<AbilityLevel>>,
+pub fn update_level_descriptions_iceball(
+    mut abilities: Query<(&mut AbilityLevel, &IceBallGun), Changed<AbilityLevel>>,
 ) {
     for (mut ability, _) in abilities.iter_mut() {
         println!("Updating iceball description.");
-        if(ability.level == 0){
+        if (ability.level == 0) {
             ability.description = "Snowball \r\n Throw a snowball that slows enemies.".to_string();
             return;
         }
@@ -213,20 +292,54 @@ pub fn update_level_descriptions_iceball(mut abilities: Query<(&mut AbilityLevel
         let next_level = IceballSpawnData::get_data_for_level(ability.level + 1);
         let mut description = "Snowball".to_string();
         // ability.description = format!("Molotov Cocktail\r\nSize:\r\n{} -> {}\r\n Cooldown:\r\n{} -> {}", current_level.scale, next_level.scale, current_level.cooldown.display_seconds(), next_level.cooldown.timer.display_seconds()).to_string();
-        push_stat_block(&mut description, "Slow duration", current_level.slow_seconds, next_level.slow_seconds);
-        push_stat_block(&mut description, "Bullet Lifetime", current_level.bullet_lifetime_seconds, next_level.bullet_lifetime_seconds);
-        push_stat_block(&mut description, "Damage", current_level.damage, next_level.damage);
+        push_stat_block(
+            &mut description,
+            "Slow duration",
+            current_level.slow_seconds,
+            next_level.slow_seconds,
+        );
+        push_stat_block(
+            &mut description,
+            "Bullet Lifetime",
+            current_level.bullet_lifetime_seconds,
+            next_level.bullet_lifetime_seconds,
+        );
+        push_stat_block(
+            &mut description,
+            "Damage",
+            current_level.damage,
+            next_level.damage,
+        );
 
-        push_stat_block(&mut description, "Bullet Speed", current_level.bullet_speed, next_level.bullet_speed);
-        push_stat_block(&mut description, "Size", current_level.bullet_size, next_level.bullet_size);
-        push_stat_block(&mut description, "Pierce", current_level.pierce, next_level.pierce);
+        push_stat_block(
+            &mut description,
+            "Bullet Speed",
+            current_level.bullet_speed,
+            next_level.bullet_speed,
+        );
+        push_stat_block(
+            &mut description,
+            "Size",
+            current_level.bullet_size,
+            next_level.bullet_size,
+        );
+        push_stat_block(
+            &mut description,
+            "Pierce",
+            current_level.pierce,
+            next_level.pierce,
+        );
 
         ability.description = description;
     }
 }
 
-
-pub fn push_stat_block<T: PartialEq + Display>(desc: &mut String, label: impl Display, value1: T, value2: T) {
+pub fn push_stat_block<T: PartialEq + Display>(
+    desc: &mut String,
+    label: impl Display,
+    value1: T,
+    value2: T,
+) {
     if value1 == value2 {
         return;
     }
@@ -268,7 +381,7 @@ pub fn pick_up_xp_on_touch(
 
                 let (e_entity, _player, mut player_xp, xp_mult) = player.unwrap();
                 println!("got xp!");
-                player_xp.amount += (xp.unwrap().1.value as f32)  * (xp_mult.value + 1.0);
+                player_xp.amount += (xp.unwrap().1.value as f32) * (xp_mult.value + 1.0);
                 commands.entity(*xp_entity).despawn();
             }
             _ => {}
@@ -308,19 +421,21 @@ pub fn vacuum_xp_on_touch(
 
                 let (_entity, vacuum) = vacuum.unwrap();
                 let (xp_entity, xp) = xp.unwrap();
-                commands.entity(xp_entity).insert((FollowPlayer, MoveSpeed { value: 500.0 }));
+                commands
+                    .entity(xp_entity)
+                    .insert((FollowPlayer, MoveSpeed { value: 500.0 }));
             }
             _ => {}
         }
     }
 }
 
-
 pub fn level_up(
     mut query: Query<(Entity, &mut Player, &XP)>,
-    mut next_state: ResMut<NextState<AppState>>) {
+    mut next_state: ResMut<NextState<AppState>>,
+) {
     for (_, mut player, xp) in query.iter_mut() {
-        if xp.amount / player.level as f32 * 2.0 > player.level as f32  {
+        if xp.amount / player.level as f32 * 2.0 > player.level as f32 {
             next_state.set(AppState::LevelUp);
             player.level += 1;
         }

@@ -2,12 +2,13 @@
 name = "rust-survivors"
 version = "0.1.0"
 edition = "2021"
-
+resolver = "2"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-#bevy = { version = "0.13.0" }
-bevy = { version = "0.13.0", features = ["dynamic_linking", "serialize", "trace_tracy"] }
+#bevy = { version = "0.13.0", features = ["dynamic_linking", "serialize", "trace_tracy"] }
+bevy = { version = "0.13.0", features = ["serialize", "trace_tracy"] }
+
 bevy-inspector-egui = "0.23.4"
 bevy_editor_pls = "0.8.0"
 #bevy_xpbd_2d = "0.4"
@@ -27,7 +28,8 @@ spew = "0.5.1"
 bevy_egui = "0.25.0"
 bevy_ecs_ldtk = {git = "https://github.com/Trouv/bevy_ecs_ldtk", branch = "main", features = ["atlas"]}
 #bevy_proto = { version = "0.11.0", features = ["default", "yaml"] }//doesn't support bevy 13
-
+bevy-trait-query = "0.5.1"
+temporary_component_derive = {path= "temporary_component_derive"}
 [patch.crates-io]
 bevy_ecs_tilemap = { git = "https://github.com/StarArawn/bevy_ecs_tilemap", branch = "main" }
 

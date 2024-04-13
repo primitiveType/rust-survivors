@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Run rust-survivors" type="CargoCommandRunConfiguration" factoryName="Cargo Command" focusToolWindowBeforeRun="true">
-    <option name="command" value="run --package rust-survivors --bin rust-survivors" />
+    <option name="command" value="run --package rust-survivors --bin rust-survivors --features bevy/dynamic_linking" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <envs>
       <env name="PATH" value="C:\Users\Arthu\.rustup\toolchains\nightly-x86_64-pc-windows-msvc\bin;E:\Unity Projects\rust-survivors\target\debug\deps" />

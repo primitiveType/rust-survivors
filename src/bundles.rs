@@ -1,8 +1,10 @@
-use std::ops::Bound;
 use bevy::core::Name;
-use bevy::math::{Vec2, Vec3, Vec3Swizzles};
 use bevy::math::bounding::{Aabb2d, Bounded2d};
-use bevy::prelude::{Bundle, Color, Commands, Component, default, In, Res, ResMut, SpatialBundle, Sprite, SpriteBundle, Transform};
+use bevy::math::{Vec2, Vec3, Vec3Swizzles};
+use bevy::prelude::{
+    default, Bundle, Color, Commands, Component, In, Res, ResMut, SpatialBundle, Sprite,
+    SpriteBundle, Transform,
+};
 use bevy::sprite::SpriteSheetBundle;
 use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
 use bevy_ecs_ldtk::{GridCoords, LdtkEntity, Worldly};
@@ -13,12 +15,16 @@ use bevy_rapier2d::geometry::{ActiveEvents, Collider, CollisionGroups, Restituti
 use bevy_rapier2d::na::clamp;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::ops::Bound;
 
-use crate::animation::{AnimationState, AnimatorController};
 use crate::animation::AnimationState::Walk;
-use crate::components::{AbilityLevel, BaseMoveSpeed, DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health, Lifetime, MoveSpeed, PassiveXPMultiplier, Player, XP, XPMultiplier};
+use crate::animation::{AnimationState, AnimatorController};
+use crate::components::{
+    AbilityLevel, BaseMoveSpeed, DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health,
+    Lifetime, MoveSpeed, PassiveXPMultiplier, Player, XPMultiplier, XP,
+};
 use crate::constants::{CORPSE_LAYER, ENEMY_LAYER, PLAYER_LAYER, PLAYER_SPEED, XP_LAYER};
-use crate::initialization::load_prefabs::{Atlases, Enemies, load_enemy_data_from_path};
+use crate::initialization::load_prefabs::{load_enemy_data_from_path, Atlases, Enemies};
 use crate::physics::layers::game_layer;
 use crate::systems::animation::AnimationState::{Dead, Idle};
 use crate::systems::spawning::LevelBounds;
@@ -57,15 +63,17 @@ pub struct PlayerBundle {
     pub xp_mult: XPMultiplier,
 }
 
-#[derive(LdtkEntity, Component)]
-#[derive(Default)]
+#[derive(LdtkEntity, Component, Default)]
 pub struct PlayerSpawn {}
 
 impl Default for PlayerBundle {
     fn default() -> Self {
         Self {
             physical: PhysicalBundle {
-                collision_layers: CollisionGroups::new(game_layer::PLAYER, game_layer::GROUND | game_layer::ENEMY | game_layer::XP),
+                collision_layers: CollisionGroups::new(
+                    game_layer::PLAYER,
+                    game_layer::GROUND | game_layer::ENEMY | game_layer::XP,
+                ),
 
                 ..default()
             },
@@ -81,10 +89,15 @@ impl Default for PlayerBundle {
             name: Name::new("Player"),
             player: Default::default(),
             health: Health { value: 100.0 },
-            animator: AnimatorController { state: AnimationState::Walk, name: "default".to_string() },
+            animator: AnimatorController {
+                state: AnimationState::Walk,
+                name: "default".to_string(),
+            },
             xp: XP { amount: 0.0 },
             move_speed: MoveSpeed { value: 0.0 },
-            base_speed: BaseMoveSpeed { value: PLAYER_SPEED },
+            base_speed: BaseMoveSpeed {
+                value: PLAYER_SPEED,
+            },
             worldly: Default::default(),
             xp_mult: Default::default(),
         }
@@ -94,22 +107,21 @@ impl Default for PlayerBundle {
 const PLAYER_SCALE: f32 = 4.0;
 
 impl PlayerBundle {
-    pub fn with_sprite(atlases: ResMut<Atlases>,
-                       position: Vec2,
-    ) -> Self {
+    pub fn with_sprite(atlases: ResMut<Atlases>, position: Vec2) -> Self {
         Self {
             physical: PhysicalBundle {
                 collider: Collider::ball(2.0),
                 rigid_body: RigidBody::Dynamic,
-                collision_layers: CollisionGroups::new(game_layer::PLAYER, game_layer::GROUND | game_layer::ENEMY | game_layer::XP),
+                collision_layers: CollisionGroups::new(
+                    game_layer::PLAYER,
+                    game_layer::GROUND | game_layer::ENEMY | game_layer::XP,
+                ),
                 ..default()
             },
             sprite: AnimatedSpriteBundle {
                 spritesheet: atlases.sprite_sheets.get("player").unwrap().clone(),
                 sprite_bundle: SpriteSheetBundle {
-                    sprite: Sprite {
-                        ..default()
-                    },
+                    sprite: Sprite { ..default() },
                     transform: Transform {
                         translation: position.extend(PLAYER_LAYER),
                         scale: Vec2::splat(PLAYER_SCALE).extend(1.0),
@@ -123,17 +135,21 @@ impl PlayerBundle {
             name: Name::new("Player"),
             player: Default::default(),
             health: Health { value: 100.0 },
-            animator: AnimatorController { state: Idle, name: "player".to_string() },
+            animator: AnimatorController {
+                state: Idle,
+                name: "player".to_string(),
+            },
 
             xp: XP { amount: 0.0 },
             move_speed: MoveSpeed { value: 0.0 },
-            base_speed: BaseMoveSpeed { value: PLAYER_SPEED },
+            base_speed: BaseMoveSpeed {
+                value: PLAYER_SPEED,
+            },
             worldly: Default::default(),
             xp_mult: Default::default(),
         }
     }
 }
-
 
 #[derive(Bundle, Clone)]
 pub struct PhysicalBundle {
@@ -156,7 +172,10 @@ impl Default for PhysicalBundle {
             collider: Collider::ball(4.0),
             // friction: Friction::ZERO,
             restitution: Restitution::new(1.0),
-            velocity: Velocity { linvel: Vec2::ZERO, angvel: 0.0 },
+            velocity: Velocity {
+                linvel: Vec2::ZERO,
+                angvel: 0.0,
+            },
             collision_layers: Default::default(),
             rigid_body: RigidBody::Dynamic,
             locked_axes: LockedAxes::ROTATION_LOCKED,
@@ -218,10 +237,7 @@ pub struct AbilityBundle {
 const ENEMY_SCALE: f32 = 2.0;
 
 impl EnemyBundle {
-    pub fn from_path(
-        path: &str,
-        atlases: &ResMut<Atlases>,
-    ) -> Self {
+    pub fn from_path(path: &str, atlases: &ResMut<Atlases>) -> Self {
         let enemy_data = load_enemy_data_from_path(path);
 
         Self {
@@ -231,7 +247,11 @@ impl EnemyBundle {
                 name: enemy_data.name.to_string(),
             },
             animation_bundle: AnimatedSpriteBundle {
-                spritesheet: atlases.sprite_sheets.get(&enemy_data.name.to_string()).expect(&format!("{} not found!", &enemy_data.name).to_string()).clone(),
+                spritesheet: atlases
+                    .sprite_sheets
+                    .get(&enemy_data.name.to_string())
+                    .expect(&format!("{} not found!", &enemy_data.name).to_string())
+                    .clone(),
                 sprite_bundle: SpriteSheetBundle {
                     transform: Transform {
                         translation: Vec3::new(0.0, -250.0, 0.0),
@@ -243,7 +263,7 @@ impl EnemyBundle {
                 },
                 ..default()
             },
-            physical: PhysicalBundle{
+            physical: PhysicalBundle {
                 collider: Collider::ball(8.0),
                 ..default()
             },
@@ -252,13 +272,15 @@ impl EnemyBundle {
     }
 }
 
-
 impl Default for EnemyBundle {
     fn default() -> Self {
         Self {
             // sprite_bundle: get_default_sprite_sheet_bundle(Handle::default(), Handle::default()),
             physical: PhysicalBundle {
-                collision_layers: CollisionGroups::new(game_layer::ENEMY, game_layer::PLAYER | game_layer::ENEMY),
+                collision_layers: CollisionGroups::new(
+                    game_layer::ENEMY,
+                    game_layer::PLAYER | game_layer::ENEMY,
+                ),
                 ..default()
             },
             enemy_data: EnemyData {
@@ -268,12 +290,17 @@ impl Default for EnemyBundle {
                 move_speed: MoveSpeed { value: 0.1 },
                 base_move_speed: BaseMoveSpeed { value: 0.1 },
                 health: Health { value: 5.0 },
-                touch_damage: DamageOnTouch { value: 1.0, ..default() },
+                touch_damage: DamageOnTouch {
+                    value: 1.0,
+                    ..default()
+                },
             },
             // sensor: Default::default(),
-            animator: AnimatorController { state: Walk, name: "default".to_string() },
+            animator: AnimatorController {
+                state: Walk,
+                name: "default".to_string(),
+            },
             animation_bundle: Default::default(),
-
         }
     }
 }
@@ -283,8 +310,6 @@ pub struct EnemySpawnData {
     pub player_position: Vec2,
     pub bounds: LevelBounds,
 }
-
-
 
 pub struct XPSpawnData {
     pub amount: u32,
@@ -298,7 +323,11 @@ pub fn spawn_corpse(
 ) {
     let mut bundle = CorpseBundle {
         animation_bundle: AnimatedSpriteBundle {
-            spritesheet: atlases.sprite_sheets.get(&corpse.name).expect(&format!("{} not found!", corpse.name).to_string()).clone(),
+            spritesheet: atlases
+                .sprite_sheets
+                .get(&corpse.name)
+                .expect(&format!("{} not found!", corpse.name).to_string())
+                .clone(),
             sprite_bundle: SpriteSheetBundle {
                 transform: Transform {
                     translation: corpse.position.extend(CORPSE_LAYER),
@@ -315,7 +344,10 @@ pub fn spawn_corpse(
             },
             ..default()
         },
-        animator: AnimatorController { state: Dead, name: corpse.name.clone() },
+        animator: AnimatorController {
+            state: Dead,
+            name: corpse.name.clone(),
+        },
     };
 
     commands.spawn((bundle, Lifetime::from_seconds(10.0)));
@@ -327,7 +359,11 @@ pub fn spawn_enemy(
     _rng: ResMut<GlobalEntropy<WyRand>>,
     mut commands: Commands,
 ) {
-    let mut bundle: EnemyBundle = enemies.datas.get(&enemy_spawn_data.enemy_id).unwrap().clone();
+    let mut bundle: EnemyBundle = enemies
+        .datas
+        .get(&enemy_spawn_data.enemy_id)
+        .unwrap()
+        .clone();
 
     //get random position outside screen
     let mut rng = rand::thread_rng();
@@ -337,20 +373,25 @@ pub fn spawn_enemy(
     let mut direction = Vec2::new(angle.cos(), angle.sin());
     let distance = Vec2::splat(600.0);
     direction *= distance;
-    bundle.animation_bundle.sprite_bundle.transform.translation = Vec2::clamp(direction + enemy_spawn_data.player_position, enemy_spawn_data.bounds.min, enemy_spawn_data.bounds.max).extend(ENEMY_LAYER);
+    bundle.animation_bundle.sprite_bundle.transform.translation = Vec2::clamp(
+        direction + enemy_spawn_data.player_position,
+        enemy_spawn_data.bounds.min,
+        enemy_spawn_data.bounds.max,
+    )
+    .extend(ENEMY_LAYER);
     // bundle.animation_bundle.sprite_bundle.transform.translation = (direction + enemy_spawn_data.player_position).extend(0.0);
     let mut enemy = commands.spawn(bundle);
 }
 
-pub fn spawn_xp(
-    In(data): In<XPSpawnData>,
-    mut commands: Commands,
-    atlases: Res<Atlases>,
-) {
+pub fn spawn_xp(In(data): In<XPSpawnData>, mut commands: Commands, atlases: Res<Atlases>) {
     let name = "food";
     let mut spawned = commands.spawn(XPBundle {
         animation_bundle: AnimatedSpriteBundle {
-            spritesheet: atlases.sprite_sheets.get(&name.to_string()).expect(&format!("{} not found!", &name).to_string()).clone(),
+            spritesheet: atlases
+                .sprite_sheets
+                .get(&name.to_string())
+                .expect(&format!("{} not found!", &name).to_string())
+                .clone(),
             sprite_bundle: SpriteSheetBundle {
                 transform: Transform {
                     translation: data.position.extend(XP_LAYER),
@@ -366,15 +407,20 @@ pub fn spawn_xp(
             collider: Collider::ball(0.5),
             restitution: Default::default(),
             velocity: Default::default(),
-            collision_layers: CollisionGroups::new(game_layer::XP, game_layer::XP | game_layer::PLAYER),
+            collision_layers: CollisionGroups::new(
+                game_layer::XP,
+                game_layer::XP_ABSORB | game_layer::PLAYER,
+            ),
             rigid_body: RigidBody::Dynamic,
             locked_axes: Default::default(),
             active_events: Default::default(),
         },
-        animator: AnimatorController { state: Idle, name: name.to_string() },
+        animator: AnimatorController {
+            state: Idle,
+            name: name.to_string(),
+        },
         sensor: Default::default(),
         gain_xp: GainXPOnTouch { value: data.amount },
         name: Name::new(name),
-
     });
 }

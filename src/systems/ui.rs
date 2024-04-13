@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 use bevy_asepritesheet::core::SpriteAnimController;
-use bevy_egui::{egui, EguiContexts};
 use bevy_egui::egui::emath;
+use bevy_egui::{egui, EguiContexts};
 use rand::seq::IteratorRandom;
 
-use crate::AppState;
 use crate::components::{AbilityLevel, Health, HealthUi, Lifetime, Player, XP};
+use crate::AppState;
 use serde::{Deserialize, Serialize};
 
 #[derive(Component)]
@@ -20,7 +20,6 @@ pub fn fade_text(mut query: Query<(&mut Text, &Lifetime), With<FadeTextWithLifet
         text.sections[0].style.color.set_a(alpha);
     }
 }
-
 
 fn button() -> ButtonBundle {
     ButtonBundle {
@@ -60,16 +59,16 @@ pub fn button_system(
     mut abilities: Query<&mut AbilityLevel>,
     mut contexts: EguiContexts,
 ) {
-    egui::CentralPanel::default().frame(egui::Frame {
-        fill: egui::Color32::from_rgba_unmultiplied(0, 0, 0, 200), // Set background to transparent
+    egui::CentralPanel::default()
+        .frame(egui::Frame {
+            fill: egui::Color32::from_rgba_unmultiplied(0, 0, 0, 200), // Set background to transparent
 
-        ..Default::default() // Use default settings for other frame properties
-    })
+            ..Default::default() // Use default settings for other frame properties
+        })
         .show(contexts.ctx_mut(), |ui| {
             let screen_size = ui.available_size();
             let button_height = screen_size.y * 0.15;
             let button_width = screen_size.x * 0.5;
-
 
             ui.vertical_centered(|ui| {
                 ui.add_space(100.0);
@@ -97,9 +96,7 @@ pub struct LevelUpChoice {
     pub entity_to_level: Entity,
 }
 
-pub fn prepare_level_up(abilities: Query<(Entity, &AbilityLevel, &Name)>,
-                        mut commands: Commands,
-) {
+pub fn prepare_level_up(abilities: Query<(Entity, &AbilityLevel, &Name)>, mut commands: Commands) {
     let num_choices = 3;
     //randomly choose abilities to level
     //player may or may not have them already
@@ -107,19 +104,17 @@ pub fn prepare_level_up(abilities: Query<(Entity, &AbilityLevel, &Name)>,
     let mut rng = rand::thread_rng();
 
     for (entity, ability, name) in abilities.iter().choose_multiple(&mut rng, num_choices) {
-        commands.spawn(LevelUpChoice { entity_to_level: entity });
+        commands.spawn(LevelUpChoice {
+            entity_to_level: entity,
+        });
     }
 }
 
-pub fn cleanup_level_up(
-    mut commands: Commands,
-    choices: Query<(Entity, &LevelUpChoice)>,
-) {
+pub fn cleanup_level_up(mut commands: Commands, choices: Query<(Entity, &LevelUpChoice)>) {
     for (entity, choice) in choices.iter() {
         commands.entity(entity).despawn();
     }
 }
-
 
 pub fn pause_animations(mut animation_timers: ResMut<SpriteAnimController>) {
     animation_timers.is_active = false;
@@ -129,8 +124,11 @@ pub fn resume_animations(mut animation_timers: ResMut<SpriteAnimController>) {
     animation_timers.is_active = true;
 }
 
-
-pub fn update_player_health_ui(player_query: Query<(&Health, &Player)>, player_xp_query: Query<(&XP, &Player)>, mut query: Query<&mut Text, With<HealthUi>>) {
+pub fn update_player_health_ui(
+    player_query: Query<(&Health, &Player)>,
+    player_xp_query: Query<(&XP, &Player)>,
+    mut query: Query<&mut Text, With<HealthUi>>,
+) {
     let mut text = query.single_mut();
     let (player_health, _) = player_query.single();
     let (xp, _) = player_xp_query.single();

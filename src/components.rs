@@ -1,15 +1,16 @@
-use std::time::Duration;
-use bevy::prelude::*;
+use crate::bundles::PhysicalBundle;
+use crate::systems::guns::LevelableData;
 use bevy::prelude::Component;
 use bevy::prelude::Reflect;
 use bevy::prelude::TimerMode::Once;
+use bevy::prelude::*;
 use bevy::time::TimerMode::Repeating;
 use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
 use bevy_rapier2d::geometry::Sensor;
 use serde::Deserialize;
 use serde::Serialize;
-use crate::bundles::PhysicalBundle;
-use crate::systems::guns::LevelableData;
+use std::time::Duration;
+use temporary_component_derive::TemporaryComponent;
 
 #[derive(Component)]
 pub struct Player {
@@ -19,9 +20,7 @@ pub struct Player {
 
 impl Default for Player {
     fn default() -> Self {
-        Self {
-            level: 1,
-        }
+        Self { level: 1 }
     }
 }
 
@@ -66,14 +65,14 @@ pub struct XPPickupRadius {
 impl LevelableData for XPPickupRadius {
     fn get_data_for_level(level: u8) -> Self {
         Self {
-            radius : 25.0 + (level as f32  * 10.0)
+            radius: 25.0 + (level as f32 * 10.0),
         }
     }
 }
 impl LevelableData for XPMultiplier {
     fn get_data_for_level(level: u8) -> Self {
         Self {
-            value: level as f32 * (0.1)
+            value: level as f32 * (0.1),
         }
     }
 }
@@ -120,8 +119,7 @@ impl Cooldown {
     }
 }
 
-#[derive(Component)]
-#[derive(Default)]
+#[derive(Component, Default)]
 pub struct Bullet {
     pub hits: u8,
     pub pierce: u8,
@@ -143,26 +141,28 @@ impl Lifetime {
 #[derive(Component)]
 pub struct Expired {}
 
-
 #[derive(Component, Serialize, Deserialize, Clone)]
 pub struct Health {
     pub value: f32,
 }
 
-
 #[derive(Component, Serialize, Deserialize, Clone)]
 pub struct FollowPlayer;
-
 
 #[derive(Component, Reflect, Serialize, Deserialize, Clone, Default)]
 pub struct MoveSpeed {
     pub value: f32,
 }
 
-#[derive(Component, Reflect, Serialize, Deserialize, Clone, Default)]
+#[derive(Component, Reflect, Serialize, Deserialize, Clone, Default, TemporaryComponent)]
 pub struct Cold {
     pub multiplier: f32,
     pub timer: Timer,
+}
+
+pub trait TemporaryComponent {
+    fn advance_timer(&mut self, duration: Duration);
+    fn is_finished(&self) -> bool;
 }
 
 #[derive(Component, Reflect, Serialize, Deserialize, Clone)]
@@ -175,7 +175,6 @@ pub struct ParentMoveSpeedMultiplier {
     pub value: f32,
 }
 
-
 #[derive(Component, Serialize, Deserialize, Clone)]
 pub struct Enemy {
     pub xp: u32,
@@ -185,10 +184,8 @@ pub struct Enemy {
 pub struct DamageOnTouch {
     pub value: f32,
     #[serde(skip)]
-
     pub count_triggers: u32,
 }
-
 
 #[derive(Component, Serialize, Deserialize, Clone)]
 pub struct ApplyColdOnTouch {
@@ -218,7 +215,6 @@ pub struct XP {
 #[derive(Component)]
 pub struct XPVacuum {}
 
-
 // This bundle is a collection of the components that define a "wall" in our game
 #[derive(Bundle)]
 pub struct BulletBundle {
@@ -240,7 +236,6 @@ pub struct FlaskProjectileBundle {
     pub damage: DamageOnTouch,
     pub lifetime: Lifetime,
 }
-
 
 #[derive(Component)]
 pub struct HealthUi;
