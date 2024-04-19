@@ -10,6 +10,7 @@ use bevy_rapier2d::geometry::Sensor;
 use serde::Deserialize;
 use serde::Serialize;
 use std::time::Duration;
+use bevy_rapier2d::prelude::CollidingEntities;
 use temporary_component_derive::TemporaryComponent;
 
 #[derive(Component)]
@@ -235,6 +236,7 @@ pub struct FlaskProjectileBundle {
     pub sensor: Sensor,
     pub damage: DamageOnTouch,
     pub lifetime: Lifetime,
+    pub collisions : CollidingEntities,
 }
 
 #[derive(Component)]
