@@ -113,7 +113,7 @@ fn spawn_player(commands: &mut Commands, atlases: ResMut<Atlases>, position: Vec
                 Cooldown::with_cooldown(0),
                 Flask {},
                 AbilityLevel {
-                    level: 0,
+                    level: 1,
                     ..default()
                 },
                 SpatialBundle { ..default() },

@@ -1,7 +1,7 @@
 #![feature(duration_constructors)]
 
 use crate::physics::walls::WallBundle;
-use bevy_rapier2d::prelude::{PhysicsSet, RapierDebugRenderPlugin};
+use bevy_rapier2d::prelude::{CollidingEntities, PhysicsSet, RapierDebugRenderPlugin};
 use std::collections::HashMap;
 use std::env;
 use std::fmt::Debug;
@@ -32,12 +32,15 @@ use constants::BACKGROUND_COLOR;
 use crate::bundles::{
     CorpseSpawnData, EnemySpawnData, Object, PlayerBundle, PlayerSpawn, XPSpawnData,
 };
+use crate::components::Cold;
 use crate::initialization::inspector::add_inspector;
 use crate::initialization::load_prefabs::{Atlases, Enemies};
 use crate::physics::walls::Wall;
-use crate::systems::guns::{Damaged, DamageTextSpawnData, FireballSpawnData, FlaskSpawnData, IceballSpawnData, ParticleSpawnData};
+use crate::systems::guns::{
+    DamageTextSpawnData, Damaged, FireballSpawnData, FlaskSpawnData, IceballSpawnData,
+    ParticleSpawnData,
+};
 use crate::{initialization::register_types::register_types, systems::*};
-use crate::components::Cold;
 
 mod components;
 
@@ -211,7 +214,9 @@ fn main() {
                 ui::update_player_health_ui,
                 // movement::_debug_collisions,
                 guns::deal_damage_on_collide,
+                guns::deal_damage_on_collide_start,
                 guns::apply_cold_on_collide,
+                guns::apply_cold_on_collide_start,
                 movement::apply_xp_radius,
                 movement::apply_xp_multiplier,
                 stats::pick_up_xp_on_touch,
@@ -219,7 +224,12 @@ fn main() {
                 stats::level_up,
                 ui_example_system,
                 ui::fade_text,
-                (stats::reset_enemy_color, stats::cold_objects_are_blue).chain(),
+                (
+                    stats::reset_sprite_color,
+                    stats::cold_objects_are_blue,
+                    stats::highlight_damaged,
+                )
+                    .chain(),
                 (movement::camera_follow).after(PhysicsSet::Writeback),
                 guns::process_temporary_component::<Damaged>,
                 guns::process_temporary_component::<Cold>,

@@ -27,7 +27,7 @@ use crate::components::{
 };
 use crate::extensions::spew_extensions::{Spawn, Spawner};
 use crate::systems::guns::{
-    FireballSpawnData, FlaskSpawnData, IceballSpawnData, LevelableData, ParticleSpawnData,
+    Damaged, FireballSpawnData, FlaskSpawnData, IceballSpawnData, LevelableData, ParticleSpawnData,
 };
 use crate::AppState;
 
@@ -74,7 +74,7 @@ pub fn update_move_speed_from_passive(
 
 pub fn cold_objects_are_blue(mut sprites: Query<&mut Sprite, With<Cold>>) {
     for mut sprite in sprites.iter_mut() {
-        sprite.color = Color::rgba(0.5, 0.5, 1.0, 1.0);
+        sprite.color = Color::BLUE; //.with_h(60.0).with_l(1.5);
     }
 }
 
@@ -106,7 +106,7 @@ pub fn cold_enemies_spawn_particles(
     }
 }
 
-pub fn reset_enemy_color(mut sprites: Query<&mut Sprite, With<Enemy>>) {
+pub fn reset_sprite_color(mut sprites: Query<&mut Sprite>) {
     for mut sprite in sprites.iter_mut() {
         sprite.color = Color::default();
     }
@@ -167,6 +167,17 @@ pub fn update_level_descriptions_move_speed(
         ability.description = description;
     }
 }
+
+pub fn highlight_damaged(mut sprites: Query<(&mut Sprite, &Damaged)>) {
+    for (mut sprite, damaged) in sprites.iter_mut() {
+        let fraction = damaged.timer.fraction_remaining();
+        sprite.color = sprite.color
+            .with_r(fraction + sprite.color.r())
+            .with_g(fraction + sprite.color.g())
+            .with_b(fraction + sprite.color.b())
+    }
+}
+
 pub fn update_level_descriptions_xp_radius(
     mut abilities: Query<(&mut AbilityLevel, &XPPickupRadius), Changed<AbilityLevel>>,
 ) {
