@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::fs;
-use std::fs::{DirEntry, FileType};
+use std::fs::{DirEntry};
 use std::path::PathBuf;
 
 use bevy::asset::{AssetServer, Handle};
 use bevy::prelude::{Bundle, Commands, Res, ResMut, Resource, SpatialBundle};
-use bevy_asepritesheet::core::{load_spritesheet, load_spritesheet_then};
+use bevy_asepritesheet::core::{load_spritesheet_then};
 use bevy_asepritesheet::prelude::{AnimEndAction, Spritesheet};
 use serde::Deserialize;
 use serde::Serialize;
@@ -81,14 +81,14 @@ pub fn load_sprites(
 
 fn load_spritesheet_and_add(
     path: String,
-    mut commands: &mut Commands,
+    commands: &mut Commands,
     asset_server: &Res<AssetServer>,
     atlases: &mut ResMut<Atlases>,
 ) {
     let name = path.clone();
     let sheet_handle = load_spritesheet_then(
-        &mut commands,
-        &asset_server,
+        commands,
+        asset_server,
         path + ".json",
         bevy::sprite::Anchor::Center,
         |sheet| {

@@ -127,7 +127,7 @@ pub fn resume_animations(mut animation_timers: ResMut<SpriteAnimController>) {
 pub fn update_player_health_ui(
     player_query: Query<(&Health, &Player)>,
     player_xp_query: Query<(&XP, &Player)>,
-    mut query: Query<&mut Text, With<HealthUi>>,
+    query: Query<&mut Text, With<HealthUi>>,
 ) {
     // let mut text = query.single_mut();
     // let (player_health, _) = player_query.single();

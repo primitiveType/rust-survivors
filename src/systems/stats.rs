@@ -1,24 +1,18 @@
-use std::default;
 use std::fmt::Display;
 use std::string::String;
 
-use bevy::asset::Assets;
 use bevy::core::Name;
-use bevy::hierarchy::Parent;
-use bevy::math::{Vec2, Vec3, Vec3Swizzles};
+use bevy::math::{Vec2, Vec3Swizzles};
 use bevy::prelude::{
-    default, Changed, Color, ColorMaterial, Commands, Entity, EventReader, Mesh, NextState, Query,
-    ResMut, Sprite, SpriteSheetBundle, Transform, With, Without,
+    Changed, Color, Commands, Entity, EventReader, NextState, Query,
+    ResMut, Sprite, Transform, With,
 };
 use bevy::time::{Timer, TimerMode};
-use bevy_asepritesheet::animator::{AnimatedSpriteBundle, SpriteAnimator};
-use bevy_asepritesheet::sprite::Spritesheet;
-use bevy_egui::egui::debug_text::print;
-use bevy_rapier2d::parry::transformation::utils::transform;
+use bevy_asepritesheet::animator::{SpriteAnimator};
 use bevy_rapier2d::pipeline::CollisionEvent;
 use rand::Rng;
 
-use crate::bundles::{spawn_xp, CorpseBundle, CorpseSpawnData, Object, XPSpawnData};
+use crate::bundles::{CorpseSpawnData, Object, XPSpawnData};
 use crate::components::{
     AbilityLevel, BaseMoveSpeed, Cold, Cooldown, Enemy, FireBallGun, Flask, FollowPlayer,
     GainXPOnTouch, Health, IceBallGun, Lifetime, MoveSpeed, ParentMoveSpeedMultiplier,
@@ -79,7 +73,7 @@ pub fn cold_objects_are_blue(mut sprites: Query<&mut Sprite, With<Cold>>) {
 }
 
 pub fn cold_enemies_spawn_particles(
-    mut sprites: Query<(Entity, &Enemy), With<Cold>>,
+    sprites: Query<(Entity, &Enemy), With<Cold>>,
     mut spawner: Spawner<ParticleSpawnData>,
 ) {
     for (entity, enemy) in sprites.iter() {
@@ -221,7 +215,7 @@ pub fn update_level_descriptions_flask(
 ) {
     for (mut ability, _flask, mut cooldown) in abilities.iter_mut() {
         println!("Updating flask description.");
-        if (ability.level == 0) {
+        if ability.level == 0 {
             ability.description =
                 "Molotov Cocktail \r\n Randomly summon an area of destruction.".to_string();
             return;
@@ -253,7 +247,7 @@ pub fn update_level_descriptions_fireball(
 ) {
     for (mut ability, _fireball) in abilities.iter_mut() {
         println!("Updating fireball description.");
-        if (ability.level == 0) {
+        if ability.level == 0 {
             ability.description = "Fireball \r\n Throw a fireball that deals damage.".to_string();
             return;
         }
@@ -295,7 +289,7 @@ pub fn update_level_descriptions_iceball(
 ) {
     for (mut ability, _) in abilities.iter_mut() {
         println!("Updating iceball description.");
-        if (ability.level == 0) {
+        if ability.level == 0 {
             ability.description = "Snowball \r\n Throw a snowball that slows enemies.".to_string();
             return;
         }

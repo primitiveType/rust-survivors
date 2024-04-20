@@ -1,7 +1,6 @@
 use bevy::asset::{Assets, Handle};
 use bevy::ecs::query::QueryEntityError;
 
-use bevy::log::tracing_subscriber::fmt::time;
 use bevy::math::{Vec3, Vec3Swizzles};
 use bevy::prelude::{
     default, BuildChildren, Color, Commands, Component, Entity, EventReader, GlobalTransform, In,
@@ -15,13 +14,11 @@ use bevy_asepritesheet::prelude::{AnimEventSender, AnimHandle, Spritesheet};
 use bevy_rapier2d::dynamics::RigidBody;
 use bevy_rapier2d::geometry::{Collider, CollisionGroups, Restitution};
 use bevy_rapier2d::na::clamp;
-use bevy_rapier2d::parry::math::DEFAULT_EPSILON;
 use bevy_rapier2d::pipeline::CollisionEvent;
 use bevy_rapier2d::plugin::RapierContext;
 use bevy_rapier2d::prelude::{CollidingEntities, QueryFilter, Velocity};
 use rand::Rng;
 use std::time::Duration;
-use bevy::utils::hashbrown::HashSet;
 use temporary_component_derive::*;
 
 use crate::bundles::{DestroyAfterDeathAnimation, Object, PhysicalBundle};
@@ -173,13 +170,13 @@ pub fn fireball_gun(
     }
 }
 
-pub fn log_collisions(mut query: Query<(&CollidingEntities)>) {
+pub fn log_collisions(query: Query<&CollidingEntities>) {
     println!("{} colliding entities.", query.iter().len());
 }
 
 pub fn apply_cold_on_collide(
-    mut enemy_query: Query<(Entity), (With<Enemy>, With<MoveSpeed>)>,
-    mut damage_query: Query<(&ApplyColdOnTouch, &CollidingEntities, &Collider)>,
+    mut enemy_query: Query<Entity, (With<Enemy>, With<MoveSpeed>)>,
+    damage_query: Query<(&ApplyColdOnTouch, &CollidingEntities, &Collider)>,
     mut commands: Commands,
 ) {
     for (apply_cold, colliding_entities, _) in damage_query.iter() {
@@ -196,8 +193,8 @@ pub fn apply_cold_on_collide(
 
 pub fn apply_cold_on_collide_start(
     mut collision_events: EventReader<CollisionEvent>,
-    mut enemy_query: Query<(Entity), (With<Enemy>, With<MoveSpeed>)>,
-    mut damage_query: Query<(&ApplyColdOnTouch), Without<CollidingEntities>>,
+    mut enemy_query: Query<Entity, (With<Enemy>, With<MoveSpeed>)>,
+    mut damage_query: Query<&ApplyColdOnTouch, Without<CollidingEntities>>,
     mut commands: Commands,
 ) {
     for collision_event in collision_events.read() {
@@ -210,8 +207,8 @@ pub fn apply_cold_on_collide_start(
                     let slowing_entity = damage_query.get_mut(*entity2);
 
                     match slowing_entity {
-                        Ok(mut slower) => {
-                            try_slow(&*slower, slowed_entity, &mut commands);
+                        Ok(slower) => {
+                            try_slow(slower, slowed_entity, &mut commands);
                         }
                         Err(_) => {}
                     }
@@ -221,8 +218,8 @@ pub fn apply_cold_on_collide_start(
                     let slowed_entity = enemy_query.get_mut(*entity2);
                     let slowing_entity = damage_query.get_mut(*entity1);
                     match slowing_entity {
-                        Ok(mut slower) => {
-                            try_slow(&*slower, slowed_entity, &mut commands);
+                        Ok(slower) => {
+                            try_slow(slower, slowed_entity, &mut commands);
                         }
                         Err(_) => {}
                     }
@@ -248,7 +245,7 @@ pub fn apply_cold_on_collide_start(
     {
         for (entity, mut damaged) in damaged.iter_mut() {
             damaged.advance_timer(time.delta());
-            if (damaged.is_finished()) {
+            if damaged.is_finished() {
                 commands.entity(entity).remove::<T>();
             }
         }
@@ -294,7 +291,7 @@ pub fn apply_cold_on_collide_start(
                         }
                         match entity2_damage {
                             Ok((_, mut damage)) => {
-                                try_deal_damage(&mut commands, &mut *damage, entity1_health, &mut spawner);
+                                try_deal_damage(&mut commands, &mut damage, entity1_health, &mut spawner);
                             }
                             Err(_) => {}//the colliding entity was not a damager.
                         }
@@ -305,7 +302,7 @@ pub fn apply_cold_on_collide_start(
                         let entity1_damage = damage_query.get_mut(*entity1);
                         match entity1_damage {
                             Ok((_, mut damage)) => {
-                                try_deal_damage(&mut commands, &mut *damage, entity2_health, &mut spawner);
+                                try_deal_damage(&mut commands, &mut damage, entity2_health, &mut spawner);
                             }
                             Err(_) => {}//the colliding entity was not a damager.
                         }
@@ -324,8 +321,8 @@ pub fn apply_cold_on_collide_start(
         entity2_health: Result<(Entity, Mut<Health>, &Transform), QueryEntityError>,
         spawner: &mut Spawner<DamageTextSpawnData>,
     ) {
-        match (entity2_health) {
-            (Ok((health_entity, mut health, transform))) => {
+        match entity2_health {
+            Ok((health_entity, mut health, transform)) => {
                 entity1_damage.count_triggers += 1;
                 if entity1_damage.value <= 0.0 {
                     return;
@@ -349,10 +346,10 @@ pub fn apply_cold_on_collide_start(
     fn try_slow(
         entity1_damage: &ApplyColdOnTouch,
         entity2_health: Result<Entity, QueryEntityError>,
-        mut commands: &mut Commands,
+        commands: &mut Commands,
     ) {
         match entity2_health {
-            (Ok((entity))) => {
+            Ok(entity) => {
                 println!("will slow.");
 
                 // let mut child = commands.spawn((ParentMoveSpeedMultiplier { value: -slow.multiplier }, Lifetime::from_seconds(slow.seconds)));
@@ -380,7 +377,7 @@ pub fn apply_cold_on_collide_start(
 
     pub fn expired_bullets_explode(
         mut bullets: Query<(Entity, &Bullet, &Transform, &Name), With<Expired>>,
-        mut commands: Commands,
+        commands: Commands,
         atlases: Res<Atlases>,
         sprite_assets: Res<Assets<Spritesheet>>,
         mut spawner: Spawner<ParticleSpawnData>,
@@ -649,7 +646,7 @@ pub fn apply_cold_on_collide_start(
 
     impl LevelableData for FireballSpawnData {
         fn get_data_for_level(mut level: u8) -> Self {
-            level = level - 1;
+            level -= 1;
             Self {
                 damage: 1.0 + (level as f32).floor(),
                 position: Default::default(),

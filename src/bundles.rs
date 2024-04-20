@@ -1,27 +1,23 @@
 use bevy::core::Name;
-use bevy::math::bounding::{Aabb2d, Bounded2d};
-use bevy::math::{Vec2, Vec3, Vec3Swizzles};
+use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{
-    default, Bundle, Color, Commands, Component, In, Res, ResMut, SpatialBundle, Sprite,
-    SpriteBundle, Transform,
+    default, Bundle, Color, Commands, Component, In, Res, ResMut, SpatialBundle, Sprite, Transform,
 };
 use bevy::sprite::SpriteSheetBundle;
 use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
-use bevy_ecs_ldtk::{GridCoords, LdtkEntity, Worldly};
+use bevy_ecs_ldtk::{LdtkEntity, Worldly};
 use bevy_prng::WyRand;
 use bevy_rand::prelude::GlobalEntropy;
 use bevy_rapier2d::dynamics::{LockedAxes, RigidBody, Velocity};
 use bevy_rapier2d::geometry::{ActiveEvents, Collider, CollisionGroups, Restitution, Sensor};
-use bevy_rapier2d::na::clamp;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::ops::Bound;
 
 use crate::animation::AnimationState::Walk;
 use crate::animation::{AnimationState, AnimatorController};
 use crate::components::{
     AbilityLevel, BaseMoveSpeed, DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health,
-    Lifetime, MoveSpeed, PassiveXPMultiplier, Player, XPMultiplier, XP,
+    Lifetime, MoveSpeed, Player, XPMultiplier, XP,
 };
 use crate::constants::{CORPSE_LAYER, ENEMY_LAYER, PLAYER_LAYER, PLAYER_SPEED, XP_LAYER};
 use crate::initialization::load_prefabs::{load_enemy_data_from_path, Atlases, Enemies};
@@ -250,7 +246,7 @@ impl EnemyBundle {
                 spritesheet: atlases
                     .sprite_sheets
                     .get(&enemy_data.name.to_string())
-                    .expect(&format!("{} not found!", &enemy_data.name).to_string())
+                    .unwrap_or_else(|| { panic!("{}", format!("{} not found!", &enemy_data.name).to_string()) })
                     .clone(),
                 sprite_bundle: SpriteSheetBundle {
                     transform: Transform {
@@ -321,12 +317,12 @@ pub fn spawn_corpse(
     atlases: Res<Atlases>,
     mut commands: Commands,
 ) {
-    let mut bundle = CorpseBundle {
+    let bundle = CorpseBundle {
         animation_bundle: AnimatedSpriteBundle {
             spritesheet: atlases
                 .sprite_sheets
                 .get(&corpse.name)
-                .expect(&format!("{} not found!", corpse.name).to_string())
+                .unwrap_or_else(|| { panic!("{}", format!("{} not found!", corpse.name).to_string()) })
                 .clone(),
             sprite_bundle: SpriteSheetBundle {
                 transform: Transform {
@@ -380,17 +376,17 @@ pub fn spawn_enemy(
     )
     .extend(ENEMY_LAYER);
     // bundle.animation_bundle.sprite_bundle.transform.translation = (direction + enemy_spawn_data.player_position).extend(0.0);
-    let mut enemy = commands.spawn(bundle);
+    let enemy = commands.spawn(bundle);
 }
 
 pub fn spawn_xp(In(data): In<XPSpawnData>, mut commands: Commands, atlases: Res<Atlases>) {
     let name = "food";
-    let mut spawned = commands.spawn(XPBundle {
+    let spawned = commands.spawn(XPBundle {
         animation_bundle: AnimatedSpriteBundle {
             spritesheet: atlases
                 .sprite_sheets
                 .get(&name.to_string())
-                .expect(&format!("{} not found!", &name).to_string())
+                .unwrap_or_else(|| { panic!("{}", format!("{} not found!", &name).to_string()) })
                 .clone(),
             sprite_bundle: SpriteSheetBundle {
                 transform: Transform {

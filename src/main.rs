@@ -1,7 +1,7 @@
 #![feature(duration_constructors)]
 
 use crate::physics::walls::WallBundle;
-use bevy_rapier2d::prelude::{CollidingEntities, PhysicsSet, RapierDebugRenderPlugin};
+use bevy_rapier2d::prelude::{PhysicsSet};
 use std::collections::HashMap;
 use std::env;
 use std::fmt::Debug;
@@ -9,7 +9,6 @@ use std::hash::Hash;
 use std::time::Duration;
 
 use bevy::prelude::*;
-use bevy::window::{PresentMode, WindowTheme};
 use bevy_asepritesheet::core::SpriteAnimController;
 use bevy_asepritesheet::prelude::AsepritesheetPlugin;
 use bevy_ecs_ldtk::app::LdtkEntityAppExt;
@@ -21,7 +20,6 @@ use bevy_matchbox::matchbox_socket::PeerId;
 use bevy_prng::WyRand;
 use bevy_rand::prelude::EntropyPlugin;
 use bevy_rapier2d::pipeline::CollisionEvent;
-use bevy_rapier2d::plugin::PhysicsSet::Writeback;
 use bevy_rapier2d::plugin::RapierConfiguration;
 use bevy_rapier2d::prelude::NoUserData;
 use bevy_rapier2d::prelude::RapierPhysicsPlugin;
@@ -32,18 +30,15 @@ use components::HealthUi;
 use constants::BACKGROUND_COLOR;
 
 use crate::bundles::{
-    CorpseSpawnData, EnemySpawnData, Object, PlayerBundle, PlayerSpawn, XPSpawnData,
+    CorpseSpawnData, EnemySpawnData, Object, PlayerSpawn, XPSpawnData,
 };
 use crate::components::Cold;
-use crate::initialization::inspector::add_inspector;
 use crate::initialization::load_prefabs::{Atlases, Enemies};
-use crate::physics::walls::Wall;
 use crate::systems::guns::{
     DamageTextSpawnData, Damaged, FireballSpawnData, FlaskSpawnData, IceballSpawnData,
     ParticleSpawnData,
 };
 use crate::{initialization::register_types::register_types, systems::*};
-use crate::systems::movement::move_player;
 
 mod components;
 
@@ -200,7 +195,7 @@ fn main() {
                 // `chain`ing systems together runs them in order
                 .chain(),
         )
-        .add_systems(PreUpdate, (spawning::set_level_bounds))
+        .add_systems(PreUpdate, spawning::set_level_bounds)
         .add_systems(ReadInputs, movement::read_local_inputs)
         .add_systems(GgrsSchedule, movement::move_player,)
         .rollback_component_with_clone::<Transform>() // NEW

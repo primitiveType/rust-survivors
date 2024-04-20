@@ -1,5 +1,4 @@
 use bevy::input::ButtonInput;
-use bevy::log::tracing_subscriber::fmt::time;
 use bevy::math::Vec2;
 use bevy::prelude::*;
 use bevy::prelude::{EventReader, KeyCode, Query, Res, Time, Transform, With, Without};
@@ -7,8 +6,6 @@ use bevy::utils::HashMap;
 use bevy_ggrs::{LocalInputs, LocalPlayers, PlayerInputs};
 use bevy_rapier2d::dynamics::Velocity;
 use bevy_rapier2d::prelude::*;
-use bevy_matchbox::matchbox_socket::{WebRtcSocket, PeerId};
-use rand::prelude::IteratorRandom;
 // The first generic parameter, u8, is the input type: 4-directions + fire fits
 // easily in a single byte
 // The second parameter is the address type of peers: Matchbox' WebRtcSocket
@@ -16,14 +13,13 @@ use rand::prelude::IteratorRandom;
 
 use crate::components::{
     AbilityLevel, BaseMoveSpeed, Cold, FollowPlayer, MoveSpeed, ParentMoveSpeedMultiplier,
-    PassiveXPMultiplier, Player, XPMultiplier, XPPickupRadius, XPVacuum, XP,
+    PassiveXPMultiplier, Player, XPMultiplier, XPPickupRadius, XPVacuum,
 };
 use crate::Config;
-use crate::extensions::vectors::to_vec2;
 use crate::systems::guns::LevelableData;
 
 pub fn set_follower_velocity(
-    mut query: Query<
+    query: Query<
         (&mut Velocity, &MoveSpeed, &Transform),
         (With<FollowPlayer>, Without<Player>),
     >,
@@ -47,7 +43,7 @@ pub fn apply_xp_radius(
     >,
     mut commands: Commands,
 ) {
-    for (entity, vacuum, ability, mut collider) in modifier_query.iter_mut() {
+    for (entity, vacuum, ability, collider) in modifier_query.iter_mut() {
         commands.entity(entity).insert(Collider::ball(
             XPPickupRadius::get_data_for_level(ability.level).radius,
         ));
@@ -73,7 +69,7 @@ pub fn apply_move_speed_multiplier(
         Option<&mut Cold>,
     )>,
     modifier_query: Query<&ParentMoveSpeedMultiplier>,
-    mut commands: Commands,
+    commands: Commands,
     time: Res<Time>,
 ) {
     for (entity, mut move_speed, base_move, children_maybe, cold_maybe) in &mut parent_query {
@@ -85,7 +81,7 @@ pub fn apply_move_speed_multiplier(
             }
         }
 
-        if let Some(mut cold) = cold_maybe {
+        if let Some(cold) = cold_maybe {
             multiplier -= cold.multiplier;
         }
         move_speed.value = base_move.value * multiplier;
