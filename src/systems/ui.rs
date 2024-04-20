@@ -129,9 +129,9 @@ pub fn update_player_health_ui(
     player_xp_query: Query<(&XP, &Player)>,
     mut query: Query<&mut Text, With<HealthUi>>,
 ) {
-    let mut text = query.single_mut();
-    let (player_health, _) = player_query.single();
-    let (xp, _) = player_xp_query.single();
-    text.sections[1].value = player_health.value.to_string();
-    text.sections[3].value = xp.amount.to_string();
+    // let mut text = query.single_mut();
+    // let (player_health, _) = player_query.single();
+    // let (xp, _) = player_xp_query.single();
+    // text.sections[1].value = player_health.value.to_string();
+    // text.sections[3].value = xp.amount.to_string();
 }

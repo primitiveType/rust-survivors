@@ -17,11 +17,12 @@ use temporary_component_derive::TemporaryComponent;
 pub struct Player {
     // pub xp: u16,
     pub level: u32,
+    pub handle: usize,
 }
 
 impl Default for Player {
     fn default() -> Self {
-        Self { level: 1 }
+        Self { level: 1, handle: 0 }
     }
 }
 

@@ -16,6 +16,8 @@ use bevy_ecs_ldtk::app::LdtkEntityAppExt;
 use bevy_ecs_ldtk::prelude::LdtkIntCellAppExt;
 use bevy_ecs_ldtk::{LdtkPlugin, LevelSelection};
 use bevy_egui::{EguiContexts, EguiPlugin};
+use bevy_ggrs::{GgrsApp, GgrsPlugin, GgrsSchedule, ReadInputs};
+use bevy_matchbox::matchbox_socket::PeerId;
 use bevy_prng::WyRand;
 use bevy_rand::prelude::EntropyPlugin;
 use bevy_rapier2d::pipeline::CollisionEvent;
@@ -41,6 +43,7 @@ use crate::systems::guns::{
     ParticleSpawnData,
 };
 use crate::{initialization::register_types::register_types, systems::*};
+use crate::systems::movement::move_player;
 
 mod components;
 
@@ -56,6 +59,8 @@ mod initialization;
 mod setup;
 mod stepping;
 mod time;
+
+type Config = bevy_ggrs::GgrsConfig<u8, PeerId>;
 
 #[derive(States, Debug, Hash, PartialEq, Eq, Clone, Default)]
 pub enum AppState {
@@ -119,6 +124,7 @@ fn main() {
             LdtkPlugin,
         ))
         .add_plugins((
+            GgrsPlugin::<Config>::default(), // NEW
             SpewPlugin::<Object, EnemySpawnData>::default(),
             SpewPlugin::<Object, FireballSpawnData>::default(),
             SpewPlugin::<Object, IceballSpawnData>::default(),
@@ -195,6 +201,9 @@ fn main() {
                 .chain(),
         )
         .add_systems(PreUpdate, (spawning::set_level_bounds))
+        .add_systems(ReadInputs, movement::read_local_inputs)
+        .add_systems(GgrsSchedule, movement::move_player,)
+        .rollback_component_with_clone::<Transform>() // NEW
         .add_systems(
             //InGame update loop
             Update,
@@ -206,7 +215,6 @@ fn main() {
                 (
                     stats::update_move_speed_from_passive,
                     movement::apply_move_speed_multiplier,
-                    movement::move_player,
                     movement::set_follower_velocity,
                     stats::move_speed_mod_affects_animation_speed,
                 )
@@ -239,6 +247,7 @@ fn main() {
         .add_systems(
             Update,
             (
+                setup::wait_for_players,
                 stats::update_level_descriptions_xp_multiplier,
                 stats::update_level_descriptions_xp_radius,
                 stats::update_level_descriptions_flask,

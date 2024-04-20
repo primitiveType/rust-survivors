@@ -30,8 +30,14 @@ bevy_ecs_ldtk = {git = "https://github.com/Trouv/bevy_ecs_ldtk", branch = "main"
 #bevy_proto = { version = "0.11.0", features = ["default", "yaml"] }//doesn't support bevy 13
 bevy-trait-query = "0.5.1"
 temporary_component_derive = {path= "temporary_component_derive"}
+bevy_matchbox = { version = "0.9", features = ["ggrs"] }
+bevy_ggrs = { version = "0.15" }
+matchbox_server = "0.9.0"
+
+
 [patch.crates-io]
 bevy_ecs_tilemap = { git = "https://github.com/StarArawn/bevy_ecs_tilemap", branch = "main" }
+ggrs = { git = "https://github.com/gschup/ggrs", branch = "main" }
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]

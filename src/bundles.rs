@@ -107,7 +107,7 @@ impl Default for PlayerBundle {
 const PLAYER_SCALE: f32 = 4.0;
 
 impl PlayerBundle {
-    pub fn with_sprite(atlases: ResMut<Atlases>, position: Vec2) -> Self {
+    pub fn with_sprite(atlases: &ResMut<Atlases>, position: Vec2, handle: usize) -> Self {
         Self {
             physical: PhysicalBundle {
                 collider: Collider::ball(2.0),
@@ -133,7 +133,7 @@ impl PlayerBundle {
                 ..default()
             },
             name: Name::new("Player"),
-            player: Default::default(),
+            player: Player{handle, ..default()},
             health: Health { value: 100.0 },
             animator: AnimatorController {
                 state: Idle,

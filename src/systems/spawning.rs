@@ -1,5 +1,6 @@
+use std::ops::Div;
 use bevy::asset::{Assets, Handle};
-use bevy::math::Vec3Swizzles;
+use bevy::math::{Vec3, Vec3Swizzles};
 use bevy::prelude::{
     Added, Color, Commands, Component, Entity, Gizmos, Query, Res, ResMut, Resource, Time, Timer,
     Transform, Vec2, Without,
@@ -7,6 +8,7 @@ use bevy::prelude::{
 pub use bevy::utils::petgraph::visit::Walker;
 use bevy_ecs_ldtk::prelude::{LdtkProject, LevelMetadataAccessor};
 use bevy_ecs_ldtk::*;
+use bevy_rapier2d::parry::transformation::utils::transform;
 
 use crate::bundles::{EnemySpawnData, Object, PlayerSpawn};
 use crate::components::{Enemy, Player};
@@ -76,7 +78,8 @@ pub fn enemy_spawn_cycle(
     }
     let count = query.iter().len();
     let bounds = bounds_query.single();
-    let (player, transform) = player_query.single();
+    let total_translation: Vec3 = player_query.iter().map(|(player, transform)| transform.translation).sum();
+    let avg_translation: Vec3 = total_translation / Vec3::splat(player_query.iter().len() as f32);
     // let (map_size, tile_size, map_transform) = level_query.iter().next();
     if count < 5 {
         //round_time.timer.elapsed().as_secs() as usize {
@@ -85,7 +88,7 @@ pub fn enemy_spawn_cycle(
             Object::Enemy,
             EnemySpawnData {
                 enemy_id: "bat".to_string(),
-                player_position: transform.translation.xy(),
+                player_position: avg_translation.xy(),
                 bounds: bounds.clone(),
             },
         );
@@ -93,7 +96,7 @@ pub fn enemy_spawn_cycle(
             Object::Enemy,
             EnemySpawnData {
                 enemy_id: "zombie".to_string(),
-                player_position: transform.translation.xy(),
+                player_position: avg_translation.xy(),
                 bounds: bounds.clone(),
             },
         );
@@ -107,11 +110,11 @@ pub fn move_player_to_spawn_point(
     mut spawn_point: Query<(Entity, &PlayerSpawn, &Transform), Without<Player>>,
     mut player_query: Query<(&Player, &mut Transform)>,
 ) {
-    let (player, mut transform) = player_query.single_mut();
-
-    for (entity, _, spawn) in spawn_point.iter() {
-        transform.translation =
-            Vec2::new(spawn.translation.x as f32, spawn.translation.y as f32).extend(PLAYER_LAYER);
-        commands.entity(entity).despawn();
+    for (player, mut transform) in player_query.iter_mut() {
+        for (entity, _, spawn) in spawn_point.iter() {
+            transform.translation =
+                Vec2::new(spawn.translation.x as f32, spawn.translation.y as f32).extend(PLAYER_LAYER);
+            commands.entity(entity).despawn();
+        }
     }
 }

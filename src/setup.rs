@@ -9,22 +9,66 @@ use crate::physics::layers::game_layer;
 use crate::*;
 use bevy::math::vec3;
 use bevy_ecs_ldtk::LdtkWorldBundle;
+use bevy_ggrs::{AddRollbackCommandExtension, ggrs};
+use bevy_matchbox::matchbox_socket::SingleChannel;
+use bevy_matchbox::MatchboxSocket;
 use bevy_rapier2d::geometry::{ActiveEvents, Collider, Restitution, Sensor};
 use bevy_rapier2d::parry::transformation::utils::transform;
 use bevy_rapier2d::prelude::CollisionGroups;
 
+pub(crate) fn wait_for_players(mut commands: Commands,mut socket: ResMut<MatchboxSocket<SingleChannel>>) {
+    if socket.get_channel(0).is_err() {
+        return; // we've already started
+    }
+
+    // Check for new connections
+    socket.update_peers();
+    let players = socket.players();
+
+    let num_players = 2;
+    if players.len() < num_players {
+        return; // wait for more players
+    }
+
+    info!("All peers have joined, going in-game");
+    // create a GGRS P2P session
+    let mut session_builder = ggrs::SessionBuilder::<Config>::new()
+        .with_num_players(num_players)
+        .with_input_delay(2);
+
+    for (i, player) in players.into_iter().enumerate() {
+        session_builder = session_builder
+            .add_player(player, i)
+            .expect("failed to add player");
+    }
+
+    // move the channel out of the socket (required because GGRS takes ownership of it)
+    let channel = socket.take_channel(0).unwrap();
+
+    // start the GGRS session
+    let ggrs_session = session_builder
+        .start_p2p_session(channel)
+        .expect("failed to start session");
+
+    commands.insert_resource(bevy_ggrs::Session::P2P(ggrs_session));
+}
 // Add the game's entities to our world
 // #[bevycheck::system]
 pub fn setup(mut commands: Commands, atlases: ResMut<Atlases>, asset_server: Res<AssetServer>) {
     // Camera
     let camera = commands.spawn(Camera2dBundle::default());
 
+    //start matchbox
+    let room_url = "ws://127.0.0.1:3536/extreme_bevy?next=2";
+    info!("connecting to matchbox server: {room_url}");
+    commands.insert_resource(MatchboxSocket::new_ggrs(room_url));
     // Sound
     // let ball_collision_sound = asset_server.load("sounds/breakout_collision.ogg");
     // commands.insert_resource(CollisionSound(ball_collision_sound));
     // Get the specific entity you want
 
-    spawn_player(&mut commands, atlases, Vec2::ZERO);
+    spawn_player(&mut commands, &atlases, Vec2::ZERO, 0);
+    spawn_player(&mut commands, &atlases, Vec2::ONE, 1);
 
     commands.spawn(LdtkWorldBundle {
         ldtk_handle: asset_server.load("levels/cemetery-0/cemetery-0.ldtk"),
@@ -81,9 +125,9 @@ pub fn setup(mut commands: Commands, atlases: ResMut<Atlases>, asset_server: Res
     // commands.spawn(WallBundle::new(WallLocation::Top));
 }
 
-fn spawn_player(commands: &mut Commands, atlases: ResMut<Atlases>, position: Vec2) {
+fn spawn_player(commands: &mut Commands, atlases: &ResMut<Atlases>, position: Vec2, handle: usize) {
     commands
-        .spawn(bundles::PlayerBundle::with_sprite(atlases, position))
+        .spawn(bundles::PlayerBundle::with_sprite(atlases, position, handle))
         .with_children(|parent| {
             //fireball gun
             parent.spawn((
@@ -155,7 +199,7 @@ fn spawn_player(commands: &mut Commands, atlases: ResMut<Atlases>, position: Vec
                 SpatialBundle { ..default() },
                 Sensor,
                 ActiveEvents::COLLISION_EVENTS,
-            ));
+            )).add_rollback();
             parent.spawn((AttackSpeed { percent: 0.0 },));
         });
 }
