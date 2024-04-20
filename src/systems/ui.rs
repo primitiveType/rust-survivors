@@ -8,8 +8,6 @@ use crate::components::{AbilityLevel, Health, HealthUi, Lifetime, Player, XP};
 use crate::AppState;
 use serde::{Deserialize, Serialize};
 
-#[derive(Component)]
-pub struct LevelUpUiRoot;
 
 #[derive(Component)]
 pub struct FadeTextWithLifetime {}
@@ -21,40 +19,10 @@ pub fn fade_text(mut query: Query<(&mut Text, &Lifetime), With<FadeTextWithLifet
     }
 }
 
-fn button() -> ButtonBundle {
-    ButtonBundle {
-        style: Style {
-            // size: Size::new(Val::Px(150.0), Val::Px(65.0)),
-            // margin: UiRoot::(Val::Px(5.0)),
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
-            ..default()
-        },
-
-        background_color: Color::rgb(0.15, 0.15, 0.15).into(),
-        ..default()
-    }
-}
-
-fn button_text(_asset_server: &Res<AssetServer>, text: &str) -> TextBundle {
-    TextBundle {
-        text: Text::from_section(
-            text,
-            TextStyle {
-                // font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                font: Default::default(),
-                font_size: 30.0,
-                color: Color::WHITE,
-            },
-        ),
-        ..default()
-    }
-}
-
 pub fn button_system(
-    player_query: Query<(&Player, Entity)>,
+    _player_query: Query<(&Player, Entity)>,
     mut next_state: ResMut<NextState<AppState>>,
-    commands: Commands,
+    _commands: Commands,
     choices: Query<&LevelUpChoice>,
     mut abilities: Query<&mut AbilityLevel>,
     mut contexts: EguiContexts,
@@ -103,7 +71,7 @@ pub fn prepare_level_up(abilities: Query<(Entity, &AbilityLevel, &Name)>, mut co
     // commands.entity(player_query.single_mut()).
     let mut rng = rand::thread_rng();
 
-    for (entity, ability, name) in abilities.iter().choose_multiple(&mut rng, num_choices) {
+    for (entity, _ability, _name) in abilities.iter().choose_multiple(&mut rng, num_choices) {
         commands.spawn(LevelUpChoice {
             entity_to_level: entity,
         });
@@ -111,7 +79,7 @@ pub fn prepare_level_up(abilities: Query<(Entity, &AbilityLevel, &Name)>, mut co
 }
 
 pub fn cleanup_level_up(mut commands: Commands, choices: Query<(Entity, &LevelUpChoice)>) {
-    for (entity, choice) in choices.iter() {
+    for (entity, _choice) in choices.iter() {
         commands.entity(entity).despawn();
     }
 }
@@ -125,9 +93,9 @@ pub fn resume_animations(mut animation_timers: ResMut<SpriteAnimController>) {
 }
 
 pub fn update_player_health_ui(
-    player_query: Query<(&Health, &Player)>,
-    player_xp_query: Query<(&XP, &Player)>,
-    query: Query<&mut Text, With<HealthUi>>,
+    _player_query: Query<(&Health, &Player)>,
+    _player_xp_query: Query<(&XP, &Player)>,
+    _query: Query<&mut Text, With<HealthUi>>,
 ) {
     // let mut text = query.single_mut();
     // let (player_health, _) = player_query.single();

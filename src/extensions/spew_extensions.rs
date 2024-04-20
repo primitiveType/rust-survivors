@@ -2,7 +2,7 @@ use crate::bundles::Object;
 use bevy::prelude::EventWriter;
 use spew::prelude::SpawnEvent;
 
-pub type SpawnerOf<'w, EnumType, ArgsType> = EventWriter<'w, SpawnEvent<EnumType, ArgsType>>;
+// pub type SpawnerOf<'w, EnumType, ArgsType> = EventWriter<'w, SpawnEvent<EnumType, ArgsType>>;
 pub type Spawner<'w, ArgsType> = EventWriter<'w, SpawnEvent<Object, ArgsType>>;
 
 impl<'w, Key: Eq + Send + Sync, Value: Send + Sync> Spawn<Key, Value>

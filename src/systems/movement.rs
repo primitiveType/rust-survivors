@@ -15,15 +15,12 @@ use crate::components::{
     AbilityLevel, BaseMoveSpeed, Cold, FollowPlayer, MoveSpeed, ParentMoveSpeedMultiplier,
     PassiveXPMultiplier, Player, XPMultiplier, XPPickupRadius, XPVacuum,
 };
-use crate::Config;
 use crate::systems::guns::LevelableData;
+use crate::Config;
 
 pub fn set_follower_velocity(
-    query: Query<
-        (&mut Velocity, &MoveSpeed, &Transform),
-        (With<FollowPlayer>, Without<Player>),
-    >,
-    player_query: Query<&mut Transform, With<Player>>,
+    _query: Query<(&mut Velocity, &MoveSpeed, &Transform), (With<FollowPlayer>, Without<Player>)>,
+    _player_query: Query<&mut Transform, With<Player>>,
 ) {
     // let player = player_query.iter().choose_multiple(1).;
     //
@@ -43,7 +40,7 @@ pub fn apply_xp_radius(
     >,
     mut commands: Commands,
 ) {
-    for (entity, vacuum, ability, collider) in modifier_query.iter_mut() {
+    for (entity, _vacuum, ability, _collider) in modifier_query.iter_mut() {
         commands.entity(entity).insert(Collider::ball(
             XPPickupRadius::get_data_for_level(ability.level).radius,
         ));
@@ -51,11 +48,14 @@ pub fn apply_xp_radius(
 }
 
 pub fn apply_xp_multiplier(
-    mut modifier_query: Query<(&PassiveXPMultiplier, &AbilityLevel, &Parent), Changed<AbilityLevel>>,
+    mut modifier_query: Query<
+        (&PassiveXPMultiplier, &AbilityLevel, &Parent),
+        Changed<AbilityLevel>,
+    >,
     mut player_query: Query<(&mut XPMultiplier, &Player)>,
 ) {
     for (_, ability, parent) in modifier_query.iter_mut() {
-        let (mut xp_multi, player) = player_query.get_mut(parent.get()).unwrap();
+        let (mut xp_multi, _player) = player_query.get_mut(parent.get()).unwrap();
         xp_multi.value = XPMultiplier::get_data_for_level(ability.level).value;
     }
 }
@@ -69,10 +69,10 @@ pub fn apply_move_speed_multiplier(
         Option<&mut Cold>,
     )>,
     modifier_query: Query<&ParentMoveSpeedMultiplier>,
-    commands: Commands,
-    time: Res<Time>,
+    _commands: Commands,
+    _time: Res<Time>,
 ) {
-    for (entity, mut move_speed, base_move, children_maybe, cold_maybe) in &mut parent_query {
+    for (_entity, mut move_speed, base_move, children_maybe, cold_maybe) in &mut parent_query {
         let mut multiplier = 1.0;
 
         if let Some(children) = children_maybe {
@@ -93,13 +93,16 @@ pub fn camera_follow(
     mut query: Query<(&mut Transform, &Camera2d), Without<Player>>,
     player_query: Query<(&Transform, &Player)>,
 ) {
-    for (player_transform, player, ) in player_query.iter() {
+    for (player_transform, player) in player_query.iter() {
         // only follow the local player
         if !local_players.0.contains(&player.handle) {
             continue;
         }
-        for (mut transform, camera) in query.iter_mut() {
-            transform.translation = player_transform.translation.xy().extend(transform.translation.z);
+        for (mut transform, _camera) in query.iter_mut() {
+            transform.translation = player_transform
+                .translation
+                .xy()
+                .extend(transform.translation.z);
         }
     }
 }
@@ -107,13 +110,13 @@ pub fn camera_follow(
 pub fn _debug_collisions(mut collision_events: EventReader<CollisionEvent>) {
     for collision_event in collision_events.read() {
         match collision_event {
-            CollisionEvent::Started(collider1, collider2, flags) => {
+            CollisionEvent::Started(collider1, collider2, _flags) => {
                 println!(
                     "Collision started between {:?} and {:?}",
                     collider1, collider2
                 );
             }
-            CollisionEvent::Stopped(collider1, collider2, flags) => {
+            CollisionEvent::Stopped(collider1, collider2, _flags) => {
                 println!(
                     "Collision stopped between {:?} and {:?}",
                     collider1, collider2
@@ -162,9 +165,7 @@ pub fn read_local_inputs(
 }
 
 pub fn move_player(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut query: Query<(&mut Velocity, &MoveSpeed, &Player)>,
-    time: Res<Time>,
     inputs: Res<PlayerInputs<Config>>,
 ) {
     for (mut velocity, move_speed, player) in &mut query {

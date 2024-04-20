@@ -1,7 +1,7 @@
 #![feature(duration_constructors)]
 
 use crate::physics::walls::WallBundle;
-use bevy_rapier2d::prelude::{PhysicsSet};
+use bevy_rapier2d::prelude::{PhysicsSet, RapierDebugRenderPlugin};
 use std::collections::HashMap;
 use std::env;
 use std::fmt::Debug;
@@ -29,9 +29,7 @@ use spew::prelude::{SpewApp, SpewPlugin};
 use components::HealthUi;
 use constants::BACKGROUND_COLOR;
 
-use crate::bundles::{
-    CorpseSpawnData, EnemySpawnData, Object, PlayerSpawn, XPSpawnData,
-};
+use crate::bundles::{CorpseSpawnData, EnemySpawnData, Object, PlayerSpawn, XPSpawnData};
 use crate::components::Cold;
 use crate::initialization::load_prefabs::{Atlases, Enemies};
 use crate::systems::guns::{
@@ -39,6 +37,7 @@ use crate::systems::guns::{
     ParticleSpawnData,
 };
 use crate::{initialization::register_types::register_types, systems::*};
+use crate::initialization::inspector::add_inspector;
 
 mod components;
 
@@ -65,6 +64,7 @@ pub enum AppState {
 }
 
 fn main() {
+    let debug = false;//TODO: use cli
     // this method needs to be inside main() method
     env::set_var("RUST_BACKTRACE", "full");
     //TODO:
@@ -108,7 +108,6 @@ fn main() {
                 .with_default_system_setup(true)
                 .in_schedule(time::PhysicsSchedule),
             time::TimePlugin,
-            // (RapierDebugRenderPlugin::default()),
             AsepritesheetPlugin::new(&["sprite.json"]),
             stepping::SteppingPlugin::default()
                 .add_schedule(Update)
@@ -197,13 +196,12 @@ fn main() {
         )
         .add_systems(PreUpdate, spawning::set_level_bounds)
         .add_systems(ReadInputs, movement::read_local_inputs)
-        .add_systems(GgrsSchedule, movement::move_player,)
+        .add_systems(GgrsSchedule, movement::move_player)
         .rollback_component_with_clone::<Transform>() // NEW
         .add_systems(
             //InGame update loop
             Update,
             (
-                // spawning::draw_level_bounds,
                 spawning::set_level_bounds,
                 physics::walls::spawn_wall_collision,
                 spawning::move_player_to_spawn_point,
@@ -278,10 +276,17 @@ fn main() {
         .add_systems(OnEnter(AppState::InGame), physics::time::unpause)
         .add_systems(OnExit(AppState::InGame), physics::time::pause);
     println!("{}", app.is_plugin_added::<EguiPlugin>());
-    // let app: &mut App = add_inspector(app);
+
+    if debug {
+        let app: &mut App = add_inspector(app);
+
+        app.add_plugins(RapierDebugRenderPlugin::default());
+
+        app.add_systems(FixedUpdate, spawning::draw_level_bounds);
+    }
     let app: &mut App = register_types(app);
 
     app.run();
 }
 
-fn ui_example_system(contexts: EguiContexts) {}
+fn ui_example_system(_contexts: EguiContexts) {}

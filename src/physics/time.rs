@@ -1,5 +1,4 @@
 use bevy::prelude::ResMut;
-use bevy::prelude::*;
 
 use crate::time;
 use crate::time::PhysicsTimeExt;

@@ -1,7 +1,7 @@
 use bevy::core::Name;
 use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{
-    default, Bundle, Color, Commands, Component, In, Res, ResMut, SpatialBundle, Sprite, Transform,
+    Bundle, Commands, Component, default, In, Res, ResMut, Sprite, Transform,
 };
 use bevy::sprite::SpriteSheetBundle;
 use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
@@ -13,24 +13,20 @@ use bevy_rapier2d::geometry::{ActiveEvents, Collider, CollisionGroups, Restituti
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-use crate::animation::AnimationState::Walk;
 use crate::animation::{AnimationState, AnimatorController};
+use crate::animation::AnimationState::Walk;
 use crate::components::{
-    AbilityLevel, BaseMoveSpeed, DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health,
-    Lifetime, MoveSpeed, Player, XPMultiplier, XP,
+    BaseMoveSpeed, DamageOnTouch, Enemy, FollowPlayer, GainXPOnTouch, Health,
+    Lifetime, MoveSpeed, Player, XP, XPMultiplier,
 };
 use crate::constants::{CORPSE_LAYER, ENEMY_LAYER, PLAYER_LAYER, PLAYER_SPEED, XP_LAYER};
-use crate::initialization::load_prefabs::{load_enemy_data_from_path, Atlases, Enemies};
+use crate::initialization::load_prefabs::{Atlases, Enemies, load_enemy_data_from_path};
 use crate::physics::layers::game_layer;
 use crate::systems::animation::AnimationState::{Dead, Idle};
 use crate::systems::spawning::LevelBounds;
 
-const XP_COLOR: Color = Color::rgb(0.0, 1.0, 0.1);
-
 #[derive(Debug, Eq, PartialEq)]
 pub enum Object {
-    Cube,
-    Player,
     Enemy,
     Fireball,
     Iceball,
@@ -129,7 +125,10 @@ impl PlayerBundle {
                 ..default()
             },
             name: Name::new("Player"),
-            player: Player{handle, ..default()},
+            player: Player {
+                handle,
+                ..default()
+            },
             health: Health { value: 100.0 },
             animator: AnimatorController {
                 state: Idle,
@@ -224,12 +223,6 @@ pub struct EnemyData {
     touch_damage: DamageOnTouch,
 }
 
-pub struct AbilityBundle {
-    pub spatial: SpatialBundle,
-    pub name: Name,
-    pub ability: AbilityLevel,
-}
-
 const ENEMY_SCALE: f32 = 2.0;
 
 impl EnemyBundle {
@@ -246,7 +239,9 @@ impl EnemyBundle {
                 spritesheet: atlases
                     .sprite_sheets
                     .get(&enemy_data.name.to_string())
-                    .unwrap_or_else(|| { panic!("{}", format!("{} not found!", &enemy_data.name).to_string()) })
+                    .unwrap_or_else(|| {
+                        panic!("{}", format!("{} not found!", &enemy_data.name).to_string())
+                    })
                     .clone(),
                 sprite_bundle: SpriteSheetBundle {
                     transform: Transform {
@@ -322,7 +317,7 @@ pub fn spawn_corpse(
             spritesheet: atlases
                 .sprite_sheets
                 .get(&corpse.name)
-                .unwrap_or_else(|| { panic!("{}", format!("{} not found!", corpse.name).to_string()) })
+                .unwrap_or_else(|| panic!("{}", format!("{} not found!", corpse.name).to_string()))
                 .clone(),
             sprite_bundle: SpriteSheetBundle {
                 transform: Transform {
@@ -376,17 +371,17 @@ pub fn spawn_enemy(
     )
     .extend(ENEMY_LAYER);
     // bundle.animation_bundle.sprite_bundle.transform.translation = (direction + enemy_spawn_data.player_position).extend(0.0);
-    let enemy = commands.spawn(bundle);
+    let _enemy = commands.spawn(bundle);
 }
 
 pub fn spawn_xp(In(data): In<XPSpawnData>, mut commands: Commands, atlases: Res<Atlases>) {
     let name = "food";
-    let spawned = commands.spawn(XPBundle {
+    let _spawned = commands.spawn(XPBundle {
         animation_bundle: AnimatedSpriteBundle {
             spritesheet: atlases
                 .sprite_sheets
                 .get(&name.to_string())
-                .unwrap_or_else(|| { panic!("{}", format!("{} not found!", &name).to_string()) })
+                .unwrap_or_else(|| panic!("{}", format!("{} not found!", &name).to_string()))
                 .clone(),
             sprite_bundle: SpriteSheetBundle {
                 transform: Transform {

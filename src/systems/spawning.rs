@@ -76,7 +76,10 @@ pub fn enemy_spawn_cycle(
     }
     let count = query.iter().len();
     let bounds = bounds_query.single();
-    let total_translation: Vec3 = player_query.iter().map(|(player, transform)| transform.translation).sum();
+    let total_translation: Vec3 = player_query
+        .iter()
+        .map(|(_player, transform)| transform.translation)
+        .sum();
     let avg_translation: Vec3 = total_translation / Vec3::splat(player_query.iter().len() as f32);
     // let (map_size, tile_size, map_transform) = level_query.iter().next();
     if count < 5 {
@@ -108,7 +111,7 @@ pub fn move_player_to_spawn_point(
     spawn_point: Query<(Entity, &PlayerSpawn, &Transform), Without<Player>>,
     mut player_query: Query<(&Player, &mut Transform)>,
 ) {
-    for (player, mut transform) in player_query.iter_mut() {
+    for (_player, mut transform) in player_query.iter_mut() {
         for (entity, _, spawn) in spawn_point.iter() {
             transform.translation =
                 Vec2::new(spawn.translation.x, spawn.translation.y).extend(PLAYER_LAYER);

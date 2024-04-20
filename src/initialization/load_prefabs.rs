@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 use std::fs;
-use std::fs::{DirEntry};
-use std::path::PathBuf;
+use std::fs::DirEntry;
 
 use bevy::asset::{AssetServer, Handle};
 use bevy::prelude::{Bundle, Commands, Res, ResMut, Resource, SpatialBundle};
-use bevy_asepritesheet::core::{load_spritesheet_then};
+use bevy_asepritesheet::core::load_spritesheet_then;
 use bevy_asepritesheet::prelude::{AnimEndAction, Spritesheet};
 use serde::Deserialize;
 use serde::Serialize;
@@ -45,7 +44,6 @@ pub struct AtlasLayout {
     pub width_px: u16,
 }
 
-const GUNS_PATH: &str = "assets\\prefabs\\guns\\";
 const ENEMIES_PATH: &str = "assets\\prefabs\\enemies\\";
 const SPRITES_PATH: &str = "assets\\"; //has to be root of assets for now due to bug in spritesheet package
 
@@ -123,43 +121,12 @@ pub fn load_enemy_prefabs(mut enemies: ResMut<Enemies>, atlases: ResMut<Atlases>
     }
 }
 
-pub fn load_gun(gun: usize) -> Cooldown {
-    let paths: Vec<DirEntry> = fs::read_dir(GUNS_PATH)
-        .unwrap()
-        .filter_map(|entry| entry.ok())
-        .collect();
-
-    let paths_count = paths.len();
-    let path = &paths[gun % paths_count];
-    let file_path = path.path();
-    println!("Loaded gun {}", file_path.display());
-    let gun_yaml = fs::read_to_string(file_path).expect("failed to load yaml!");
-    let gun =
-        serde_yaml::from_str::<Cooldown>(gun_yaml.as_str()).expect("failed to deserialize gun!");
-
-    gun
-}
 
 pub fn _save_enemy(bundle: EnemyData) {
     let enemy_yaml = serde_yaml::to_string(&bundle).expect("Unable to serialize!");
     fs::write(ENEMIES_PATH, enemy_yaml).expect("Unable to write file!");
 }
 
-fn get_enemy_path(index: usize) -> PathBuf {
-    let paths: Vec<DirEntry> = fs::read_dir(ENEMIES_PATH)
-        .unwrap()
-        .filter_map(|entry| entry.ok())
-        .collect();
-    let paths_count = paths.len();
-    let path = &paths[index % paths_count];
-    path.path()
-}
-
-pub fn _load_enemy_data(enemy: usize) -> EnemyData {
-    let file_path = get_enemy_path(enemy);
-
-    load_enemy_data_from_path(file_path.to_str().unwrap())
-}
 
 pub fn load_enemy_data_from_path(path: &str) -> EnemyData {
     load_data_from_path::<EnemyData>(path)

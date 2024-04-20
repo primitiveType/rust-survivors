@@ -4,11 +4,11 @@ use std::string::String;
 use bevy::core::Name;
 use bevy::math::{Vec2, Vec3Swizzles};
 use bevy::prelude::{
-    Changed, Color, Commands, Entity, EventReader, NextState, Query,
-    ResMut, Sprite, Transform, With,
+    Changed, Color, Commands, Entity, EventReader, NextState, Query, ResMut, Sprite, Transform,
+    With,
 };
 use bevy::time::{Timer, TimerMode};
-use bevy_asepritesheet::animator::{SpriteAnimator};
+use bevy_asepritesheet::animator::SpriteAnimator;
 use bevy_rapier2d::pipeline::CollisionEvent;
 use rand::Rng;
 
@@ -76,7 +76,7 @@ pub fn cold_enemies_spawn_particles(
     sprites: Query<(Entity, &Enemy), With<Cold>>,
     mut spawner: Spawner<ParticleSpawnData>,
 ) {
-    for (entity, enemy) in sprites.iter() {
+    for (entity, _enemy) in sprites.iter() {
         let mut rng = rand::thread_rng();
         let value = rng.gen_range(0.0..1.0);
         let angle = value * 2.0 * std::f32::consts::PI;
@@ -165,7 +165,8 @@ pub fn update_level_descriptions_move_speed(
 pub fn highlight_damaged(mut sprites: Query<(&mut Sprite, &Damaged)>) {
     for (mut sprite, damaged) in sprites.iter_mut() {
         let fraction = damaged.timer.fraction_remaining();
-        sprite.color = sprite.color
+        sprite.color = sprite
+            .color
             .with_r(fraction + sprite.color.r())
             .with_g(fraction + sprite.color.g())
             .with_b(fraction + sprite.color.b())
@@ -384,7 +385,7 @@ pub fn pick_up_xp_on_touch(
                     continue;
                 }
 
-                let (e_entity, _player, mut player_xp, xp_mult) = player.unwrap();
+                let (_e_entity, _player, mut player_xp, xp_mult) = player.unwrap();
                 println!("got xp!");
                 player_xp.amount += (xp.unwrap().1.value as f32) * (xp_mult.value + 1.0);
                 commands.entity(*xp_entity).despawn();
@@ -424,8 +425,8 @@ pub fn vacuum_xp_on_touch(
                     continue;
                 }
 
-                let (_entity, vacuum) = vacuum.unwrap();
-                let (xp_entity, xp) = xp.unwrap();
+                let (_entity, _vacuum) = vacuum.unwrap();
+                let (xp_entity, _xp) = xp.unwrap();
                 commands
                     .entity(xp_entity)
                     .insert((FollowPlayer, MoveSpeed { value: 500.0 }));

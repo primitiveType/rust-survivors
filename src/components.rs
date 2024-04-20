@@ -7,10 +7,10 @@ use bevy::prelude::*;
 use bevy::time::TimerMode::Repeating;
 use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
 use bevy_rapier2d::geometry::Sensor;
+use bevy_rapier2d::prelude::CollidingEntities;
 use serde::Deserialize;
 use serde::Serialize;
 use std::time::Duration;
-use bevy_rapier2d::prelude::CollidingEntities;
 use temporary_component_derive::TemporaryComponent;
 
 #[derive(Component)]
@@ -22,7 +22,10 @@ pub struct Player {
 
 impl Default for Player {
     fn default() -> Self {
-        Self { level: 1, handle: 0 }
+        Self {
+            level: 1,
+            handle: 0,
+        }
     }
 }
 
@@ -32,17 +35,6 @@ pub struct Cooldown {
     pub timer: Timer,
 }
 
-impl Cooldown {
-    pub fn from_seconds(seconds: f32) -> Self {
-        Self {
-            timer: Timer::new(Duration::from_secs_f32(seconds), Repeating),
-        }
-    }
-
-    pub fn display_seconds(&self) -> String {
-        self.timer.duration().as_secs_f32().to_string()
-    }
-}
 
 #[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct Flask {}
@@ -123,7 +115,6 @@ impl Cooldown {
 
 #[derive(Component, Default)]
 pub struct Bullet {
-    pub hits: u8,
     pub pierce: u8,
 }
 
@@ -237,7 +228,7 @@ pub struct FlaskProjectileBundle {
     pub sensor: Sensor,
     pub damage: DamageOnTouch,
     pub lifetime: Lifetime,
-    pub collisions : CollidingEntities,
+    pub collisions: CollidingEntities,
 }
 
 #[derive(Component)]

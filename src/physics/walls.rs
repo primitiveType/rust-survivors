@@ -1,5 +1,5 @@
 use crate::physics::layers::game_layer::GROUND;
-use bevy::asset::AssetContainer;
+
 use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::{LayerInstance, LdtkProject};
 use bevy_ecs_ldtk::{GridCoords, LdtkIntCell, LevelIid};
@@ -65,7 +65,7 @@ pub fn spawn_wall_collision(
     // 2. it lets us easily add the collision entities as children of the appropriate level entity
     let mut level_to_wall_locations: HashMap<Entity, HashSet<GridCoords>> = HashMap::new();
 
-    wall_query.for_each(|(&grid_coords, parent)| {
+    wall_query.iter().for_each(|(&grid_coords, parent)| {
         // An intgrid tile's direct parent will be a layer entity, not the level entity
         // To get the level entity, you need the tile's grandparent.
         // This is where parent_query comes in.
@@ -78,7 +78,7 @@ pub fn spawn_wall_collision(
     });
 
     if !wall_query.is_empty() {
-        level_query.for_each(|(level_entity, level_iid)| {
+        level_query.iter().for_each(|(level_entity, level_iid)| {
             if let Some(level_walls) = level_to_wall_locations.get(&level_entity) {
                 let ldtk_project = ldtk_project_assets
                     .get(ldtk_projects.single())

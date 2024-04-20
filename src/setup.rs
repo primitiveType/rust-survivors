@@ -8,13 +8,16 @@ use crate::constants::{
 use crate::physics::layers::game_layer;
 use crate::*;
 use bevy_ecs_ldtk::LdtkWorldBundle;
-use bevy_ggrs::{AddRollbackCommandExtension, ggrs};
+use bevy_ggrs::{ggrs, AddRollbackCommandExtension};
 use bevy_matchbox::matchbox_socket::SingleChannel;
 use bevy_matchbox::MatchboxSocket;
 use bevy_rapier2d::geometry::{ActiveEvents, Collider, Restitution, Sensor};
 use bevy_rapier2d::prelude::CollisionGroups;
 
-pub(crate) fn wait_for_players(mut commands: Commands,mut socket: ResMut<MatchboxSocket<SingleChannel>>) {
+pub(crate) fn wait_for_players(
+    mut commands: Commands,
+    mut socket: ResMut<MatchboxSocket<SingleChannel>>,
+) {
     if socket.get_channel(0).is_err() {
         return; // we've already started
     }
@@ -54,7 +57,7 @@ pub(crate) fn wait_for_players(mut commands: Commands,mut socket: ResMut<Matchbo
 // #[bevycheck::system]
 pub fn setup(mut commands: Commands, atlases: ResMut<Atlases>, asset_server: Res<AssetServer>) {
     // Camera
-    let camera = commands.spawn(Camera2dBundle::default());
+    let _camera = commands.spawn(Camera2dBundle::default());
 
     //start matchbox
     let room_url = "ws://127.0.0.1:3536/extreme_bevy?next=2";
@@ -125,7 +128,9 @@ pub fn setup(mut commands: Commands, atlases: ResMut<Atlases>, asset_server: Res
 
 fn spawn_player(commands: &mut Commands, atlases: &ResMut<Atlases>, position: Vec2, handle: usize) {
     commands
-        .spawn(bundles::PlayerBundle::with_sprite(atlases, position, handle))
+        .spawn(bundles::PlayerBundle::with_sprite(
+            atlases, position, handle,
+        ))
         .with_children(|parent| {
             //fireball gun
             parent.spawn((
@@ -181,25 +186,26 @@ fn spawn_player(commands: &mut Commands, atlases: &ResMut<Atlases>, position: Ve
                 // SpatialBundle { ..default() },
             ));
             //xp gatherer
-            parent.spawn((
-                Name::new("XP Pickup Radius"),
-                XPPickupRadius { radius: 0.0 },
-                XPVacuum {},
-                AbilityLevel {
-                    level: 0,
-                    ..default()
-                },
-                Collider::ball(50.0),
-                // Friction::ZERO,
-                Restitution::new(1.0),
-                CollisionGroups::new(game_layer::XP_ABSORB, game_layer::XP),
-                // LockedAxes::ROTATION_LOCKED,
-                SpatialBundle { ..default() },
-                Sensor,
-                ActiveEvents::COLLISION_EVENTS,
-            )).add_rollback();
+            parent
+                .spawn((
+                    Name::new("XP Pickup Radius"),
+                    XPPickupRadius { radius: 0.0 },
+                    XPVacuum {},
+                    AbilityLevel {
+                        level: 0,
+                        ..default()
+                    },
+                    Collider::ball(50.0),
+                    // Friction::ZERO,
+                    Restitution::new(1.0),
+                    CollisionGroups::new(game_layer::XP_ABSORB, game_layer::XP),
+                    // LockedAxes::ROTATION_LOCKED,
+                    SpatialBundle { ..default() },
+                    Sensor,
+                    ActiveEvents::COLLISION_EVENTS,
+                ))
+                .add_rollback();
             parent.spawn((AttackSpeed { percent: 0.0 },));
         });
 }
 
-fn spawn_background(commands: &mut Commands, asset_server: &AssetServer) {}

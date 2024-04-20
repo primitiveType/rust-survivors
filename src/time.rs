@@ -6,9 +6,6 @@ use bevy::prelude::*;
 pub const DEFAULT_TIMESTEP: Duration = Duration::from_micros(15625);
 pub const MAX_PHYSICS_EXEC_TIME: Duration = Duration::from_micros(15625);
 
-#[derive(Resource, Default)]
-pub struct DiagnosticFrameCount(u32);
-
 pub struct TimePlugin;
 
 impl Plugin for TimePlugin {
@@ -28,8 +25,8 @@ pub type PhysicsTime = Time<PhysicsTimeInner>;
 pub trait PhysicsTimeExt {
     fn pause(&mut self);
     fn resume(&mut self);
-    fn step(&mut self);
-    fn run(&mut self, speed: f32);
+    fn _step(&mut self);
+    fn _run(&mut self, speed: f32);
 }
 
 impl PhysicsTimeExt for PhysicsTime {
@@ -42,11 +39,11 @@ impl PhysicsTimeExt for PhysicsTime {
         self.context_mut().set_mode(old_mode);
     }
 
-    fn step(&mut self) {
+    fn _step(&mut self) {
         self.context_mut().set_mode(PhysicsTimeMode::OneTick);
     }
 
-    fn run(&mut self, speed: f32) {
+    fn _run(&mut self, speed: f32) {
         self.context_mut()
             .set_mode(PhysicsTimeMode::Running { speed });
     }
