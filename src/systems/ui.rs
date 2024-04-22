@@ -7,6 +7,7 @@ use rand::seq::IteratorRandom;
 use crate::components::{AbilityLevel, Health, HealthUi, Lifetime, Player, XP};
 use crate::AppState;
 use serde::{Deserialize, Serialize};
+use crate::random::SessionRng;
 
 
 #[derive(Component)]
@@ -64,14 +65,17 @@ pub struct LevelUpChoice {
     pub entity_to_level: Entity,
 }
 
-pub fn prepare_level_up(abilities: Query<(Entity, &AbilityLevel, &Name)>, mut commands: Commands) {
+pub fn prepare_level_up(
+    abilities: Query<(Entity, &AbilityLevel, &Name)>,
+    mut commands: Commands,
+    mut rng : ResMut<SessionRng>
+) {
     let num_choices = 3;
     //randomly choose abilities to level
     //player may or may not have them already
     // commands.entity(player_query.single_mut()).
-    let mut rng = rand::thread_rng();
 
-    for (entity, _ability, _name) in abilities.iter().choose_multiple(&mut rng, num_choices) {
+    for (entity, _ability, _name) in abilities.iter().choose_multiple(&mut rng.rng, num_choices) {
         commands.spawn(LevelUpChoice {
             entity_to_level: entity,
         });

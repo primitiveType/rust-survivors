@@ -13,10 +13,15 @@ use bevy_matchbox::matchbox_socket::SingleChannel;
 use bevy_matchbox::MatchboxSocket;
 use bevy_rapier2d::geometry::{ActiveEvents, Collider, Restitution, Sensor};
 use bevy_rapier2d::prelude::CollisionGroups;
+use rand_xoshiro::rand_core::SeedableRng;
+use rand_xoshiro::Xoshiro256PlusPlus;
+use random::*;
+use rand::{Rng, RngCore};
 
 pub(crate) fn wait_for_players(
     mut commands: Commands,
     mut socket: ResMut<MatchboxSocket<SingleChannel>>,
+    mut next_state: ResMut<NextState<AppState>>,
 ) {
     if socket.get_channel(0).is_err() {
         return; // we've already started
@@ -43,6 +48,18 @@ pub(crate) fn wait_for_players(
             .expect("failed to add player");
     }
 
+    // determine the seed
+    let id = socket.id().expect("no peer id assigned").0.as_u64_pair();
+    let mut seed = id.0 ^ id.1;
+    for peer in socket.connected_peers() {
+        let peer_id = peer.0.as_u64_pair();
+        seed ^= peer_id.0 ^ peer_id.1;
+    }
+    let session_seed = (0);
+    let mut rng = Xoshiro256PlusPlus::seed_from_u64(session_seed);
+    rng.gen_range(0..10);
+    commands.insert_resource(SessionRng { rng });
+
     // move the channel out of the socket (required because GGRS takes ownership of it)
     let channel = socket.take_channel(0).unwrap();
 
@@ -52,7 +69,10 @@ pub(crate) fn wait_for_players(
         .expect("failed to start session");
 
     commands.insert_resource(bevy_ggrs::Session::P2P(ggrs_session));
+
+    next_state.set(AppState::InGame);
 }
+
 // Add the game's entities to our world
 // #[bevycheck::system]
 pub fn setup(mut commands: Commands, atlases: ResMut<Atlases>, asset_server: Res<AssetServer>) {
@@ -111,12 +131,12 @@ pub fn setup(mut commands: Commands, atlases: ResMut<Atlases>, asset_server: Res
                 ..default()
             }),
         ])
-        .with_style(Style {
-            position_type: PositionType::Absolute,
-            top: SCOREBOARD_TEXT_PADDING,
-            left: SCOREBOARD_TEXT_PADDING,
-            ..default()
-        }),
+            .with_style(Style {
+                position_type: PositionType::Absolute,
+                top: SCOREBOARD_TEXT_PADDING,
+                left: SCOREBOARD_TEXT_PADDING,
+                ..default()
+            }),
     ));
 
     // Walls
@@ -203,9 +223,9 @@ fn spawn_player(commands: &mut Commands, atlases: &ResMut<Atlases>, position: Ve
                     SpatialBundle { ..default() },
                     Sensor,
                     ActiveEvents::COLLISION_EVENTS,
-                ))
-                .add_rollback();
-            parent.spawn((AttackSpeed { percent: 0.0 },));
-        });
+                ));
+
+            parent.spawn((AttackSpeed { percent: 0.0 }, ));
+        }).add_rollback();
 }
 

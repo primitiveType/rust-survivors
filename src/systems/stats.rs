@@ -24,6 +24,7 @@ use crate::systems::guns::{
     Damaged, FireballSpawnData, FlaskSpawnData, IceballSpawnData, LevelableData, ParticleSpawnData,
 };
 use crate::AppState;
+use crate::random::SessionRng;
 
 pub fn die_at_zero_health(
     query: Query<(Entity, &Enemy, &Health, &Transform, &Name, &Sprite)>,
@@ -75,15 +76,15 @@ pub fn cold_objects_are_blue(mut sprites: Query<&mut Sprite, With<Cold>>) {
 pub fn cold_enemies_spawn_particles(
     sprites: Query<(Entity, &Enemy), With<Cold>>,
     mut spawner: Spawner<ParticleSpawnData>,
+    mut rng : ResMut<SessionRng>,
 ) {
     for (entity, _enemy) in sprites.iter() {
-        let mut rng = rand::thread_rng();
-        let value = rng.gen_range(0.0..1.0);
+        let value = rng.rng.gen_range(0.0..1.0);
         let angle = value * 2.0 * std::f32::consts::PI;
         // Calculate the direction vector from the angle
         let mut direction = Vec2::new(angle.cos(), angle.sin());
 
-        let distance = Vec2::splat(rng.gen_range(1.0..30.0));
+        let distance = Vec2::splat(rng.rng.gen_range(1.0..30.0));
         direction *= distance;
         spawner.spawn(
             Object::Particle,

@@ -17,8 +17,9 @@ use bevy_rapier2d::na::clamp;
 use bevy_rapier2d::pipeline::CollisionEvent;
 use bevy_rapier2d::plugin::RapierContext;
 use bevy_rapier2d::prelude::{CollidingEntities, QueryFilter, Velocity};
-use rand::Rng;
 use std::time::Duration;
+use bevy_ggrs::AddRollbackCommandExtension;
+use rand::Rng;
 use temporary_component_derive::*;
 
 use crate::bundles::{DestroyAfterDeathAnimation, Object, PhysicalBundle};
@@ -34,6 +35,7 @@ use crate::initialization::load_prefabs::Atlases;
 use crate::physics::layers::game_layer;
 use crate::systems::ui::FadeTextWithLifetime;
 use crate::Name;
+use crate::random::SessionRng;
 
 //adding a new ability
 //1.. add system that does the ability thing. It should require an AbilityLevel component
@@ -67,6 +69,7 @@ pub fn advance_cooldowns(
 pub fn flask_weapon(
     mut query: Query<(&mut Cooldown, &GlobalTransform, &Flask, &AbilityLevel)>,
     mut spawner: Spawner<FlaskSpawnData>,
+    mut rng : ResMut<SessionRng>,
 ) {
     for (ability, transform, _flask, level) in query.iter_mut() {
         if level.level == 0 {
@@ -75,13 +78,12 @@ pub fn flask_weapon(
         if ability.timer.just_finished() {
             let translation = transform.translation();
 
-            let mut rng = rand::thread_rng();
-            let value = rng.gen_range(0.0..1.0);
+            let value = rng.rng.gen_range(0.0..1.0);
             let angle = value * 2.0 * std::f32::consts::PI;
             // Calculate the direction vector from the angle
             let mut direction = Vec2::new(angle.cos(), angle.sin());
 
-            let distance = Vec2::splat(rng.gen_range(50.0..400.0));
+            let distance = Vec2::splat(rng.rng.gen_range(50.0..400.0));
             direction *= distance;
 
             let mut spawn_data = FlaskSpawnData::get_data_for_level(level.level);
@@ -613,7 +615,7 @@ pub fn spawn_flask_projectile(
         lifetime: Lifetime::from_seconds(data.duration_seconds),
         collisions: CollidingEntities::default(),
     };
-    commands.spawn(bundle);
+    commands.spawn(bundle).add_rollback();
 }
 
 pub struct FireballSpawnData {
@@ -723,7 +725,7 @@ pub fn spawn_iceball(
         lifetime: Lifetime::from_seconds(data.bullet_lifetime_seconds),
     };
     let mut bullet = commands.spawn(bundle);
-
+    bullet.add_rollback();
     bullet.insert(ApplyColdOnTouch {
         multiplier: data.slow_amount,
         seconds: data.slow_seconds,
@@ -785,5 +787,5 @@ pub fn spawn_fireball(
         },
         lifetime: Lifetime::from_seconds(2.0),
     };
-    commands.spawn(bundle);
+    commands.spawn(bundle).add_rollback();
 }

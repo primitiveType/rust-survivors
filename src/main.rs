@@ -17,10 +17,9 @@ use bevy_ecs_ldtk::{LdtkPlugin, LevelSelection};
 use bevy_egui::{EguiContexts, EguiPlugin};
 use bevy_ggrs::{GgrsApp, GgrsPlugin, GgrsSchedule, ReadInputs};
 use bevy_matchbox::matchbox_socket::PeerId;
-use bevy_prng::WyRand;
-use bevy_rand::prelude::EntropyPlugin;
+
 use bevy_rapier2d::pipeline::CollisionEvent;
-use bevy_rapier2d::plugin::RapierConfiguration;
+use bevy_rapier2d::plugin::{RapierConfiguration, TimestepMode};
 use bevy_rapier2d::prelude::NoUserData;
 use bevy_rapier2d::prelude::RapierPhysicsPlugin;
 use bevy_tween::DefaultTweenPlugins;
@@ -53,12 +52,14 @@ mod initialization;
 mod setup;
 mod stepping;
 mod time;
+pub mod random;
 
 type Config = bevy_ggrs::GgrsConfig<u8, PeerId>;
 
 #[derive(States, Debug, Hash, PartialEq, Eq, Clone, Default)]
 pub enum AppState {
     #[default]
+    WaitingForPlayers,
     InGame,
     LevelUp,
 }
@@ -86,10 +87,10 @@ fn main() {
         .insert_resource(Msaa::Off)
         .insert_resource(RapierConfiguration {
             gravity: Vec2::ZERO,
-            // timestep_mode: TimestepMode::Fixed {
-            //     dt: time::DEFAULT_TIMESTEP.as_secs_f32(),
-            //     substeps: 1,
-            // },
+            timestep_mode: TimestepMode::Fixed {
+                dt: time::DEFAULT_TIMESTEP.as_secs_f32(),
+                substeps: 1,
+            },
             ..default()
         })
         .add_plugins((
@@ -113,7 +114,7 @@ fn main() {
                 .add_schedule(Update)
                 .add_schedule(FixedUpdate)
                 .at(Val::Percent(35.0), Val::Percent(50.0)),
-            EntropyPlugin::<WyRand>::default(),
+
             EguiPlugin,
             LdtkPlugin,
         ))

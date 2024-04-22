@@ -6,8 +6,7 @@ use bevy::prelude::{
 use bevy::sprite::SpriteSheetBundle;
 use bevy_asepritesheet::prelude::AnimatedSpriteBundle;
 use bevy_ecs_ldtk::{LdtkEntity, Worldly};
-use bevy_prng::WyRand;
-use bevy_rand::prelude::GlobalEntropy;
+use bevy_ggrs::AddRollbackCommandExtension;
 use bevy_rapier2d::dynamics::{LockedAxes, RigidBody, Velocity};
 use bevy_rapier2d::geometry::{ActiveEvents, Collider, CollisionGroups, Restitution, Sensor};
 use rand::Rng;
@@ -22,6 +21,7 @@ use crate::components::{
 use crate::constants::{CORPSE_LAYER, ENEMY_LAYER, PLAYER_LAYER, PLAYER_SPEED, XP_LAYER};
 use crate::initialization::load_prefabs::{Atlases, Enemies, load_enemy_data_from_path};
 use crate::physics::layers::game_layer;
+use crate::random::SessionRng;
 use crate::systems::animation::AnimationState::{Dead, Idle};
 use crate::systems::spawning::LevelBounds;
 
@@ -347,7 +347,7 @@ pub fn spawn_corpse(
 pub fn spawn_enemy(
     In(enemy_spawn_data): In<EnemySpawnData>,
     enemies: ResMut<Enemies>,
-    _rng: ResMut<GlobalEntropy<WyRand>>,
+    mut rng: ResMut<SessionRng>,
     mut commands: Commands,
 ) {
     let mut bundle: EnemyBundle = enemies
@@ -357,8 +357,7 @@ pub fn spawn_enemy(
         .clone();
 
     //get random position outside screen
-    let mut rng = rand::thread_rng();
-    let value = rng.gen_range(0.0..1.0);
+    let value = rng.rng.gen_range(0.0..1.0);
     let angle = value * 2.0 * std::f32::consts::PI;
     // Calculate the direction vector from the angle
     let mut direction = Vec2::new(angle.cos(), angle.sin());
@@ -371,7 +370,7 @@ pub fn spawn_enemy(
     )
     .extend(ENEMY_LAYER);
     // bundle.animation_bundle.sprite_bundle.transform.translation = (direction + enemy_spawn_data.player_position).extend(0.0);
-    let _enemy = commands.spawn(bundle);
+    let _enemy = commands.spawn(bundle).add_rollback();
 }
 
 pub fn spawn_xp(In(data): In<XPSpawnData>, mut commands: Commands, atlases: Res<Atlases>) {
@@ -413,5 +412,5 @@ pub fn spawn_xp(In(data): In<XPSpawnData>, mut commands: Commands, atlases: Res<
         sensor: Default::default(),
         gain_xp: GainXPOnTouch { value: data.amount },
         name: Name::new(name),
-    });
+    }).add_rollback();
 }
