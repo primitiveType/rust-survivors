@@ -37,6 +37,7 @@ use crate::systems::guns::{
 };
 use crate::{initialization::register_types::register_types, systems::*};
 use crate::initialization::inspector::add_inspector;
+use crate::systems::spawning::enemy_spawn_cycle;
 
 mod components;
 
@@ -174,12 +175,10 @@ fn main() {
                 guns::expire_entities,
                 guns::expire_bullets_on_hit,
                 guns::expired_bullets_explode,
-                spawning::enemy_spawn_cycle,
                 //abilities
                 guns::advance_cooldowns,
                 guns::fireball_gun,
                 guns::iceball_gun,
-                guns::flask_weapon,
                 // audio::play_collision_sound,
                 //stats
                 stats::die_at_zero_health,
@@ -197,7 +196,13 @@ fn main() {
         )
         .add_systems(PreUpdate, spawning::set_level_bounds)
         .add_systems(ReadInputs, movement::read_local_inputs)
-        .add_systems(GgrsSchedule, movement::move_player)
+
+        .add_systems(
+            GgrsSchedule,
+            (movement::move_player,
+             spawning::enemy_spawn_cycle,
+             guns::flask_weapon).chain()
+        )
         .rollback_component_with_clone::<Transform>() // NEW
         .add_systems(
             //InGame update loop

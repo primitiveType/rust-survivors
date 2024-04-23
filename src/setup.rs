@@ -57,8 +57,8 @@ pub(crate) fn wait_for_players(
     }
     let session_seed = (0);
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(session_seed);
-    rng.gen_range(0..10);
-    commands.insert_resource(SessionRng { rng });
+    println!("first gen rand : {}", rng.gen_range(0..10));
+    commands.insert_resource(SessionRng ::new( rng ));
 
     // move the channel out of the socket (required because GGRS takes ownership of it)
     let channel = socket.take_channel(0).unwrap();
@@ -180,7 +180,7 @@ fn spawn_player(commands: &mut Commands, atlases: &ResMut<Atlases>, position: Ve
                 Cooldown::with_cooldown(0),
                 Flask {},
                 AbilityLevel {
-                    level: 1,
+                    level: 0,
                     ..default()
                 },
                 SpatialBundle { ..default() },

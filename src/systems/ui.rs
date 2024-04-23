@@ -75,7 +75,9 @@ pub fn prepare_level_up(
     //player may or may not have them already
     // commands.entity(player_query.single_mut()).
 
-    for (entity, _ability, _name) in abilities.iter().choose_multiple(&mut rng.rng, num_choices) {
+    println!("get level up rng.");
+
+    for (entity, _ability, _name) in abilities.iter().choose_multiple(rng.get_rng(), num_choices) {
         commands.spawn(LevelUpChoice {
             entity_to_level: entity,
         });

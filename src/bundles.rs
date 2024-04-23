@@ -357,7 +357,9 @@ pub fn spawn_enemy(
         .clone();
 
     //get random position outside screen
-    let value = rng.rng.gen_range(0.0..1.0);
+    let value = rng.get_rng().gen_range(0.0..1.0);
+    println!("get enemy spawn pos. {value}");
+
     let angle = value * 2.0 * std::f32::consts::PI;
     // Calculate the direction vector from the angle
     let mut direction = Vec2::new(angle.cos(), angle.sin());

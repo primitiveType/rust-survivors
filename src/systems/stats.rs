@@ -10,7 +10,7 @@ use bevy::prelude::{
 use bevy::time::{Timer, TimerMode};
 use bevy_asepritesheet::animator::SpriteAnimator;
 use bevy_rapier2d::pipeline::CollisionEvent;
-use rand::Rng;
+use rand::{Rng, thread_rng};
 
 use crate::bundles::{CorpseSpawnData, Object, XPSpawnData};
 use crate::components::{
@@ -76,15 +76,17 @@ pub fn cold_objects_are_blue(mut sprites: Query<&mut Sprite, With<Cold>>) {
 pub fn cold_enemies_spawn_particles(
     sprites: Query<(Entity, &Enemy), With<Cold>>,
     mut spawner: Spawner<ParticleSpawnData>,
-    mut rng : ResMut<SessionRng>,
 ) {
+    let mut rng = thread_rng();
+
     for (entity, _enemy) in sprites.iter() {
-        let value = rng.rng.gen_range(0.0..1.0);
+
+        let value = rng.gen_range(0.0..1.0);
         let angle = value * 2.0 * std::f32::consts::PI;
         // Calculate the direction vector from the angle
         let mut direction = Vec2::new(angle.cos(), angle.sin());
 
-        let distance = Vec2::splat(rng.rng.gen_range(1.0..30.0));
+        let distance = Vec2::splat(rng.gen_range(1.0..30.0));
         direction *= distance;
         spawner.spawn(
             Object::Particle,

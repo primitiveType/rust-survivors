@@ -78,12 +78,16 @@ pub fn flask_weapon(
         if ability.timer.just_finished() {
             let translation = transform.translation();
 
-            let value = rng.rng.gen_range(0.0..1.0);
+            println!("get flask spawn pos.");
+
+            let value = rng.get_rng().gen_range(0.0..1.0);
             let angle = value * 2.0 * std::f32::consts::PI;
             // Calculate the direction vector from the angle
             let mut direction = Vec2::new(angle.cos(), angle.sin());
 
-            let distance = Vec2::splat(rng.rng.gen_range(50.0..400.0));
+            println!("get flask spawn distance.");
+
+            let distance = Vec2::splat(rng.get_rng().gen_range(50.0..400.0));
             direction *= distance;
 
             let mut spawn_data = FlaskSpawnData::get_data_for_level(level.level);
