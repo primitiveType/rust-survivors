@@ -12,7 +12,7 @@ bevy = { version = "0.13.0", features = ["serialize", "trace_tracy"] }
 bevy-inspector-egui = "0.23.4"
 bevy_editor_pls = "0.8.0"
 #bevy_xpbd_2d = "0.4"
-bevy_rapier2d = { version = "0.25.0", features = ["parallel"] }
+bevy_rapier2d = { version = "0.25.0", features = ["enhanced-determinism"] }
 serde_yaml = { version = "0.9.32", features = [] }
 serde = "1.0.197"
 walkdir = "2.3.2"
@@ -31,6 +31,7 @@ bevy_ggrs = { version = "0.15" }
 matchbox_server = "0.9.0"
 rand_xoshiro = "0.6.0"
 rand = "0.8.5"
+clap = { version = "4.4", features = ["derive"] }
 
 [patch.crates-io]
 bevy_ecs_tilemap = { git = "https://github.com/StarArawn/bevy_ecs_tilemap", branch = "main" }
@@ -48,6 +49,6 @@ opt-level = 3
 [profile.dev.package.rapier2d]#redundant, I think
 opt-level = 3
 
-[profile.release]
-codegen-units = 1
+#[profile.release]
+#codegen-units = 1
 

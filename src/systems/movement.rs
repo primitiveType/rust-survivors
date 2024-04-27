@@ -17,6 +17,7 @@ use crate::components::{
 };
 use crate::systems::guns::LevelableData;
 use crate::Config;
+use crate::constants::PLAYER_LAYER;
 
 pub fn set_follower_velocity(
     _query: Query<(&mut Velocity, &MoveSpeed, &Transform), (With<FollowPlayer>, Without<Player>)>,

@@ -1,4 +1,5 @@
-use bevy::asset::{Assets, Handle};
+use std::thread::spawn;
+use bevy::asset::{AssetContainer, Assets, Handle};
 use bevy::math::{Vec3, Vec3Swizzles};
 use bevy::prelude::{
     Added, Color, Commands, Component, Entity, Gizmos, Query, Res, ResMut, Resource, Time, Timer,
@@ -7,6 +8,9 @@ use bevy::prelude::{
 pub use bevy::utils::petgraph::visit::Walker;
 use bevy_ecs_ldtk::prelude::{LdtkProject, LevelMetadataAccessor};
 use bevy_ecs_ldtk::*;
+use bevy_rapier2d::na::Isometry;
+use bevy_rapier2d::prelude::{RigidBody, Velocity};
+use bevy_rapier2d::rapier::prelude::RigidBodyPosition;
 
 use crate::bundles::{EnemySpawnData, Object, PlayerSpawn};
 use crate::components::{Enemy, Player};
@@ -82,7 +86,7 @@ pub fn enemy_spawn_cycle(
         .sum();
     let avg_translation: Vec3 = total_translation / Vec3::splat(player_query.iter().len() as f32);
     // let (map_size, tile_size, map_transform) = level_query.iter().next();
-    if count < 5 {
+    if count < 15 {
         //round_time.timer.elapsed().as_secs() as usize {
         // spawn_enemy(1, _commands, atlases, rng);
         spawner.spawn(
@@ -111,11 +115,16 @@ pub fn move_player_to_spawn_point(
     spawn_point: Query<(Entity, &PlayerSpawn, &Transform), Without<Player>>,
     mut player_query: Query<(&Player, &mut Transform)>,
 ) {
+    if(spawn_point.iter()
+        .len() == 0){
+        return;
+    }
+    let (entity, _, spawn) = spawn_point.single();
+
     for (_player, mut transform) in player_query.iter_mut() {
-        for (entity, _, spawn) in spawn_point.iter() {
             transform.translation =
                 Vec2::new(spawn.translation.x, spawn.translation.y).extend(PLAYER_LAYER);
-            commands.entity(entity).despawn();
-        }
+              commands.entity(entity).despawn();
+
     }
 }

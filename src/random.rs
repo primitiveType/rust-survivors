@@ -13,6 +13,7 @@ pub struct SessionRng {
 
 impl SessionRng{
     pub fn get_rng(&mut self) -> &mut Xoshiro256PlusPlus{
+        self.rng = Xoshiro256PlusPlus::seed_from_u64(0);
         // let bt = Backtrace::capture();
         // println!("{:?}", bt);
         // println!("Got rng! {} at {bt}", self.rng.next_u32());

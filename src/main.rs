@@ -5,24 +5,28 @@ use bevy_rapier2d::prelude::{PhysicsSet, RapierDebugRenderPlugin};
 use std::collections::HashMap;
 use std::env;
 use std::fmt::Debug;
-use std::hash::Hash;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::time::Duration;
 
 use bevy::prelude::*;
+use bevy::utils::tracing::field::debug;
 use bevy_asepritesheet::core::SpriteAnimController;
 use bevy_asepritesheet::prelude::AsepritesheetPlugin;
 use bevy_ecs_ldtk::app::LdtkEntityAppExt;
 use bevy_ecs_ldtk::prelude::LdtkIntCellAppExt;
 use bevy_ecs_ldtk::{LdtkPlugin, LevelSelection};
 use bevy_egui::{EguiContexts, EguiPlugin};
-use bevy_ggrs::{GgrsApp, GgrsPlugin, GgrsSchedule, ReadInputs};
+use bevy_ggrs::{checksum_hasher, GgrsApp, GgrsPlugin, GgrsSchedule, ReadInputs};
 use bevy_matchbox::matchbox_socket::PeerId;
+use bevy_rapier2d::dynamics::Velocity;
 
 use bevy_rapier2d::pipeline::CollisionEvent;
 use bevy_rapier2d::plugin::{RapierConfiguration, TimestepMode};
 use bevy_rapier2d::prelude::NoUserData;
 use bevy_rapier2d::prelude::RapierPhysicsPlugin;
+use bevy_rapier2d::rapier::dynamics::RigidBodyPosition;
 use bevy_tween::DefaultTweenPlugins;
+use clap::Parser;
 use spew::prelude::{SpewApp, SpewPlugin};
 
 use components::HealthUi;
@@ -36,6 +40,7 @@ use crate::systems::guns::{
     ParticleSpawnData,
 };
 use crate::{initialization::register_types::register_types, systems::*};
+use crate::args::Args;
 use crate::initialization::inspector::add_inspector;
 use crate::systems::spawning::enemy_spawn_cycle;
 
@@ -54,6 +59,7 @@ mod setup;
 mod stepping;
 mod time;
 pub mod random;
+mod args;
 
 type Config = bevy_ggrs::GgrsConfig<u8, PeerId>;
 
@@ -66,7 +72,8 @@ pub enum AppState {
 }
 
 fn main() {
-    let debug = false;//TODO: use cli
+    let args = Args::parse();
+    eprintln!("{args:?}");
     // this method needs to be inside main() method
     env::set_var("RUST_BACKTRACE", "full");
     //TODO:
@@ -84,6 +91,7 @@ fn main() {
     //PATH=C:\Users\Arthu\.rustup\toolchains\nightly-x86_64-pc-windows-msvc\bin\;E:\Unity Projects\rust-survivors\target\debug\deps
     let mut app_binding = App::new();
     let app: &mut App = app_binding
+        .insert_resource(args.clone())
         .init_state::<AppState>()
         .insert_resource(Msaa::Off)
         .insert_resource(RapierConfiguration {
@@ -204,13 +212,25 @@ fn main() {
              guns::flask_weapon).chain()
         )
         .rollback_component_with_clone::<Transform>() // NEW
+        .rollback_component_with_clone::<Velocity>() // NEW
+        // We must add a specific checksum check for everything we want to include in desync detection.
+        // It is probably OK to just check the components, but for demo purposes let's make sure Rapier always agrees.
+        .checksum_resource_with_hash::<PhysicsRollbackState>()
+        .rollback_resource_with_clone::<PhysicsRollbackState>()
+        // Store everything that Rapier updates in its Writeback stage
+        .rollback_component_with_reflect::<GlobalTransform>()
+        .rollback_component_with_reflect::<Transform>()
+        .rollback_component_with_reflect::<Velocity>()
+        .rollback_component_with_reflect::<Sleeping>()
+        // Game stuff
+        .rollback_resource_with_reflect::<EnablePhysicsAfter>();
+        .checksum_component::<Transform>(checksum_transform) // new
         .add_systems(
             //InGame update loop
             Update,
             (
                 spawning::set_level_bounds,
                 physics::walls::spawn_wall_collision,
-                spawning::move_player_to_spawn_point,
                 (
                     stats::update_move_speed_from_passive,
                     movement::apply_move_speed_multiplier,
@@ -229,7 +249,6 @@ fn main() {
                 stats::pick_up_xp_on_touch,
                 stats::vacuum_xp_on_touch,
                 stats::level_up,
-                ui_example_system,
                 ui::fade_text,
                 (
                     stats::reset_sprite_color,
@@ -246,7 +265,12 @@ fn main() {
         .add_systems(
             Update,
             (
-                setup::wait_for_players,
+                (setup::start_sync_test).run_if(synctest_mode),
+                (setup::start_p2p).run_if(p2p_mode),
+            ).run_if(in_state(AppState::WaitingForPlayers)))
+        .add_systems(
+            Update,
+            (
                 stats::update_level_descriptions_xp_multiplier,
                 stats::update_level_descriptions_xp_radius,
                 stats::update_level_descriptions_flask,
@@ -271,6 +295,8 @@ fn main() {
             )
                 .run_if(in_state(AppState::LevelUp)),
         )
+
+        .add_systems( Update, (spawning::move_player_to_spawn_point),)
         .add_systems(
             OnEnter(AppState::LevelUp),
             (ui::prepare_level_up, ui::pause_animations),
@@ -283,7 +309,7 @@ fn main() {
         .add_systems(OnExit(AppState::InGame), physics::time::pause);
     println!("{}", app.is_plugin_added::<EguiPlugin>());
 
-    if debug {
+    if args.debug {
         let app: &mut App = add_inspector(app);
 
         app.add_plugins(RapierDebugRenderPlugin::default());
@@ -294,5 +320,29 @@ fn main() {
 
     app.run();
 }
+pub fn checksum_transform(transform: &Transform) -> u64 {
+    let mut hasher = checksum_hasher();
 
-fn ui_example_system(_contexts: EguiContexts) {}
+    assert!(
+        transform.is_finite(),
+        "Hashing is not stable for NaN f32 values."
+    );
+
+    transform.translation.x.to_bits().hash(&mut hasher);
+    transform.translation.y.to_bits().hash(&mut hasher);
+    transform.translation.z.to_bits().hash(&mut hasher);
+
+    transform.rotation.x.to_bits().hash(&mut hasher);
+    transform.rotation.y.to_bits().hash(&mut hasher);
+    transform.rotation.z.to_bits().hash(&mut hasher);
+    transform.rotation.w.to_bits().hash(&mut hasher);
+
+    hasher.finish()
+}
+fn synctest_mode(args: Res<Args>) -> bool {
+    args.synctest
+}
+
+fn p2p_mode(args: Res<Args>) -> bool {
+    !args.synctest
+}

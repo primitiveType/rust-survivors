@@ -18,7 +18,32 @@ use rand_xoshiro::Xoshiro256PlusPlus;
 use random::*;
 use rand::{Rng, RngCore};
 
-pub(crate) fn wait_for_players(
+pub fn start_sync_test(mut commands: Commands, mut next_state: ResMut<NextState<AppState>>) {
+    info!("Starting synctest session");
+    let num_players = 2;
+
+
+    let mut session_builder = ggrs::SessionBuilder::<Config>::new().with_num_players(num_players);
+
+    for i in 0..num_players {
+        session_builder = session_builder
+            .add_player(ggrs::PlayerType::Local, i)
+            .expect("failed to add player");
+    }
+
+    let ggrs_session = session_builder
+        .start_synctest_session()
+        .expect("failed to start session");
+
+    let session_seed = (0);
+    let mut rng = Xoshiro256PlusPlus::seed_from_u64(session_seed);
+    println!("first gen rand : {}", rng.gen_range(0..10));
+    commands.insert_resource(SessionRng ::new( rng ));
+
+    commands.insert_resource(bevy_ggrs::Session::SyncTest(ggrs_session));
+    next_state.set(AppState::InGame);
+}
+pub(crate) fn start_p2p(
     mut commands: Commands,
     mut socket: ResMut<MatchboxSocket<SingleChannel>>,
     mut next_state: ResMut<NextState<AppState>>,
@@ -65,7 +90,7 @@ pub(crate) fn wait_for_players(
 
     // start the GGRS session
     let ggrs_session = session_builder
-        .start_p2p_session(channel)
+         .start_p2p_session(channel)
         .expect("failed to start session");
 
     commands.insert_resource(bevy_ggrs::Session::P2P(ggrs_session));
@@ -76,6 +101,12 @@ pub(crate) fn wait_for_players(
 // Add the game's entities to our world
 // #[bevycheck::system]
 pub fn setup(mut commands: Commands, atlases: ResMut<Atlases>, asset_server: Res<AssetServer>) {
+    commands.spawn(LdtkWorldBundle {
+        ldtk_handle: asset_server.load("levels/cemetery-0/cemetery-0.ldtk"),
+        transform: Transform::from_translation(Vec3::splat(0.0))
+            .with_scale(Vec2::splat(PIXEL_SCALE).extend(1.0)),
+        ..Default::default()
+    });
     // Camera
     let _camera = commands.spawn(Camera2dBundle::default());
 
@@ -91,12 +122,7 @@ pub fn setup(mut commands: Commands, atlases: ResMut<Atlases>, asset_server: Res
     spawn_player(&mut commands, &atlases, Vec2::ZERO, 0);
     spawn_player(&mut commands, &atlases, Vec2::ONE, 1);
 
-    commands.spawn(LdtkWorldBundle {
-        ldtk_handle: asset_server.load("levels/cemetery-0/cemetery-0.ldtk"),
-        transform: Transform::from_translation(Vec3::splat(0.0))
-            .with_scale(Vec2::splat(PIXEL_SCALE).extend(1.0)),
-        ..Default::default()
-    });
+
 
     // spawn_balls(&mut commands, &mut meshes, &mut materials, rng);
 

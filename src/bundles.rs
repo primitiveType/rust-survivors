@@ -46,7 +46,7 @@ pub struct PlayerBundle {
     pub name: Name,
     pub player: Player,
     pub health: Health,
-    pub physical: PhysicalBundle,
+    // pub physical: PhysicalBundle,//TODO: character controller
     pub animator: AnimatorController,
     pub xp: XP,
     move_speed: MoveSpeed,
@@ -61,14 +61,14 @@ pub struct PlayerSpawn {}
 impl Default for PlayerBundle {
     fn default() -> Self {
         Self {
-            physical: PhysicalBundle {
-                collision_layers: CollisionGroups::new(
-                    game_layer::PLAYER,
-                    game_layer::GROUND | game_layer::ENEMY | game_layer::XP,
-                ),
-
-                ..default()
-            },
+            // physical: PhysicalBundle {
+            //     collision_layers: CollisionGroups::new(
+            //         game_layer::PLAYER,
+            //         game_layer::GROUND | game_layer::ENEMY | game_layer::XP,
+            //     ),
+            //
+            //     ..default()
+            // },
 
             sprite: AnimatedSpriteBundle {
                 sprite_bundle: Default::default(),
@@ -101,15 +101,15 @@ const PLAYER_SCALE: f32 = 4.0;
 impl PlayerBundle {
     pub fn with_sprite(atlases: &ResMut<Atlases>, position: Vec2, handle: usize) -> Self {
         Self {
-            physical: PhysicalBundle {
-                collider: Collider::ball(2.0),
-                rigid_body: RigidBody::Dynamic,
-                collision_layers: CollisionGroups::new(
-                    game_layer::PLAYER,
-                    game_layer::GROUND | game_layer::ENEMY | game_layer::XP,
-                ),
-                ..default()
-            },
+            // physical: PhysicalBundle {
+            //     collider: Collider::ball(2.0),
+            //     rigid_body: RigidBody::Dynamic,
+            //     collision_layers: CollisionGroups::new(
+            //         game_layer::PLAYER,
+            //         game_layer::GROUND | game_layer::ENEMY | game_layer::XP,
+            //     ),
+            //     ..default()
+            // },
             sprite: AnimatedSpriteBundle {
                 spritesheet: atlases.sprite_sheets.get("player").unwrap().clone(),
                 sprite_bundle: SpriteSheetBundle {
@@ -358,7 +358,7 @@ pub fn spawn_enemy(
 
     //get random position outside screen
     let value = rng.get_rng().gen_range(0.0..1.0);
-    println!("get enemy spawn pos. {value}");
+    // println!("get enemy spawn pos. {value}");
 
     let angle = value * 2.0 * std::f32::consts::PI;
     // Calculate the direction vector from the angle
