@@ -30,6 +30,8 @@ bevy_ecs_ldtk = {git = "https://github.com/Trouv/bevy_ecs_ldtk", branch = "main"
 #bevy_proto = { version = "0.11.0", features = ["default", "yaml"] }//doesn't support bevy 13
 bevy-trait-query = "0.5.1"
 temporary_component_derive = {path= "temporary_component_derive"}
+tracing-subscriber = "0.3.18"
+tracing = "0.1.40"
 [patch.crates-io]
 bevy_ecs_tilemap = { git = "https://github.com/StarArawn/bevy_ecs_tilemap", branch = "main" }
 

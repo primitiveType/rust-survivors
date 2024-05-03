@@ -1,6 +1,7 @@
 use std::fmt;
 
 use bevy::asset::{Assets, Handle};
+use bevy::log::*;
 use bevy::prelude::Changed;
 use bevy::prelude::Component;
 use bevy::prelude::Image;
@@ -31,18 +32,18 @@ pub fn set_spritesheet_from_animation_info(
             if let Some(asset) = sprite_assets.get(&spritesheet.clone()) {
                 anim_handle = asset.get_anim_handle(&animator_controller.state.to_string());
                 if anim_handle == AnimHandle::invalid() {
-                    println!(
+                    info!(
                         "Invalid animation : {} for sheet {}",
                         &animator_controller.state, &animator_controller.name
                     )
                 }
             } else {
                 // The asset is not loaded yet, you might handle this case accordingly
-                println!("Animation not loaded yet : {}", animator_controller.state);
+                info!("Animation not loaded yet : {}", animator_controller.state);
             }
             animator.set_anim(anim_handle);
         } else {
-            println!("Failed to find Spritesheet {}!", animator_controller.name);
+            info!("Failed to find Spritesheet {}!", animator_controller.name);
         }
     }
 }

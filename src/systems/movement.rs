@@ -98,13 +98,13 @@ pub fn _debug_collisions(mut collision_events: EventReader<CollisionEvent>) {
     for collision_event in collision_events.read() {
         match collision_event {
             CollisionEvent::Started(collider1, collider2, flags) => {
-                println!(
+                info!(
                     "Collision started between {:?} and {:?}",
                     collider1, collider2
                 );
             }
             CollisionEvent::Stopped(collider1, collider2, flags) => {
-                println!(
+                info!(
                     "Collision stopped between {:?} and {:?}",
                     collider1, collider2
                 );

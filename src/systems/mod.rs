@@ -6,3 +6,5 @@ pub mod movement;
 pub mod spawning;
 pub mod stats;
 pub mod ui;
+
+pub mod input;

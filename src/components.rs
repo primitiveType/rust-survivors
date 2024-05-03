@@ -88,6 +88,24 @@ impl LevelableData for PassiveMoveSpeedMultiplier {
 
 #[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct FireBallGun {}
+#[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct PistolGun {
+}
+
+#[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct Reloadable {
+    pub reload_seconds_per_bullet: f32,
+}
+
+#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+pub struct Reloading {
+    pub timer : Timer,
+}
+#[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct Ammo {
+    pub cur_amount : u16,
+    pub max_amount : u16
+}
 
 #[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct IceBallGun {}

@@ -5,8 +5,11 @@ use bevy_rapier2d::prelude::{CollidingEntities, PhysicsSet, RapierDebugRenderPlu
 use std::collections::HashMap;
 use std::env;
 use std::fmt::Debug;
+use std::fs::File;
 use std::hash::Hash;
+use std::sync::Arc;
 use std::time::Duration;
+use bevy::log::LogPlugin;
 
 use bevy::prelude::*;
 use bevy::window::{PresentMode, WindowTheme};
@@ -25,6 +28,9 @@ use bevy_rapier2d::prelude::NoUserData;
 use bevy_rapier2d::prelude::RapierPhysicsPlugin;
 use bevy_tween::DefaultTweenPlugins;
 use spew::prelude::{SpewApp, SpewPlugin};
+use tracing_subscriber::{filter, Layer};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 use components::HealthUi;
 use constants::BACKGROUND_COLOR;
@@ -38,7 +44,7 @@ use crate::initialization::load_prefabs::{Atlases, Enemies};
 use crate::physics::walls::Wall;
 use crate::systems::guns::{
     DamageTextSpawnData, Damaged, FireballSpawnData, FlaskSpawnData, IceballSpawnData,
-    ParticleSpawnData,
+    ParticleSpawnData,PistolBulletSpawnData
 };
 use crate::{initialization::register_types::register_types, systems::*};
 
@@ -67,6 +73,8 @@ pub enum AppState {
 fn main() {
     // this method needs to be inside main() method
     env::set_var("RUST_BACKTRACE", "full");
+    setup_logging();
+
     //TODO:
     //replace ice spike sprite
     //replace molotov sprite
@@ -121,6 +129,7 @@ fn main() {
         .add_plugins((
             SpewPlugin::<Object, EnemySpawnData>::default(),
             SpewPlugin::<Object, FireballSpawnData>::default(),
+            SpewPlugin::<Object, PistolBulletSpawnData>::default(),
             SpewPlugin::<Object, IceballSpawnData>::default(),
             SpewPlugin::<Object, FlaskSpawnData>::default(),
             SpewPlugin::<Object, DamageTextSpawnData>::default(),
@@ -146,6 +155,7 @@ fn main() {
         .register_ldtk_int_cell_for_layer::<WallBundle>("Walls", 1)
         .add_spawner((Object::Enemy, bundles::spawn_enemy))
         .add_spawner((Object::Fireball, guns::spawn_fireball))
+        .add_spawner((Object::PistolBullet, guns::spawn_pistol_bullet))
         .add_spawner((Object::Iceball, guns::spawn_iceball))
         .add_spawner((Object::Flask, guns::spawn_flask_projectile))
         .add_spawner((Object::DamageNumber, guns::spawn_damage_text))
@@ -177,6 +187,7 @@ fn main() {
                 //abilities
                 guns::advance_cooldowns,
                 guns::fireball_gun,
+                guns::pistol_gun,
                 guns::iceball_gun,
                 guns::flask_weapon,
                 // audio::play_collision_sound,
@@ -195,6 +206,19 @@ fn main() {
                 .chain(),
         )
         .add_systems(PreUpdate, (spawning::set_level_bounds))
+        .insert_resource(input::AimDirection(Vec2::ZERO))
+        .add_systems(
+            Update,
+            (
+                input::get_aim_direction,
+                input::input_reload_gun_system,
+            ),
+        )
+        .add_systems(
+            Update,
+            (ui::update_player_health_ui,
+            ui::show_bullets,)
+        )
         .add_systems(
             //InGame update loop
             Update,
@@ -211,8 +235,8 @@ fn main() {
                     stats::move_speed_mod_affects_animation_speed,
                 )
                     .chain(),
-                ui::update_player_health_ui,
                 // movement::_debug_collisions,
+                guns::reload_gun_system,
                 guns::deal_damage_on_collide,
                 guns::deal_damage_on_collide_start,
                 guns::apply_cold_on_collide,
@@ -243,6 +267,7 @@ fn main() {
                 stats::update_level_descriptions_xp_radius,
                 stats::update_level_descriptions_flask,
                 stats::update_level_descriptions_fireball,
+                stats::update_level_descriptions_pistol,
                 stats::update_level_descriptions_move_speed,
                 stats::update_level_descriptions_iceball,
             ),
@@ -273,11 +298,52 @@ fn main() {
         )
         .add_systems(OnEnter(AppState::InGame), physics::time::unpause)
         .add_systems(OnExit(AppState::InGame), physics::time::pause);
-    println!("{}", app.is_plugin_added::<EguiPlugin>());
+    info!("{}", app.is_plugin_added::<EguiPlugin>());
     // let app: &mut App = add_inspector(app);
     let app: &mut App = register_types(app);
 
     app.run();
 }
 
+// A layer that logs events to stdout using the human-readable "pretty"
+// format.
+fn setup_logging() {
+
+    let stdout_log = tracing_subscriber::fmt::layer()
+        .pretty();
+
+    // A layer that logs events to a file.
+    let file = File::create("debug.log");
+    let file = match file  {Ok(file) => file,Err(error) => panic!("Error: {:?}",error),};
+    let debug_log = tracing_subscriber::fmt::layer()
+        .with_writer(Arc::new(file));
+
+    // A layer that collects metrics using specific events.
+    let metrics_layer = /* ... */ filter::LevelFilter::INFO;
+
+    tracing_subscriber::registry()
+        .with(
+            stdout_log
+                // Add an `INFO` filter to the stdout logging layer
+                .with_filter(filter::LevelFilter::INFO)
+                // Combine the filtered `stdout_log` layer with the
+                // `debug_log` layer, producing a new `Layered` layer.
+                .and_then(debug_log)
+                // Add a filter to *both* layers that rejects spans and
+                // events whose targets start with `metrics`.
+                .with_filter(filter::filter_fn(|metadata| {
+                    !metadata.target().starts_with("metrics") && !metadata.target().starts_with("bevy_render")
+                }))
+        )
+        .with(
+            // Add a filter to the metrics label that *only* enables
+            // events whose targets start with `metrics`.
+            metrics_layer.with_filter(filter::filter_fn(|metadata| {
+                metadata.target().starts_with("metrics")
+            }))
+        )
+        .init();
+
+
+}
 fn ui_example_system(contexts: EguiContexts) {}

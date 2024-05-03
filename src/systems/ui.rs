@@ -4,7 +4,7 @@ use bevy_egui::egui::emath;
 use bevy_egui::{egui, EguiContexts};
 use rand::seq::IteratorRandom;
 
-use crate::components::{AbilityLevel, Health, HealthUi, Lifetime, Player, XP};
+use crate::components::{AbilityLevel, Ammo, Health, HealthUi, Lifetime, Player, XP};
 use crate::AppState;
 use serde::{Deserialize, Serialize};
 
@@ -51,6 +51,21 @@ fn button_text(_asset_server: &Res<AssetServer>, text: &str) -> TextBundle {
     }
 }
 
+pub fn show_bullets(
+    player_query: Query<(&Ammo)>,
+    mut contexts: EguiContexts,
+) {
+    let ammo = player_query.single();
+    egui::panel::SidePanel::left("ammo panel").frame(egui::Frame {
+        fill: egui::Color32::from_rgba_unmultiplied(0, 0, 0, 255), // Set background to transparent
+
+        ..Default::default() // Use default settings for other frame properties
+    })
+        .show(contexts.ctx_mut(), |ui| {
+            ui.label(format!("{}/{}", ammo.cur_amount, ammo.max_amount));
+        });
+}
+
 pub fn button_system(
     player_query: Query<(&Player, Entity)>,
     mut next_state: ResMut<NextState<AppState>>,
@@ -79,7 +94,7 @@ pub fn button_system(
                         .min_size(emath::Vec2::new(button_width, button_height)))
                         .clicked() {
                         // Handle button click
-                        println!("Option {} clicked", ability.description);
+                        info!("Option {} clicked", ability.description);
                         ability.level += 1;
                         next_state.set(AppState::InGame);
 

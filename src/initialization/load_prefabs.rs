@@ -12,6 +12,7 @@ use serde::Serialize;
 
 use crate::bundles::{EnemyBundle, EnemyData};
 use crate::components::Cooldown;
+use bevy::log::*;
 
 //on startup, load all images
 //have texture layouts loaded as well, possibly as files next to the images?
@@ -132,7 +133,7 @@ pub fn load_gun(gun: usize) -> Cooldown {
     let paths_count = paths.len();
     let path = &paths[gun % paths_count];
     let file_path = path.path();
-    println!("Loaded gun {}", file_path.display());
+    info!("Loaded gun {}", file_path.display());
     let gun_yaml = fs::read_to_string(file_path).expect("failed to load yaml!");
     let gun =
         serde_yaml::from_str::<Cooldown>(gun_yaml.as_str()).expect("failed to deserialize gun!");

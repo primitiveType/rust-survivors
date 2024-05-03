@@ -19,17 +19,11 @@ use bevy_rapier2d::pipeline::CollisionEvent;
 use rand::Rng;
 
 use crate::bundles::{spawn_xp, CorpseBundle, CorpseSpawnData, Object, XPSpawnData};
-use crate::components::{
-    AbilityLevel, BaseMoveSpeed, Cold, Cooldown, Enemy, FireBallGun, Flask, FollowPlayer,
-    GainXPOnTouch, Health, IceBallGun, Lifetime, MoveSpeed, ParentMoveSpeedMultiplier,
-    PassiveMoveSpeedMultiplier, PassiveXPMultiplier, Player, XPMultiplier, XPPickupRadius,
-    XPVacuum, XP,
-};
+use crate::components::{AbilityLevel, BaseMoveSpeed, Cold, Cooldown, Enemy, FireBallGun, Flask, FollowPlayer, GainXPOnTouch, Health, IceBallGun, Lifetime, MoveSpeed, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier, PassiveXPMultiplier, Player, XPMultiplier, XPPickupRadius, XPVacuum, XP, PistolGun};
 use crate::extensions::spew_extensions::{Spawn, Spawner};
-use crate::systems::guns::{
-    Damaged, FireballSpawnData, FlaskSpawnData, IceballSpawnData, LevelableData, ParticleSpawnData,
-};
+use crate::systems::guns::{Damaged, FireballSpawnData, FlaskSpawnData, IceballSpawnData, LevelableData, ParticleSpawnData, PistolBulletSpawnData};
 use crate::AppState;
+use bevy::log::*;
 
 pub fn die_at_zero_health(
     query: Query<(Entity, &Enemy, &Health, &Transform, &Name, &Sprite)>,
@@ -182,7 +176,7 @@ pub fn update_level_descriptions_xp_radius(
     mut abilities: Query<(&mut AbilityLevel, &XPPickupRadius), Changed<AbilityLevel>>,
 ) {
     for (mut ability, _flask) in abilities.iter_mut() {
-        println!("Updating flask description.");
+        info!("Updating flask description.");
         let current_level = XPPickupRadius::get_data_for_level(ability.level);
         let next_level = XPPickupRadius::get_data_for_level(ability.level + 1);
         let mut description = "XP Pickup Radius".to_string();
@@ -202,7 +196,7 @@ pub fn update_level_descriptions_xp_multiplier(
     mut abilities: Query<(&mut AbilityLevel, &PassiveXPMultiplier), Changed<AbilityLevel>>,
 ) {
     for (mut ability, _flask) in abilities.iter_mut() {
-        println!("Updating xp mult description.");
+        info!("Updating xp mult description.");
         let current_level = XPMultiplier::get_data_for_level(ability.level);
         let next_level = XPMultiplier::get_data_for_level(ability.level + 1);
         let mut description = "XP Multiplier".to_string();
@@ -220,7 +214,7 @@ pub fn update_level_descriptions_flask(
     mut abilities: Query<(&mut AbilityLevel, &Flask, &mut Cooldown), Changed<AbilityLevel>>,
 ) {
     for (mut ability, _flask, mut cooldown) in abilities.iter_mut() {
-        println!("Updating flask description.");
+        info!("Updating flask description.");
         if (ability.level == 0) {
             ability.description =
                 "Molotov Cocktail \r\n Randomly summon an area of destruction.".to_string();
@@ -252,7 +246,7 @@ pub fn update_level_descriptions_fireball(
     mut abilities: Query<(&mut AbilityLevel, &FireBallGun), Changed<AbilityLevel>>,
 ) {
     for (mut ability, _fireball) in abilities.iter_mut() {
-        println!("Updating fireball description.");
+        info!("Updating fireball description.");
         if (ability.level == 0) {
             ability.description = "Fireball \r\n Throw a fireball that deals damage.".to_string();
             return;
@@ -290,11 +284,54 @@ pub fn update_level_descriptions_fireball(
     }
 }
 
+pub fn update_level_descriptions_pistol(
+    mut abilities: Query<(&mut AbilityLevel, &PistolGun), Changed<AbilityLevel>>,
+) {
+    for (mut ability, _fireball) in abilities.iter_mut() {
+        info!("Updating pistol description.");
+        if (ability.level == 0) {
+            ability.description = "Pistol \r\n It shoots bullets!".to_string();
+            return;
+        }
+        let current_level = PistolBulletSpawnData::get_data_for_level(ability.level);
+        let next_level = PistolBulletSpawnData::get_data_for_level(ability.level + 1);
+        let mut description = "Pistol".to_string();
+        // ability.description = format!("Molotov Cocktail\r\nSize:\r\n{} -> {}\r\n Cooldown:\r\n{} -> {}", current_level.scale, next_level.scale, current_level.cooldown.display_seconds(), next_level.cooldown.timer.display_seconds()).to_string();
+        push_stat_block(
+            &mut description,
+            "Damage",
+            current_level.damage,
+            next_level.damage,
+        );
+        push_stat_block(
+            &mut description,
+            "Bullet Speed",
+            current_level.bullet_speed,
+            next_level.bullet_speed,
+        );
+        push_stat_block(
+            &mut description,
+            "Size",
+            current_level.bullet_size,
+            next_level.bullet_size,
+        );
+        push_stat_block(
+            &mut description,
+            "Pierce",
+            current_level.pierce,
+            next_level.pierce,
+        );
+
+        ability.description = description;
+    }
+}
+
+
 pub fn update_level_descriptions_iceball(
     mut abilities: Query<(&mut AbilityLevel, &IceBallGun), Changed<AbilityLevel>>,
 ) {
     for (mut ability, _) in abilities.iter_mut() {
-        println!("Updating iceball description.");
+        info!("Updating iceball description.");
         if (ability.level == 0) {
             ability.description = "Snowball \r\n Throw a snowball that slows enemies.".to_string();
             return;
@@ -391,7 +428,7 @@ pub fn pick_up_xp_on_touch(
                 }
 
                 let (e_entity, _player, mut player_xp, xp_mult) = player.unwrap();
-                println!("got xp!");
+                info!("got xp!");
                 player_xp.amount += (xp.unwrap().1.value as f32) * (xp_mult.value + 1.0);
                 commands.entity(*xp_entity).despawn();
             }

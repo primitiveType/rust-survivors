@@ -1,7 +1,4 @@
-use crate::components::{
-    AbilityLevel, AttackSpeed, Cooldown, FireBallGun, Flask, IceBallGun, ParentMoveSpeedMultiplier,
-    PassiveMoveSpeedMultiplier, PassiveXPMultiplier, Player, XPPickupRadius, XPVacuum,
-};
+use crate::components::{AbilityLevel, Ammo, AttackSpeed, Cooldown, FireBallGun, Flask, IceBallGun, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier, PassiveXPMultiplier, PistolGun, Player, Reloadable, XPPickupRadius, XPVacuum};
 use crate::constants::{
     PIXEL_SCALE, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, SCORE_COLOR, TEXT_COLOR,
 };
@@ -91,10 +88,26 @@ fn spawn_player(commands: &mut Commands, atlases: ResMut<Atlases>, position: Vec
                 FireBallGun {},
                 Name::new("Fireball"),
                 AbilityLevel {
+                    level: 0,
+                    ..default()
+                },
+                SpatialBundle { ..default() },
+            ));
+            //pistol
+            parent.spawn((
+                Cooldown::with_cooldown(1000),
+                PistolGun {},
+                Name::new("Pistol"),
+                AbilityLevel {
                     level: 1,
                     ..default()
                 },
                 SpatialBundle { ..default() },
+                Ammo{
+                    cur_amount: 6,
+                    max_amount: 6,
+                },
+                Reloadable{ reload_seconds_per_bullet: 0.25_f32 }
             ));
             //iceball gun
             parent.spawn((

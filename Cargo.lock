@@ -3751,6 +3751,8 @@ dependencies = [
  "serde_yaml",
  "spew",
  "temporary_component_derive",
+ "tracing",
+ "tracing-subscriber",
  "tracing-tracy",
  "walkdir",
 ]

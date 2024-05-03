@@ -37,6 +37,7 @@ pub enum Object {
     Player,
     Enemy,
     Fireball,
+    PistolBullet,
     Iceball,
     Flask,
     DamageNumber,
