@@ -5,7 +5,7 @@ use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
 #[proc_macro_derive(TemporaryComponent)]
-pub fn hello_world_derive(input: TokenStream) -> TokenStream {
+pub fn temporary_component_derive(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
     let name = &ast.ident;
 

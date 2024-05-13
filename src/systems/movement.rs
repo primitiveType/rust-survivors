@@ -6,10 +6,7 @@ use bevy::prelude::{EventReader, KeyCode, Query, Res, Time, Transform, With, Wit
 use bevy_rapier2d::dynamics::Velocity;
 use bevy_rapier2d::prelude::*;
 
-use crate::components::{
-    AbilityLevel, BaseMoveSpeed, Cold, FollowPlayer, MoveSpeed, ParentMoveSpeedMultiplier,
-    PassiveXPMultiplier, Player, XPMultiplier, XPPickupRadius, XPVacuum, XP,
-};
+use crate::components::{AbilityLevel, BaseMoveSpeed, Cold, FollowPlayer, MoveSpeed, ParentMoveSpeedMultiplier, PassiveXPMultiplier, Player, XPMultiplier, XPPickupRadius, XPVacuum, XP, Dashing};
 use crate::extensions::vectors::to_vec2;
 use crate::systems::guns::LevelableData;
 
@@ -112,13 +109,13 @@ pub fn _debug_collisions(mut collision_events: EventReader<CollisionEvent>) {
         }
     }
 }
-
+// #[bevycheck::system]
 pub fn move_player(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<(&mut Velocity, &MoveSpeed), With<Player>>,
+    mut query: Query<(&mut Velocity, &MoveSpeed, Option<&Dashing>), With<Player>>,
     time: Res<Time>,
 ) {
-    let (mut velocity, move_speed) = query.single_mut();
+    let (mut velocity, move_speed, dashing) = query.single_mut();
     let mut direction: Vec2 = Default::default();
 
     if keyboard_input.pressed(KeyCode::KeyA) {
@@ -137,9 +134,10 @@ pub fn move_player(
         direction.y += 1.0;
         direction = direction.normalize();
     }
-
+    let mut dash_multi = 1.0f32;
+    if dashing.is_some(){ dash_multi = 6.0f32;}
     // Calculate the new horizontal position based on player input
-    let new_player_velocity: Vec2 = direction * move_speed.value;
+    let new_player_velocity: Vec2 = direction * move_speed.value * dash_multi;
 
     velocity.linvel = new_player_velocity;
 }

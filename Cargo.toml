@@ -25,13 +25,16 @@ bevycheck = "0.5.2"
 tracing-tracy = "0.11.0"
 bevy_tween = "0.2.0"
 spew = "0.5.1"
-bevy_egui = "0.25.0"
+bevy_egui = { version = "0.27.0", features = ["immutable_ctx", "default"] }
 bevy_ecs_ldtk = {git = "https://github.com/Trouv/bevy_ecs_ldtk", branch = "main", features = ["atlas"]}
 #bevy_proto = { version = "0.11.0", features = ["default", "yaml"] }//doesn't support bevy 13
 bevy-trait-query = "0.5.1"
 temporary_component_derive = {path= "temporary_component_derive"}
 tracing-subscriber = "0.3.18"
 tracing = "0.1.40"
+egui_extras = { version = "0.27.2", features = ["all_loaders"] }
+image = { version = "0.25.1", features = ["jpeg", "png"] } # Add the types you want support for
+egui = "0.27.2"
 [patch.crates-io]
 bevy_ecs_tilemap = { git = "https://github.com/StarArawn/bevy_ecs_tilemap", branch = "main" }
 

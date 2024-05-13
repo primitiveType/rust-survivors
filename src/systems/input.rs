@@ -3,7 +3,7 @@ use bevy::ecs::entity;
 use bevy::math::{Vec2Swizzles, Vec3Swizzles};
 use bevy::prelude::{Camera, GlobalTransform, KeyCode, Query, Res, ResMut, Resource, Transform, Vec2, Window, With};
 use bevy::window::PrimaryWindow;
-use crate::components::{Player, Reloadable, Reloading};
+use crate::components::{DashAbility, Dashing, Player, Reloadable, Reloading};
 use bevy::prelude::*;
 use bevy::prelude::KeyCode::KeyR;
 use bevy::time::Timer;
@@ -12,6 +12,7 @@ use bevy::time::Timer;
 pub struct AimDirection(pub Vec2);
 
 const RELOAD_KEY : KeyCode = KeyR;
+const DASH_KEY : KeyCode = KeyCode::Space;
 pub fn get_aim_direction(
     player: Query<(&Transform), With<Player>>,
     mut mycoords: ResMut<AimDirection>,
@@ -54,5 +55,26 @@ query : Query<(Entity, &Reloadable)>,
         for (entity, gun) in query.iter() {
          commands.entity(entity).insert(Reloading{ timer: Timer::from_seconds(gun.reload_seconds_per_bullet, TimerMode::Repeating) });
         }
+    }
+
+}
+
+pub fn input_dash_system(keyboard_input: Res<ButtonInput<KeyCode>>,
+                         query : Query<(Entity, &Player), Without<Dashing>>,
+                         mut ability_query: Query<&mut DashAbility>,
+                         time: Res<Time>,
+                         mut commands: Commands){
+    let mut dash = ability_query.single_mut();
+    dash.cooldown.tick(time.delta());
+    if(!dash.cooldown.finished()){
+        return;
+    }
+    if keyboard_input.pressed(DASH_KEY) {
+        info!("dash started!");
+        for (entity, gun) in query.iter() {
+            commands.entity(entity).insert(Dashing{ timer: Timer::from_seconds(0.25_f32, TimerMode::Once) });
+
+        }
+        dash.cooldown.reset();
     }
 }

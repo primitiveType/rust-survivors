@@ -1,4 +1,4 @@
-use crate::components::{AbilityLevel, Ammo, AttackSpeed, Cooldown, FireBallGun, Flask, IceBallGun, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier, PassiveXPMultiplier, PistolGun, Player, Reloadable, XPPickupRadius, XPVacuum};
+use crate::components::{AbilityLevel, Ammo, AttackSpeed, Cooldown, DashAbility, FireBallGun, Flask, IceBallGun, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier, PassiveXPMultiplier, PistolGun, Player, Reloadable, XPPickupRadius, XPVacuum};
 use crate::constants::{
     PIXEL_SCALE, SCOREBOARD_FONT_SIZE, SCOREBOARD_TEXT_PADDING, SCORE_COLOR, TEXT_COLOR,
 };
@@ -12,9 +12,10 @@ use bevy_rapier2d::prelude::CollisionGroups;
 
 // Add the game's entities to our world
 // #[bevycheck::system]
-pub fn setup(mut commands: Commands, atlases: ResMut<Atlases>, asset_server: Res<AssetServer>) {
+pub fn setup(mut commands: Commands, atlases: ResMut<Atlases>, asset_server: Res<AssetServer>, mut contexts: EguiContexts) {
     // Camera
     let camera = commands.spawn(Camera2dBundle::default());
+    egui_extras::install_image_loaders(contexts.ctx());
 
     // Sound
     // let ball_collision_sound = asset_server.load("sounds/breakout_collision.ogg");
@@ -82,6 +83,14 @@ fn spawn_player(commands: &mut Commands, atlases: ResMut<Atlases>, position: Vec
     commands
         .spawn(bundles::PlayerBundle::with_sprite(atlases, position))
         .with_children(|parent| {
+            parent.spawn((
+                DashAbility { cooldown: Timer::from_seconds(2f32, TimerMode::Once) },
+                Name::new("Dash"),
+                AbilityLevel {
+                    level: 1,
+                    ..default()
+                },
+            ));
             //fireball gun
             parent.spawn((
                 Cooldown::with_cooldown(500),
@@ -104,7 +113,6 @@ fn spawn_player(commands: &mut Commands, atlases: ResMut<Atlases>, position: Vec
                 },
                 SpatialBundle { ..default() },
                 Ammo{
-                    cur_amount: 6,
                     max_amount: 6,
                 },
                 Reloadable{ reload_seconds_per_bullet: 0.25_f32 }

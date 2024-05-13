@@ -38,13 +38,13 @@ use constants::BACKGROUND_COLOR;
 use crate::bundles::{
     CorpseSpawnData, EnemySpawnData, Object, PlayerBundle, PlayerSpawn, XPSpawnData,
 };
-use crate::components::Cold;
+use crate::components::{Cold, Dashing};
 use crate::initialization::inspector::add_inspector;
 use crate::initialization::load_prefabs::{Atlases, Enemies};
 use crate::physics::walls::Wall;
 use crate::systems::guns::{
     DamageTextSpawnData, Damaged, FireballSpawnData, FlaskSpawnData, IceballSpawnData,
-    ParticleSpawnData,PistolBulletSpawnData
+    ParticleSpawnData, PistolBulletSpawnData,
 };
 use crate::{initialization::register_types::register_types, systems::*};
 
@@ -74,8 +74,10 @@ fn main() {
     // this method needs to be inside main() method
     env::set_var("RUST_BACKTRACE", "full");
     setup_logging();
-
     //TODO:
+    //make abilities triggered?_
+    //toy with reload mechanics?
+    //add better ui for cooldowns and stuff?
     //replace ice spike sprite
     //replace molotov sprite
     //1 minute timer
@@ -212,54 +214,59 @@ fn main() {
             (
                 input::get_aim_direction,
                 input::input_reload_gun_system,
+                input::input_dash_system,
             ),
         )
         .add_systems(
             Update,
             (ui::update_player_health_ui,
-            ui::show_bullets,)
+             ui::show_bullets, ),
         )
         .add_systems(
-            //InGame update loop
             Update,
-            (
-                // spawning::draw_level_bounds,
-                spawning::set_level_bounds,
-                physics::walls::spawn_wall_collision,
-                spawning::move_player_to_spawn_point,
-                (
-                    stats::update_move_speed_from_passive,
-                    movement::apply_move_speed_multiplier,
-                    movement::move_player,
-                    movement::set_follower_velocity,
-                    stats::move_speed_mod_affects_animation_speed,
-                )
-                    .chain(),
-                // movement::_debug_collisions,
-                guns::reload_gun_system,
-                guns::deal_damage_on_collide,
-                guns::deal_damage_on_collide_start,
-                guns::apply_cold_on_collide,
-                guns::apply_cold_on_collide_start,
-                movement::apply_xp_radius,
-                movement::apply_xp_multiplier,
-                stats::pick_up_xp_on_touch,
-                stats::vacuum_xp_on_touch,
-                stats::level_up,
-                ui_example_system,
-                ui::fade_text,
-                (
-                    stats::reset_sprite_color,
-                    stats::cold_objects_are_blue,
-                    stats::highlight_damaged,
-                )
-                    .chain(),
-                (movement::camera_follow).after(PhysicsSet::Writeback),
-                guns::process_temporary_component::<Damaged>,
-                guns::process_temporary_component::<Cold>,
-            )
+            (guns::process_temporary_component::<Damaged>,
+             guns::process_temporary_component::<Cold>,
+             guns::process_temporary_component::<Dashing>, )
                 .run_if(in_state(AppState::InGame)),
         )
+    .add_systems(
+        //InGame update loop
+        Update,
+        (
+            // spawning::draw_level_bounds,
+            spawning::set_level_bounds,
+            physics::walls::spawn_wall_collision,
+            spawning::move_player_to_spawn_point,
+            (
+                stats::update_move_speed_from_passive,
+                movement::apply_move_speed_multiplier,
+                movement::move_player,
+                movement::set_follower_velocity,
+                stats::move_speed_mod_affects_animation_speed,
+            )
+                .chain(),
+            // movement::_debug_collisions,
+            guns::reload_gun_system,
+            guns::deal_damage_on_collide,
+            guns::deal_damage_on_collide_start,
+            guns::apply_cold_on_collide,
+            guns::apply_cold_on_collide_start,
+            movement::apply_xp_radius,
+            movement::apply_xp_multiplier,
+            stats::pick_up_xp_on_touch,
+            stats::vacuum_xp_on_touch,
+            stats::level_up,
+            ui::fade_text,
+            (
+                stats::reset_sprite_color,
+                stats::cold_objects_are_blue,
+                stats::highlight_damaged,
+            )
+                .chain(),
+            (movement::camera_follow).after(PhysicsSet::Writeback),
+        )
+            .run_if(in_state(AppState::InGame)),
+    )
         .add_systems(
             Update,
             (
@@ -308,13 +315,15 @@ fn main() {
 // A layer that logs events to stdout using the human-readable "pretty"
 // format.
 fn setup_logging() {
-
     let stdout_log = tracing_subscriber::fmt::layer()
         .pretty();
 
     // A layer that logs events to a file.
     let file = File::create("debug.log");
-    let file = match file  {Ok(file) => file,Err(error) => panic!("Error: {:?}",error),};
+    let file = match file {
+        Ok(file) => file,
+        Err(error) => panic!("Error: {:?}", error),
+    };
     let debug_log = tracing_subscriber::fmt::layer()
         .with_writer(Arc::new(file));
 
@@ -343,7 +352,5 @@ fn setup_logging() {
             }))
         )
         .init();
-
-
 }
-fn ui_example_system(contexts: EguiContexts) {}
+

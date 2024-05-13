@@ -22,11 +22,12 @@ use bevy_rapier2d::plugin::RapierContext;
 use bevy_rapier2d::prelude::{CollidingEntities, QueryFilter, Velocity};
 use rand::Rng;
 use std::time::Duration;
+use bevy::hierarchy::Children;
 use bevy::utils::hashbrown::HashSet;
 use temporary_component_derive::*;
 
 use crate::bundles::{DestroyAfterDeathAnimation, Object, PhysicalBundle};
-use crate::components::{AbilityLevel, Ammo, ApplyColdOnTouch, AttackSpeed, Bullet, BulletBundle, Cold, Cooldown, DamageOnTouch, Enemy, Expired, FireBallGun, Flask, FlaskProjectileBundle, Health, IceBallGun, Lifetime, MoveSpeed, PistolGun, Reloadable, Reloading, TemporaryComponent};
+use crate::components::{AbilityLevel, Ammo, ApplyColdOnTouch, AttackSpeed, Bullet, BulletBundle, Chambered, Cold, Cooldown, DamageOnTouch, Enemy, Expired, FireBallGun, Flask, FlaskProjectileBundle, Health, IceBallGun, Lifetime, MoveSpeed, PistolGun, Reloadable, Reloading, TemporaryComponent};
 use crate::constants::{BACKGROUND_PROJECTILE_LAYER, DAMAGE_TEXT_LAYER, PIXEL_SCALE};
 use crate::extensions::spew_extensions::{Spawn, Spawner};
 use crate::extensions::vectors::to_vec2;
@@ -123,8 +124,8 @@ pub fn iceball_gun(
                 delta = delta.normalize();
 
                 let mut spawn_data = IceballSpawnData::get_data_for_level(level.level);
-                spawn_data.position = translation;
-                spawn_data.direction = delta;
+                spawn_data.data.position = translation;
+                spawn_data.data.direction = delta;
                 spawner.spawn(Object::Iceball, spawn_data);
                 // spawn_fireball(&mut commands, &gun, translation, delta, &atlases);
             }
@@ -174,59 +175,66 @@ pub fn fireball_gun(
 
 pub fn pistol_gun(
     aim_direction: Res<AimDirection>,
-    mut query: Query<(&mut Cooldown, &GlobalTransform, &PistolGun, &AbilityLevel, &mut Ammo)>,
+    mut query: Query<(&mut Cooldown, &GlobalTransform, &PistolGun, &AbilityLevel, &Ammo, &Children)>,
     mut spawner: Spawner<PistolBulletSpawnData>,
+    mut commands: Commands,
     rapier_context: Res<RapierContext>,
 ) {
-    for (ability, transform, gun, level, mut ammo) in query.iter_mut() {
-        if level.level == 0 || ammo.cur_amount == 0 {
+    for (ability, transform, gun, level, mut ammo, children) in query.iter_mut() {
+        if level.level == 0 || children.len() == 0 {
             continue;
         }
         if ability.timer.just_finished() {
             let translation = transform.translation();
-            if let Some((entity, projection)) = rapier_context.project_point(
-                to_vec2(translation),
-                true,
-                QueryFilter {
-                    flags: Default::default(),
-                    groups: Some(CollisionGroups::new(game_layer::ENEMY, game_layer::ENEMY)), //is this filter correct?
-                    exclude_collider: None,
-                    exclude_rigid_body: None,
-                    predicate: None,
-                },
-            ) {
-                // The collider closest to the point has this `handle`.
-                // info!("Projected point on entity {:?}. Point projection: {}", entity, projection.point);
-                // info!("Point was inside of the collider shape: {}", projection.is_inside);
+            // if let Some((entity, projection)) = rapier_context.project_point(
+            //     to_vec2(translation),
+            //     true,
+            //     QueryFilter {
+            //         flags: Default::default(),
+            //         groups: Some(CollisionGroups::new(game_layer::ENEMY, game_layer::ENEMY)), //is this filter correct?
+            //         exclude_collider: None,
+            //         exclude_rigid_body: None,
+            //         predicate: None,
+            //     },
+            // ) {
+            // The collider closest to the point has this `handle`.
+            // info!("Projected point on entity {:?}. Point projection: {}", entity, projection.point);
+            // info!("Point was inside of the collider shape: {}", projection.is_inside);
+            //
+            // let mut delta = projection.point - to_vec2(translation);
+            // delta = delta.normalize();
 
-                let mut delta = projection.point - to_vec2(translation);
-                delta = delta.normalize();
-
-                let mut spawn_data = PistolBulletSpawnData::get_data_for_level(level.level);
-                spawn_data.position = translation;
-                spawn_data.direction = aim_direction.0;
-                spawner.spawn(Object::PistolBullet, spawn_data);
-                ammo.cur_amount -= 1;
-                // spawn_fireball(&mut commands, &gun, translation, delta, &atlases);
-            }
+            let bullet = children.get(0).unwrap();
+            let mut spawn_data = PistolBulletSpawnData::get_data_for_level(level.level);
+            spawn_data.data.position = translation;
+            spawn_data.data.direction = aim_direction.0;
+            spawn_data.bullet = Some(*bullet);
+            spawner.spawn(Object::PistolBullet, spawn_data);
+            commands.entity(*bullet).remove_parent();
+            // spawn_fireball(&mut commands, &gun, translation, delta, &atlases);
         }
     }
 }
 
- // #[bevycheck::system]
+
+// #[bevycheck::system]
 pub fn reload_gun_system(
-    mut query: Query<(Entity, &mut Ammo, &mut Reloading)>,
+    mut query: Query<(Entity, &mut Ammo, &mut Reloading, Option<&Children>)>,
     time: Res<Time>,
     mut commands: Commands,
 ) {
-    for (entity, mut ammo, mut reload) in query.iter_mut() {
+    for (entity, mut ammo, mut reload, children) in query.iter_mut() {
         reload.timer.tick(time.delta());
-        if (ammo.cur_amount == ammo.max_amount) {
+
+        if (children.is_some() && children.unwrap().len() as u16 == ammo.max_amount) {
             commands.entity(entity).remove::<Reloading>();
             continue;
         }
         if (reload.timer.just_finished()) {
-            ammo.cur_amount += 1;
+            //add bullet
+            //get stats from player?
+            //figure out queued statuses for reloaded bullets
+            commands.spawn((Chambered {}, ApplyColdOnTouch { multiplier: 1.0, seconds: 2.0 })).set_parent(entity);
         }
     }
 }
@@ -297,6 +305,7 @@ pub struct Damaged {
     pub timer: Timer,
 }
 
+///Be sure to register all T types in main!
 pub fn process_temporary_component<T>(
     mut damaged: Query<(Entity, &mut T)>,
     time: Res<Time>,
@@ -677,9 +686,7 @@ pub struct FireballSpawnData {
     pub bullet_speed: f32,
 }
 
-//TODO: can I use one projectile spawn data and parametirize the graphic?
-//probably need to just bundle the data in each of these and keep them as separate types
-pub struct PistolBulletSpawnData {
+pub struct BulletSpawnData {
     pub damage: f32,
     position: Vec3,
     direction: Vec2,
@@ -688,30 +695,34 @@ pub struct PistolBulletSpawnData {
     pub bullet_speed: f32,
 }
 
+//TODO: can I use one projectile spawn data and parametirize the graphic?
+//probably need to just bundle the data in each of these and keep them as separate types
+pub struct PistolBulletSpawnData {
+    pub data: BulletSpawnData,
+    pub bullet: Option<Entity>,
+}
+
 pub struct IceballSpawnData {
-    pub damage: f32,
     pub slow_amount: f32,
     pub slow_seconds: f32,
     pub bullet_lifetime_seconds: f32,
-    position: Vec3,
-    direction: Vec2,
-    pub bullet_size: f32,
-    pub pierce: u8,
-    pub bullet_speed: f32,
+    pub data: BulletSpawnData,
 }
 
 impl LevelableData for IceballSpawnData {
     fn get_data_for_level(level: u8) -> Self {
         Self {
-            damage: 0.0,
             slow_amount: 0.4,
             slow_seconds: 1.0,
             bullet_lifetime_seconds: 2.0,
-            position: Default::default(),
-            direction: Default::default(),
-            bullet_size: 1.0,
-            pierce: level.clamp(1, 255) - 1,
-            bullet_speed: 400.0 + (level as f32 * 10.0),
+            data: BulletSpawnData {
+                damage: 0.0,
+                position: Default::default(),
+                direction: Default::default(),
+                bullet_size: 1.0,
+                pierce: level.clamp(1, 255) - 1,
+                bullet_speed: 400.0 + (level as f32 * 10.0),
+            },
         }
     }
 }
@@ -720,12 +731,16 @@ impl LevelableData for PistolBulletSpawnData {
     fn get_data_for_level(mut level: u8) -> Self {
         level = level - 1;
         Self {
-            damage: 1.0 + (level as f32).floor(),
-            position: Default::default(),
-            direction: Default::default(),
-            bullet_size: 1.0 + (level as f32 * 0.1_f32),
-            pierce: (level as f32 * 0.25).floor() as u8,
-            bullet_speed: 10_000.0 + (level as f32 * 10.0),
+            data: BulletSpawnData {
+                damage: 1.0 + (level as f32).floor(),
+                position: Default::default(),
+                direction: Default::default(),
+                bullet_size: 1.0 + (level as f32 * 0.1_f32),
+                pierce: (level as f32 * 0.25).floor() as u8,
+                bullet_speed: 10_000.0 + (level as f32 * 10.0),
+            }
+            ,
+            bullet: None,
         }
     }
 }
@@ -749,7 +764,7 @@ pub fn spawn_iceball(
     atlases: ResMut<Atlases>,
     mut commands: Commands,
 ) {
-    let speed = data.bullet_speed;
+    let speed = data.data.bullet_speed;
     let base_size = 2.0;
 
     let bundle = BulletBundle {
@@ -761,9 +776,9 @@ pub fn spawn_iceball(
                 .expect("failed to find asset for bullet!")
                 .clone(),
             sprite_bundle: SpriteSheetBundle {
-                transform: Transform::from_translation(data.position).with_scale(Vec3::new(
-                    base_size * data.bullet_size,
-                    base_size * data.bullet_size,
+                transform: Transform::from_translation(data.data.position).with_scale(Vec3::new(
+                    base_size * data.data.bullet_size,
+                    base_size * data.data.bullet_size,
                     0.0,
                 )),
                 ..default()
@@ -772,10 +787,10 @@ pub fn spawn_iceball(
             ..Default::default()
         },
         physical: PhysicalBundle {
-            collider: Collider::ball(data.bullet_size),
+            collider: Collider::ball(data.data.bullet_size),
             restitution: Restitution::new(1.0),
             velocity: Velocity {
-                linvel: data.direction * speed,
+                linvel: data.data.direction * speed,
                 angvel: 0.0,
             },
             collision_layers: CollisionGroups::new(
@@ -787,14 +802,14 @@ pub fn spawn_iceball(
             ..default()
         },
         bullet: Bullet {
-            pierce: data.pierce,
+            pierce: data.data.pierce,
             ..default()
         },
 
         name: Name::new("snowball"),
         sensor: Default::default(),
         damage: DamageOnTouch {
-            value: data.damage,
+            value: data.data.damage,
             ..default()
         },
         lifetime: Lifetime::from_seconds(data.bullet_lifetime_seconds),
@@ -810,6 +825,7 @@ pub fn spawn_iceball(
 //TODO: get rid of copy-paste
 pub fn spawn_pistol_bullet(
     In(data): In<PistolBulletSpawnData>,
+    ice_query: Query<&ApplyColdOnTouch, With<Chambered>>,
     atlases: ResMut<Atlases>,
     mut commands: Commands,
 ) {
@@ -819,15 +835,15 @@ pub fn spawn_pistol_bullet(
         .get("fireball")
         .expect("failed to find asset for bullet!")
         .clone();
-    let speed = data.bullet_speed;
+    let speed = data.data.bullet_speed;
     let bundle = BulletBundle {
         sprite_sheet: AnimatedSpriteBundle {
             animator: SpriteAnimator::from_anim(AnimHandle::from_index(0)),
             spritesheet: sprite,
             sprite_bundle: SpriteSheetBundle {
-                transform: Transform::from_translation(data.position).with_scale(Vec3::new(
-                    base_size * data.bullet_size,
-                    base_size * data.bullet_size,
+                transform: Transform::from_translation(data.data.position).with_scale(Vec3::new(
+                    base_size * data.data.bullet_size,
+                    base_size * data.data.bullet_size,
                     1.0,
                 )),
                 ..default()
@@ -836,10 +852,10 @@ pub fn spawn_pistol_bullet(
             ..Default::default()
         },
         physical: PhysicalBundle {
-            collider: Collider::ball(PIXEL_SCALE * data.bullet_size),
+            collider: Collider::ball(PIXEL_SCALE * data.data.bullet_size),
             restitution: Restitution::new(1.0),
             velocity: Velocity {
-                linvel: data.direction * speed,
+                linvel: data.data.direction * speed,
                 angvel: 0.0,
             },
             collision_layers: CollisionGroups::new(
@@ -851,19 +867,24 @@ pub fn spawn_pistol_bullet(
             ..default()
         },
         bullet: Bullet {
-            pierce: data.pierce,
+            pierce: data.data.pierce,
             ..default()
         },
 
         name: Name::new("fireball"),
         sensor: Default::default(),
         damage: DamageOnTouch {
-            value: data.damage,
+            value: data.data.damage,
             ..default()
         },
         lifetime: Lifetime::from_seconds(2.0),
     };
-    commands.spawn(bundle);
+
+
+    let mut spawn = commands.spawn(bundle);
+    if let Ok(ice) = ice_query.get(data.bullet.unwrap()) {
+        spawn.insert(ice.clone());
+    }
 }
 
 pub fn spawn_fireball(

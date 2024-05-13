@@ -41,6 +41,7 @@ impl Cooldown {
     pub fn display_seconds(&self) -> String {
         self.timer.duration().as_secs_f32().to_string()
     }
+
 }
 
 #[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
@@ -97,16 +98,25 @@ pub struct Reloadable {
     pub reload_seconds_per_bullet: f32,
 }
 
-#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+#[derive(Component, Reflect, Serialize, Deserialize, Clone, Default)]
 pub struct Reloading {
     pub timer : Timer,
 }
+#[derive(Component, Reflect, Serialize, Deserialize, Clone, Default, TemporaryComponent)]
+pub struct Dashing {
+    pub timer : Timer,
+}
+#[derive(Component, Reflect, Serialize, Deserialize, Clone, Default)]
+pub struct DashAbility{
+    pub cooldown : Timer,
+}
 #[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct Ammo {
-    pub cur_amount : u16,
     pub max_amount : u16
 }
-
+#[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct Chambered {
+}
 #[derive(Component, Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct IceBallGun {}
 

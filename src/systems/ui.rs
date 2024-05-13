@@ -1,10 +1,11 @@
 use bevy::prelude::*;
 use bevy_asepritesheet::core::SpriteAnimController;
-use bevy_egui::egui::emath;
+use bevy_egui::egui::{emath, TextureOptions};
 use bevy_egui::{egui, EguiContexts};
+use egui::{Color32, SizeHint, TextureFilter};
 use rand::seq::IteratorRandom;
 
-use crate::components::{AbilityLevel, Ammo, Health, HealthUi, Lifetime, Player, XP};
+use crate::components::{AbilityLevel, Ammo, ApplyColdOnTouch, Chambered, Cooldown, Health, HealthUi, Lifetime, Player, XP};
 use crate::AppState;
 use serde::{Deserialize, Serialize};
 
@@ -52,18 +53,62 @@ fn button_text(_asset_server: &Res<AssetServer>, text: &str) -> TextBundle {
 }
 
 pub fn show_bullets(
-    player_query: Query<(&Ammo)>,
+    ammo_query: Query<(&Ammo, Option<&Children>)>,
+    bullet_query: Query<(&Chambered, Option<&ApplyColdOnTouch>)>,
+    cooldown_query: Query<(&Cooldown, &Name, &AbilityLevel)>,
     mut contexts: EguiContexts,
 ) {
-    let ammo = player_query.single();
-    egui::panel::SidePanel::left("ammo panel").frame(egui::Frame {
-        fill: egui::Color32::from_rgba_unmultiplied(0, 0, 0, 255), // Set background to transparent
+    let panel = egui::panel::SidePanel::left("ammo panel").frame(egui::Frame {
+        fill: egui::Color32::from_rgba_unmultiplied(0, 0, 0, 0), // Set background to transparent
 
         ..Default::default() // Use default settings for other frame properties
-    })
-        .show(contexts.ctx_mut(), |ui| {
-            ui.label(format!("{}/{}", ammo.cur_amount, ammo.max_amount));
-        });
+    });
+
+
+    let mut new_panel = panel.show(contexts.ctx_mut(), |ui| {
+        for (cd, name, level) in cooldown_query.iter() {
+            if (level.level == 0) {
+                continue;
+            }
+            let fraction = cd.timer.fraction();
+            ui.label(format!("{0} : {1:.2}/{2:.2}", name, cd.timer.elapsed().as_secs_f32(), cd.display_seconds()));
+            ui.add(egui::widgets::ProgressBar::new(fraction).show_percentage());
+        }
+        let label_height = 8;
+
+
+        let (clip, maybe_bullets) = ammo_query.single();
+        // Add a flexible space to push the next elements to the bottom
+        let bullet_height = 20.0;
+
+        if let Some(bullets) = maybe_bullets
+        {
+            let num_bullets: usize = bullets.len();
+            ui.add_space(ui.available_size().y - (num_bullets as f32 * (bullet_height + ui.style().spacing.item_spacing.y)));
+            for bullet in bullets.iter() {
+                let Ok((_, cold)) = bullet_query.get(*bullet) else { todo!() };
+                let handle = egui::include_image!("E:/Unity Projects/rust-survivors/assets/sprites/ui-bullet.png");
+
+                let mut tint =egui::Color32::from_rgb(255, 255, 255);
+
+                if cold.is_some() {
+                    tint = egui::Color32::from_rgb(0, 0, 255);
+                }
+
+                ui.add(
+                    egui::Image::new(handle)
+                        .texture_options(TextureOptions {
+                            magnification: TextureFilter::Nearest,
+                            minification: TextureFilter::Nearest,
+                            wrap_mode: Default::default(),
+                        })
+                        .max_height(bullet_height)
+                        .tint(tint)
+                );
+            }
+        }
+
+    });
 }
 
 pub fn button_system(

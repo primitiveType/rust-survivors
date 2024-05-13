@@ -300,26 +300,26 @@ pub fn update_level_descriptions_pistol(
         push_stat_block(
             &mut description,
             "Damage",
-            current_level.damage,
-            next_level.damage,
+            current_level.data.damage,
+            next_level.data.damage,
         );
         push_stat_block(
             &mut description,
             "Bullet Speed",
-            current_level.bullet_speed,
-            next_level.bullet_speed,
+            current_level.data.bullet_speed,
+            next_level.data.bullet_speed,
         );
         push_stat_block(
             &mut description,
             "Size",
-            current_level.bullet_size,
-            next_level.bullet_size,
+            current_level.data.bullet_size,
+            next_level.data.bullet_size,
         );
         push_stat_block(
             &mut description,
             "Pierce",
-            current_level.pierce,
-            next_level.pierce,
+            current_level.data.pierce,
+            next_level.data.pierce,
         );
 
         ability.description = description;
@@ -355,27 +355,27 @@ pub fn update_level_descriptions_iceball(
         push_stat_block(
             &mut description,
             "Damage",
-            current_level.damage,
-            next_level.damage,
+            current_level.data.damage,
+            next_level.data.damage,
         );
 
         push_stat_block(
             &mut description,
             "Bullet Speed",
-            current_level.bullet_speed,
-            next_level.bullet_speed,
+            current_level.data.bullet_speed,
+            next_level.data.bullet_speed,
         );
         push_stat_block(
             &mut description,
             "Size",
-            current_level.bullet_size,
-            next_level.bullet_size,
+            current_level.data.bullet_size,
+            next_level.data.bullet_size,
         );
         push_stat_block(
             &mut description,
             "Pierce",
-            current_level.pierce,
-            next_level.pierce,
+            current_level.data.pierce,
+            next_level.data.pierce,
         );
 
         ability.description = description;
