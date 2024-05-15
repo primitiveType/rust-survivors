@@ -34,7 +34,7 @@ pub struct Cooldown {
 impl Cooldown {
     pub fn from_seconds(seconds: f32) -> Self {
         Self {
-            timer: Timer::new(Duration::from_secs_f32(seconds), Repeating),
+            timer: Timer::new(Duration::from_secs_f32(seconds), Once),
         }
     }
 
@@ -134,7 +134,7 @@ pub struct AttackSpeed {
 impl Default for Cooldown {
     fn default() -> Self {
         Self {
-            timer: bevy::prelude::Timer::new(Duration::from_secs(2_u64), Repeating),
+            timer: bevy::prelude::Timer::new(Duration::from_secs(2_u64), Once),
             ..default()
         }
     }
@@ -143,7 +143,7 @@ impl Default for Cooldown {
 impl Cooldown {
     pub fn with_cooldown(ms: u64) -> Self {
         Self {
-            timer: bevy::prelude::Timer::new(Duration::from_millis(ms), Repeating),
+            timer: bevy::prelude::Timer::new(Duration::from_millis(ms), Once),
         }
     }
 }

@@ -1,5 +1,6 @@
 #![feature(duration_constructors)]
 
+use crate::guns::ShootEvent;
 use crate::physics::walls::WallBundle;
 use bevy_rapier2d::prelude::{CollidingEntities, PhysicsSet, RapierDebugRenderPlugin};
 use std::collections::HashMap;
@@ -47,6 +48,7 @@ use crate::systems::guns::{
     ParticleSpawnData, PistolBulletSpawnData,
 };
 use crate::{initialization::register_types::register_types, systems::*};
+use crate::systems::stats::DeathEvent;
 
 mod components;
 
@@ -194,6 +196,7 @@ fn main() {
                 guns::flask_weapon,
                 // audio::play_collision_sound,
                 //stats
+
                 stats::die_at_zero_health,
                 guns::expire_bullets_on_hit,
                 animation::set_spritesheet_from_animation_info,
@@ -209,6 +212,8 @@ fn main() {
         )
         .add_systems(PreUpdate, (spawning::set_level_bounds))
         .insert_resource(input::AimDirection(Vec2::ZERO))
+        .add_event::<DeathEvent>()
+        .add_event::<ShootEvent>()
         .add_systems(
             Update,
             (
@@ -251,6 +256,9 @@ fn main() {
             guns::deal_damage_on_collide_start,
             guns::apply_cold_on_collide,
             guns::apply_cold_on_collide_start,
+            ((stats::snowball_reload_bullet_if_killed_enemy_is_frozen).before(stats::destroy_dead)
+            .after(guns::apply_cold_on_collide)
+            .after(guns::apply_cold_on_collide_start)),
             movement::apply_xp_radius,
             movement::apply_xp_multiplier,
             stats::pick_up_xp_on_touch,
@@ -286,6 +294,13 @@ fn main() {
                 bevy::window::close_on_esc,
                 dev::log_transitions,
             ),
+        )
+        .add_systems(
+            PostUpdate,
+            (
+                //level up update loop
+                stats::destroy_dead,
+            )
         )
         .add_systems(
             Update,

@@ -6,8 +6,8 @@ resolver = "2"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-#bevy = { version = "0.13.0", features = ["dynamic_linking", "serialize", "trace_tracy"] }
-bevy = { version = "0.13.0", features = ["serialize", "trace_tracy"] }
+bevy = { version = "0.13.0", features = ["dynamic_linking", "serialize", "trace_tracy"] }
+#bevy = { version = "0.13.0", features = ["serialize", "trace_tracy"] }
 
 bevy-inspector-egui = "0.23.4"
 bevy_editor_pls = "0.8.0"

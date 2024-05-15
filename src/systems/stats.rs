@@ -4,12 +4,9 @@ use std::string::String;
 
 use bevy::asset::Assets;
 use bevy::core::Name;
-use bevy::hierarchy::Parent;
+use bevy::hierarchy::{BuildChildren, Children, Parent};
 use bevy::math::{Vec2, Vec3, Vec3Swizzles};
-use bevy::prelude::{
-    default, Changed, Color, ColorMaterial, Commands, Entity, EventReader, Mesh, NextState, Query,
-    ResMut, Sprite, SpriteSheetBundle, Transform, With, Without,
-};
+use bevy::prelude::{default, Changed, Color, ColorMaterial, Commands, Entity, EventReader, Mesh, NextState, Query, ResMut, Sprite, SpriteSheetBundle, Transform, With, Without, EventWriter, Event, GlobalTransform};
 use bevy::time::{Timer, TimerMode};
 use bevy_asepritesheet::animator::{AnimatedSpriteBundle, SpriteAnimator};
 use bevy_asepritesheet::sprite::Spritesheet;
@@ -19,17 +16,58 @@ use bevy_rapier2d::pipeline::CollisionEvent;
 use rand::Rng;
 
 use crate::bundles::{spawn_xp, CorpseBundle, CorpseSpawnData, Object, XPSpawnData};
-use crate::components::{AbilityLevel, BaseMoveSpeed, Cold, Cooldown, Enemy, FireBallGun, Flask, FollowPlayer, GainXPOnTouch, Health, IceBallGun, Lifetime, MoveSpeed, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier, PassiveXPMultiplier, Player, XPMultiplier, XPPickupRadius, XPVacuum, XP, PistolGun};
+use crate::components::{AbilityLevel, BaseMoveSpeed, Cold, Cooldown, Enemy, FireBallGun, Flask, FollowPlayer, GainXPOnTouch, Health, IceBallGun, Lifetime, MoveSpeed, ParentMoveSpeedMultiplier, PassiveMoveSpeedMultiplier, PassiveXPMultiplier, Player, XPMultiplier, XPPickupRadius, XPVacuum, XP, PistolGun, Ammo, Reloading, Chambered, ApplyColdOnTouch};
 use crate::extensions::spew_extensions::{Spawn, Spawner};
 use crate::systems::guns::{Damaged, FireballSpawnData, FlaskSpawnData, IceballSpawnData, LevelableData, ParticleSpawnData, PistolBulletSpawnData};
 use crate::AppState;
 use bevy::log::*;
+use tracing::event;
+
+#[derive(Event)]
+pub struct DeathEvent(Entity);
+
+pub fn destroy_dead(
+    mut commands: Commands,
+    mut event_reader: EventReader<DeathEvent>,
+) {
+    for x in event_reader.read() {
+        commands.entity(x.0).despawn();
+    }
+}
+
+pub fn snowball_reload_bullet_if_killed_enemy_is_frozen(
+    mut commands: Commands,
+    mut query: Query<(Entity, &Ammo, Option<&Children>)>,
+    mut cold_enemies: Query<Entity, With<Cold>>,
+    mut event_reader: EventReader<DeathEvent>,
+    mut snowball_gun: Query<(&IceBallGun, &AbilityLevel)>,
+) {
+    let (gun, ability) = snowball_gun.single();
+    if ability.level == 0{
+    return;}
+    //add a bullet to chamber without triggering a reload
+    for x in event_reader.read() {
+        info!("Enemy died. {:?} ", x.0);
+
+        for cold in cold_enemies.iter(){
+            info!("Enemy is cold... {:?} ", cold);
+
+        }
+        if (cold_enemies.contains(x.0)) {
+            info!("Cold enemy died.");
+            for (entity, _1, _2) in query.iter() {
+                info!("Spawning bullet in chamber.");
+                commands.spawn((Chambered {}, ApplyColdOnTouch { multiplier: 1.0, seconds: 2.0 })).set_parent(entity);
+            }
+        }
+    }
+}
 
 pub fn die_at_zero_health(
     query: Query<(Entity, &Enemy, &Health, &Transform, &Name, &Sprite)>,
-    mut commands: Commands,
     mut spawner: Spawner<CorpseSpawnData>,
     mut xp_spawner: Spawner<XPSpawnData>,
+    mut event_writer: EventWriter<DeathEvent>,
 ) {
     for (entity, enemy, health, transform, name, sprite) in query.iter() {
         if health.value <= 0.0 {
@@ -42,7 +80,8 @@ pub fn die_at_zero_health(
                     flip: sprite.flip_x,
                 },
             );
-            commands.entity(entity).despawn();
+
+            event_writer.send(DeathEvent(entity));
             xp_spawner.spawn(
                 Object::XP,
                 XPSpawnData {
@@ -333,7 +372,7 @@ pub fn update_level_descriptions_iceball(
     for (mut ability, _) in abilities.iter_mut() {
         info!("Updating iceball description.");
         if (ability.level == 0) {
-            ability.description = "Snowball \r\n Throw a snowball that slows enemies.".to_string();
+            ability.description = "Snowball \r\n Throw a snowball that slows enemies.\r\n After unloading a full cylinder, your first bullet applies freeze.".to_string();
             return;
         }
         let current_level = IceballSpawnData::get_data_for_level(ability.level);

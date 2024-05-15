@@ -4,11 +4,7 @@ use bevy::log::*;
 
 use bevy::log::tracing_subscriber::fmt::time;
 use bevy::math::{Vec3, Vec3Swizzles};
-use bevy::prelude::{
-    default, BuildChildren, Color, Commands, Component, Entity, EventReader, GlobalTransform, In,
-    Mut, Query, Res, ResMut, Sprite, SpriteSheetBundle, Text, Text2dBundle, TextStyle, Time,
-    Transform, Vec2, With, Without,
-};
+use bevy::prelude::{default, BuildChildren, Color, Commands, Component, Entity, EventReader, GlobalTransform, In, Mut, Query, Res, ResMut, Sprite, SpriteSheetBundle, Text, Text2dBundle, TextStyle, Time, Transform, Vec2, With, Without, Event};
 use bevy::time::TimerMode::Once;
 use bevy::time::{Timer, TimerMode};
 use bevy_asepritesheet::animator::{AnimFinishEvent, AnimatedSpriteBundle, SpriteAnimator};
@@ -173,45 +169,35 @@ pub fn fireball_gun(
     }
 }
 
+#[derive(Event)]
+pub struct ShootEvent(pub Entity);
+
 pub fn pistol_gun(
     aim_direction: Res<AimDirection>,
     mut query: Query<(&mut Cooldown, &GlobalTransform, &PistolGun, &AbilityLevel, &Ammo, &Children)>,
     mut spawner: Spawner<PistolBulletSpawnData>,
     mut commands: Commands,
     rapier_context: Res<RapierContext>,
+    mut shoot_event: EventReader<ShootEvent>,
 ) {
-    for (ability, transform, gun, level, mut ammo, children) in query.iter_mut() {
-        if level.level == 0 || children.len() == 0 {
-            continue;
-        }
-        if ability.timer.just_finished() {
-            let translation = transform.translation();
-            // if let Some((entity, projection)) = rapier_context.project_point(
-            //     to_vec2(translation),
-            //     true,
-            //     QueryFilter {
-            //         flags: Default::default(),
-            //         groups: Some(CollisionGroups::new(game_layer::ENEMY, game_layer::ENEMY)), //is this filter correct?
-            //         exclude_collider: None,
-            //         exclude_rigid_body: None,
-            //         predicate: None,
-            //     },
-            // ) {
-            // The collider closest to the point has this `handle`.
-            // info!("Projected point on entity {:?}. Point projection: {}", entity, projection.point);
-            // info!("Point was inside of the collider shape: {}", projection.is_inside);
-            //
-            // let mut delta = projection.point - to_vec2(translation);
-            // delta = delta.normalize();
-
-            let bullet = children.get(0).unwrap();
-            let mut spawn_data = PistolBulletSpawnData::get_data_for_level(level.level);
-            spawn_data.data.position = translation;
-            spawn_data.data.direction = aim_direction.0;
-            spawn_data.bullet = Some(*bullet);
-            spawner.spawn(Object::PistolBullet, spawn_data);
-            commands.entity(*bullet).remove_parent();
-            // spawn_fireball(&mut commands, &gun, translation, delta, &atlases);
+    for event in shoot_event.read() {
+        println!("Got shoot event.");
+        for (mut ability, transform, gun, level, mut ammo, children) in query.iter_mut() {
+            if level.level == 0 || children.len() == 0 {
+                continue;
+            }
+            if ability.timer.finished() {
+                ability.timer.reset();
+                let translation = transform.translation();
+                let bullet = children.get(0).unwrap();
+                let mut spawn_data = PistolBulletSpawnData::get_data_for_level(level.level);
+                spawn_data.data.position = translation;
+                spawn_data.data.direction = aim_direction.0;
+                spawn_data.bullet = Some(*bullet);
+                spawner.spawn(Object::PistolBullet, spawn_data);
+                commands.entity(*bullet).remove_parent();
+                // spawn_fireball(&mut commands, &gun, translation, delta, &atlases);
+            }
         }
     }
 }
